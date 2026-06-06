@@ -15,8 +15,11 @@ import {
   catalyst, catalystMax, symbioteStage,
   gardenPlots, gardenMature, gardenProgress,
   colonyNodes, colonyCount,
+  machineLevel, machineCost, dronesClicksPerSec, dronesPerSec,
+  automatorOwned, automatorOn,
 } from "./economy.js";
 import { COLONY_NODES } from "./data/colony.js";
+import { DRONES, AUTOMATORS, FACTORY } from "./data/machines.js";
 import { SEEDS, SEED_BY_ID } from "./data/garden.js";
 import { HELIX_NODES } from "./data/helix.js";
 import { SPELLS } from "./data/spells.js";
@@ -83,6 +86,7 @@ export function initUI(handlers) {
   el.symbioteModal = document.getElementById("symbiote-modal");
   el.gardenModal = document.getElementById("garden-modal");
   el.colonyModal = document.getElementById("colony-modal");
+  el.machinesModal = document.getElementById("machines-modal");
   el.genomeModal = document.getElementById("genome-modal");
   el.nodeList = document.getElementById("node-list");
   el.speciesList = document.getElementById("species-list");
@@ -133,6 +137,8 @@ export function initUI(handlers) {
   document.getElementById("garden-close").addEventListener("click", () => el.gardenModal.classList.add("hidden"));
   document.getElementById("colony-btn").addEventListener("click", () => openColony());
   document.getElementById("colony-close").addEventListener("click", () => el.colonyModal.classList.add("hidden"));
+  document.getElementById("machines-btn").addEventListener("click", () => openMachines());
+  document.getElementById("machines-close").addEventListener("click", () => el.machinesModal.classList.add("hidden"));
   document.getElementById("splice-close").addEventListener("click", () => el.spliceModal.classList.add("hidden"));
   document.getElementById("splice-go").addEventListener("click", () => {
     if (spliceSelA && spliceSelB) uiHandlers.onSplice(spliceSelA, spliceSelB);
@@ -231,6 +237,64 @@ export function renderColony() {
       <div class="node-desc">${n.desc}</div>`;
     if (!e.claimed && e.unlocked && e.affordable) row.addEventListener("click", () => uiHandlers.onClaimColony(n.id));
     list.appendChild(row);
+  }
+}
+
+// ---- Automation Bay (drones + automators + factory) ----
+export function openMachines() { renderMachines(); el.machinesModal.classList.remove("hidden"); }
+export function renderMachines() {
+  // summary line
+  const cps = dronesClicksPerSec();
+  document.getElementById("mach-summary").textContent =
+    cps > 0 ? `${cps.toFixed(1)} auto-clicks/sec → +${formatNumber(dronesPerSec())}/sec` : "No drones yet — buy one to auto-click.";
+
+  // drones
+  const dl = document.getElementById("mach-drones");
+  dl.innerHTML = "";
+  for (const d of DRONES) {
+    const lvl = machineLevel(d.id);
+    const cost = machineCost(d.id);
+    const aff = (state.biomass || 0) >= cost;
+    const row = document.createElement("div");
+    row.className = "node" + (aff ? "" : " broke");
+    row.innerHTML = `<div class="node-top"><span>${d.name}${lvl ? ` <b class="mk-lvl">Lv ${lvl}</b>` : ""}</span>
+        <span class="node-cost">${formatNumber(cost)}</span></div>
+      <div class="node-desc">${d.desc}${lvl ? ` — now +${(lvl * d.cps).toFixed(1)}/sec` : ""}</div>`;
+    if (aff) row.addEventListener("click", () => uiHandlers.onBuyMachine(d.id));
+    dl.appendChild(row);
+  }
+
+  // automators
+  const al = document.getElementById("mach-autos");
+  al.innerHTML = "";
+  for (const a of AUTOMATORS) {
+    const owned = automatorOwned(a.id);
+    const on = automatorOn(a.id);
+    const aff = (state.biomass || 0) >= a.cost;
+    const row = document.createElement("div");
+    row.className = "node" + (owned ? " maxed" : (aff ? "" : " broke"));
+    row.innerHTML = `<div class="node-top"><span>${a.icon} ${a.name}</span>
+        <span class="node-cost">${owned ? (on ? "● ON" : "○ OFF") : formatNumber(a.cost)}</span></div>
+      <div class="node-desc">${a.desc}</div>`;
+    if (!owned && aff) row.addEventListener("click", () => uiHandlers.onBuyAutomator(a.id));
+    else if (owned) row.addEventListener("click", () => uiHandlers.onToggleAutomator(a.id));
+    al.appendChild(row);
+  }
+
+  // factory
+  const fl = document.getElementById("mach-factory");
+  fl.innerHTML = "";
+  for (const f of FACTORY) {
+    const lvl = machineLevel(f.id);
+    const cost = machineCost(f.id);
+    const aff = (state.biomass || 0) >= cost;
+    const row = document.createElement("div");
+    row.className = "node" + (aff ? "" : " broke");
+    row.innerHTML = `<div class="node-top"><span>${f.name}${lvl ? ` <b class="mk-lvl">Lv ${lvl}</b>` : ""}</span>
+        <span class="node-cost">${formatNumber(cost)}</span></div>
+      <div class="node-desc">${f.desc} <i>(${f.unit})</i></div>`;
+    if (aff) row.addEventListener("click", () => uiHandlers.onBuyMachine(f.id));
+    fl.appendChild(row);
   }
 }
 

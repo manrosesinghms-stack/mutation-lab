@@ -105,6 +105,7 @@
         <button id="pantheon-btn" class="ghost" title="Genome Pantheon">🏛️</button>
         <button id="symbiote-btn" class="ghost" title="Symbiote companion">🐛</button>
         <button id="colony-btn" class="ghost" title="Colonization Map">🗺️</button>
+        <button id="machines-btn" class="ghost" title="Automation Bay — drones & machines">🤖</button>
         <button id="stats-btn" class="ghost">📊</button>
         <button id="settings-btn" class="ghost" title="Settings">⚙️</button>
         <button id="photo-btn" class="ghost" title="Photo mode">📸</button>
@@ -277,6 +278,20 @@
       <div class="genome-head"><h2>🗺️ COLONIZATION</h2><button id="colony-close" class="ghost">✕ Close</button></div>
       <p class="genome-hint" style="margin-top:10px">Spend biomass to colonize the world. Each claimed node is a <b>permanent bonus</b> and opens the frontier beyond it. <span id="colony-count">0</span>/<span id="colony-total">0</span> claimed.</p>
       <div id="colony-list"></div>
+    </div>
+  </div>
+
+  <!-- Automation Bay modal -->
+  <div id="machines-modal" class="hidden">
+    <div class="genome-inner codex-inner">
+      <div class="genome-head"><h2>🤖 AUTOMATION BAY</h2><button id="machines-close" class="ghost">✕ Close</button></div>
+      <p class="genome-hint" style="margin-top:10px">Build machines that work for you. <b id="mach-summary">No drones yet.</b></p>
+      <h3 class="mach-h">🤖 Drones — auto-click the cell</h3>
+      <div id="mach-drones"></div>
+      <h3 class="mach-h">⚙️ Automators — run your systems hands-free</h3>
+      <div id="mach-autos"></div>
+      <h3 class="mach-h">🏭 Assembly Line — passive rare currencies</h3>
+      <div id="mach-factory"></div>
     </div>
   </div>
 

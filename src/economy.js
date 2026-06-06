@@ -18,6 +18,7 @@ import { GENE_BY_ID, PANTHEON_SLOTS, SYMBIOTE_THRESH, AURA_BY_ID } from "./data/
 import { SEED_BY_ID } from "./data/garden.js";
 import { SEASON_BY_ID } from "./data/seasons.js";
 import { COLONY_NODES, COLONY_BY_ID } from "./data/colony.js";
+import { DRONES, AUTOMATORS, FACTORY, DRONE_BY_ID, AUTOMATOR_BY_ID, FACTORY_BY_ID, LEVELED_BY_ID } from "./data/machines.js";
 
 // buy (if needed) + equip a cosmetic skin; returns the skin or null
 export function buySkin(id) {
@@ -279,6 +280,110 @@ export function claimColonyNode(id) {
   return true;
 }
 export function colonyCount() { return Object.keys(state.colony || {}).length; }
+
+// ---- Automation Bay (drones + automators + factory) ----
+export function machineLevel(id) { return (state.machines && state.machines[id]) || 0; }
+export function machineCost(id) {
+  const m = LEVELED_BY_ID[id];
+  if (!m) return Infinity;
+  return Math.ceil(m.baseCost * Math.pow(m.costMult, machineLevel(id)));
+}
+export function buyMachine(id) {
+  const cost = machineCost(id);
+  if (!isFinite(cost) || (state.biomass || 0) < cost) return false;
+  state.biomass -= cost;
+  state.machines = state.machines || {};
+  state.machines[id] = machineLevel(id) + 1;
+  return true;
+}
+// total auto-clicks/sec from all drones
+export function dronesClicksPerSec() {
+  let cps = 0;
+  for (const d of DRONES) cps += machineLevel(d.id) * d.cps;
+  return cps;
+}
+// biomass/sec the drones generate (auto-clicks × current click power)
+export function dronesPerSec() { return dronesClicksPerSec() * effectiveClickPower(); }
+
+// automators (one-time unlock + on/off toggle)
+export function automatorOwned(id) { return !!(state.automators && state.automators[id]); }
+export function automatorOn(id) {
+  return automatorOwned(id) && (state.autoToggles ? state.autoToggles[id] !== false : true);
+}
+export function buyAutomator(id) {
+  const a = AUTOMATOR_BY_ID[id];
+  if (!a || automatorOwned(id) || (state.biomass || 0) < a.cost) return false;
+  state.biomass -= a.cost;
+  state.automators = state.automators || {};
+  state.automators[id] = true;
+  state.autoToggles = state.autoToggles || {};
+  state.autoToggles[id] = true;
+  return true;
+}
+export function toggleAutomator(id) {
+  if (!automatorOwned(id)) return false;
+  state.autoToggles = state.autoToggles || {};
+  state.autoToggles[id] = !automatorOn(id);
+  return state.autoToggles[id];
+}
+
+// Run every automated machine for `dt` seconds. Returns a small event summary so
+// the UI can react (refresh modals / occasional toast). Forager (blooms) is wired
+// in main.js where the bloom elements live.
+export function tickAutomation(dt) {
+  if (!dt || dt <= 0) return null;
+  state.machines = state.machines || {};
+  const ev = { drone: 0, harvested: 0, claimed: [], surged: false, factory: false };
+
+  // --- drones: auto-click at full click power ---
+  const cps = dronesClicksPerSec();
+  if (cps > 0) {
+    const gain = effectiveClickPower() * cps * dt;
+    addBiomass(gain);
+    state.autoClicks = (state.autoClicks || 0) + cps * dt;
+    ev.drone = gain;
+  }
+
+  // --- factory: accumulate fractional output, flush whole units ---
+  if (!state.factoryBuf) state.factoryBuf = { reagent: 0, catalyst: 0, mutagen: 0 };
+  const buf = state.factoryBuf;
+  for (const f of FACTORY) {
+    const lvl = machineLevel(f.id);
+    if (lvl > 0) buf[f.out] += lvl * f.rate * dt;
+  }
+  if (buf.reagent >= 1) {
+    const n = Math.floor(buf.reagent); buf.reagent -= n;
+    const M = initMarket(); M.held.enzyme = (M.held.enzyme || 0) + n; ev.factory = true;
+  }
+  if (buf.catalyst >= 1) {
+    const n = Math.floor(buf.catalyst); buf.catalyst -= n;
+    state.catalyst = Math.min(CATALYST_MAX, (state.catalyst || 0) + n); ev.factory = true;
+  }
+  if (buf.mutagen >= 1) {
+    const n = Math.floor(buf.mutagen); buf.mutagen -= n;
+    state.mutagen = (state.mutagen || 0) + n; ev.factory = true;
+  }
+
+  // --- automators ---
+  if (automatorOn("harvester")) {
+    const plots = gardenPlots();
+    for (let i = 0; i < plots.length; i++) {
+      if (gardenMature(i) && harvestPlot(i)) ev.harvested++;
+    }
+  }
+  if (automatorOn("surveyor")) {
+    const cands = colonyNodes()
+      .filter((n) => n.unlocked && !n.claimed && n.affordable)
+      .sort((a, b) => a.node.cost - b.node.cost);
+    if (cands.length && claimColonyNode(cands[0].node.id)) ev.claimed.push(cands[0].node.id);
+  }
+  if (automatorOn("catalyzer") && (state.catalyst || 0) >= CATALYST_MAX) {
+    state.catalyst -= CATALYST_MAX;
+    addTempBuff({ id: "autosurge", prodMult: 3, durationMs: 15000 });
+    ev.surged = true;
+  }
+  return ev;
+}
 
 // ---- Petri Garden (4A) ----
 function initGarden() {

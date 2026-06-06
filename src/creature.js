@@ -67,6 +67,21 @@ export function spawnBloom() {
 function removeBloom() {
   if (activeBloom) { partsGroup.remove(activeBloom); activeBloom = null; }
 }
+// Programmatically collect the active bloom (used by the Bloom Forager automator).
+// Projects the bloom to screen coords so the burst still fires at the right spot.
+export function collectBloom() {
+  if (!activeBloom || !onBloomCb) return false;
+  let sx = 0, sy = 0;
+  try {
+    const v = activeBloom.getWorldPosition(new THREE.Vector3()).project(camera);
+    const rect = canvas.getBoundingClientRect();
+    sx = rect.left + (v.x * 0.5 + 0.5) * rect.width;
+    sy = rect.top + (-v.y * 0.5 + 0.5) * rect.height;
+  } catch (e) { /* fall back to 0,0 */ }
+  removeBloom();
+  onBloomCb(sx, sy);
+  return true;
+}
 
 const easeOutBack = (t) => {
   const c1 = 1.70158, c3 = c1 + 1;

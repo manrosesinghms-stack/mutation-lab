@@ -333,12 +333,16 @@ html, body {
 .evo-stats b { transition: text-shadow .3s ease; }
 
 /* genome lab + stats + settings + help modals */
-#genome-modal, #stats-modal, #settings-modal, #help-modal, #codex-modal {
+#genome-modal, #stats-modal, #settings-modal, #help-modal, #codex-modal,
+#colony-modal, #garden-modal, #reactor-modal, #pantheon-modal, #symbiote-modal,
+#mutagen-modal, #market-modal, #upgrades-modal, #machines-modal {
   position: fixed; inset: 0; z-index: 100;
   display: flex; align-items: center; justify-content: center;
   background: rgba(4,7,11,.85); backdrop-filter: blur(6px); animation: fadeIn .2s ease;
 }
-#genome-modal.hidden, #stats-modal.hidden, #settings-modal.hidden, #help-modal.hidden, #codex-modal.hidden { display: none; }
+#genome-modal.hidden, #stats-modal.hidden, #settings-modal.hidden, #help-modal.hidden, #codex-modal.hidden,
+#colony-modal.hidden, #garden-modal.hidden, #reactor-modal.hidden, #pantheon-modal.hidden, #symbiote-modal.hidden,
+#mutagen-modal.hidden, #market-modal.hidden, #upgrades-modal.hidden, #machines-modal.hidden { display: none; }
 
 /* codex */
 .codex-inner { width: min(720px, 94vw); }
@@ -513,6 +517,9 @@ html, body {
 .node .node-cost { color: var(--accent2); }
 .node .node-desc { color: var(--muted); font-size: 11px; margin-top: 3px; }
 .node .node-lvl { color: var(--accent); font-size: 11px; }
+.mach-h { font-size: 12px; color: var(--accent2); margin: 16px 0 8px; letter-spacing: .04em; text-transform: uppercase; }
+.mk-lvl { color: var(--accent); font-size: 11px; font-weight: 700; }
+#mach-drones, #mach-autos, #mach-factory { display: flex; flex-direction: column; gap: 6px; }
 
 .species-card {
   background: var(--bg2); border: 1px solid var(--line); border-radius: 10px;

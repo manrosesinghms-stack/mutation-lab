@@ -31,6 +31,11 @@ import {
   plantSeed,
   harvestPlot,
   claimColonyNode,
+  buyMachine,
+  buyAutomator,
+  toggleAutomator,
+  automatorOn,
+  tickAutomation,
   doTranscend,
   canTranscend,
   buyHelixNode,
@@ -85,6 +90,7 @@ import {
   setSkinShader,
   setBloomCallback,
   spawnBloom,
+  collectBloom,
   hasBloom,
   engorgePop,
   exportPhoto,
@@ -94,7 +100,7 @@ import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabe
          renderGenomeLab, genomeStatus, openHelp, showChoice, renderChallenges,
          renderHelix, renderSplicer, spliceResult, renderUpgrades, renderMarket,
          renderMutagen, renderReactor, renderPantheon, renderSymbiote, renderGarden,
-         renderColony } from "./ui.js";
+         renderColony, renderMachines } from "./ui.js";
 import { SPELLS } from "./data/spells.js";
 import { SEASON_BY_ID } from "./data/seasons.js";
 import { formatNumber } from "./format.js";
@@ -175,6 +181,18 @@ initUI({
   onClaimColony: (id) => {
     if (claimColonyNode(id)) { audio.playMilestone(); cinematicPulse(); flash("rgba(86,227,159,.4)"); renderColony(); flashStatus("🗺️ territory claimed — colony expands!"); save(); }
     else flashStatus("not enough biomass");
+  },
+  onBuyMachine: (id) => {
+    if (buyMachine(id)) { audio.playBuy(2); renderMachines(); flashStatus("🤖 machine online"); save(); }
+    else flashStatus("not enough biomass");
+  },
+  onBuyAutomator: (id) => {
+    if (buyAutomator(id)) { audio.playMilestone(); cinematicPulse(); renderMachines(); flashStatus("⚙️ automator installed — it works for you now"); save(); }
+    else flashStatus("not enough biomass");
+  },
+  onToggleAutomator: (id) => {
+    const on = toggleAutomator(id);
+    audio.playClick(0); renderMachines(); flashStatus(on ? "⚙️ automator ON" : "○ automator paused"); save();
   },
   onSave: () => flashStatus(save() ? "saved" : "save failed"),
   onWipe: () => {
@@ -779,6 +797,8 @@ setInterval(() => {
     flashStatus("✨ A golden Bloom grew on your cell — click it for a frenzy!");
     save();
   }
+  // Bloom Forager automator: auto-collect shortly after it appears
+  if (automatorOn("forager")) setTimeout(() => { if (hasBloom()) collectBloom(); }, 1500);
 }, 30000);
 
 // --- Photo Mode (hide UI, free-orbit, save a screenshot of your creature) ---
@@ -1003,12 +1023,20 @@ function update() {
     if (mm && !mm.classList.contains("hidden")) renderMutagen();
   }
   tickCatalyst();
+  // Automation Bay: drones auto-click, factory converts, automators run systems
+  const autoEv = tickAutomation(dt);
+  if (autoEv) {
+    if (autoEv.surged) { audio.playMilestone(); flashStatus("🔬 Auto-Catalyzer fired a surge! ×3 production"); }
+    if (autoEv.claimed.length) { cinematicPulse(); flashStatus("🗺️ Surveyor claimed new territory"); }
+  }
   const rm = document.getElementById("reactor-modal");
   if (rm && !rm.classList.contains("hidden")) renderReactor();
   const gm = document.getElementById("garden-modal");
   if (gm && !gm.classList.contains("hidden")) renderGarden();
   const cm = document.getElementById("colony-modal");
   if (cm && !cm.classList.contains("hidden")) renderColony();
+  const mac = document.getElementById("machines-modal");
+  if (mac && !mac.classList.contains("hidden")) renderMachines();
   autoTick(dt); // Helix auto-evolve / auto-speciate
   pruneTempBuffs(); // drop expired blooms/Digest buffs
 

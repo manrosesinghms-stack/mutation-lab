@@ -38,6 +38,11 @@ function freshState() {
     season: "none",        // active seasonal event id
     aberration: false,     // Aberration mode (grandmapocalypse) — risk/reward toggle
     colony: {},            // { nodeId: true } claimed Colonization Map nodes
+    machines: {},          // { machineId: level } Automation Bay drones + factory
+    automators: {},        // { automatorId: true } owned automation modules
+    autoToggles: {},       // { automatorId: bool } per-automator on/off
+    factoryBuf: { reagent: 0, catalyst: 0, mutagen: 0 }, // fractional factory output carry
+    autoClicks: 0,         // lifetime auto-clicks performed by drones (stats)
     garden: { plots: [null, null, null, null, null, null, null, null, null] }, // Petri Garden
     gardenStrains: {},     // discovered rare garden strains (collection)
     mutagen: 0,            // slow-growing rare currency (Sugar-Lump analog)
@@ -124,6 +129,10 @@ export function load() {
       challengesDone: (data.challengesDone && typeof data.challengesDone === "object") ? data.challengesDone : {},
       fossils: Array.isArray(data.fossils) ? data.fossils : [],
       skinsOwned: (data.skinsOwned && typeof data.skinsOwned === "object") ? data.skinsOwned : { default: true },
+      machines: (data.machines && typeof data.machines === "object") ? data.machines : {},
+      automators: (data.automators && typeof data.automators === "object") ? data.automators : {},
+      autoToggles: (data.autoToggles && typeof data.autoToggles === "object") ? data.autoToggles : {},
+      factoryBuf: (data.factoryBuf && typeof data.factoryBuf === "object") ? data.factoryBuf : { reagent: 0, catalyst: 0, mutagen: 0 },
     };
     // for an existing big save, start milestones at the current tier so we don't
     // dump a backlog of dings on load
