@@ -104,6 +104,7 @@
         <button id="reactor-btn" class="ghost" title="Reactor — cast spells">🔬</button>
         <button id="pantheon-btn" class="ghost" title="Genome Pantheon">🏛️</button>
         <button id="symbiote-btn" class="ghost" title="Symbiote companion">🐛</button>
+        <button id="colony-btn" class="ghost" title="Colonization Map">🗺️</button>
         <button id="stats-btn" class="ghost">📊</button>
         <button id="settings-btn" class="ghost" title="Settings">⚙️</button>
         <button id="photo-btn" class="ghost" title="Photo mode">📸</button>
@@ -267,6 +268,15 @@
         <button id="viewdna-btn" class="ghost">🧬 View shared DNA</button>
         <span id="genome-status"></span>
       </div>
+    </div>
+  </div>
+
+  <!-- Colonization Map modal -->
+  <div id="colony-modal" class="hidden">
+    <div class="genome-inner codex-inner">
+      <div class="genome-head"><h2>🗺️ COLONIZATION</h2><button id="colony-close" class="ghost">✕ Close</button></div>
+      <p class="genome-hint" style="margin-top:10px">Spend biomass to colonize the world. Each claimed node is a <b>permanent bonus</b> and opens the frontier beyond it. <span id="colony-count">0</span>/<span id="colony-total">0</span> claimed.</p>
+      <div id="colony-list"></div>
     </div>
   </div>
 

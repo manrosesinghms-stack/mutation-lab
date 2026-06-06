@@ -17,6 +17,7 @@ import { UPGRADES, UPG_BY_ID } from "./data/upgrades.js";
 import { GENE_BY_ID, PANTHEON_SLOTS, SYMBIOTE_THRESH, AURA_BY_ID } from "./data/genes.js";
 import { SEED_BY_ID } from "./data/garden.js";
 import { SEASON_BY_ID } from "./data/seasons.js";
+import { COLONY_NODES, COLONY_BY_ID } from "./data/colony.js";
 
 // buy (if needed) + equip a cosmetic skin; returns the skin or null
 export function buySkin(id) {
@@ -127,6 +128,11 @@ export function getModifiers() {
   if (se && se.prod) mods.prodMult *= 1 + se.prod;
   // Aberration mode (grandmapocalypse) — big risk/reward production boost
   if (state.aberration) { mods.prodMult *= 2.5; mods.clickMult *= 2.5; }
+  // Colonization Map — every claimed node is a permanent bonus
+  if (state.colony) for (const id in state.colony) {
+    const n = COLONY_BY_ID[id];
+    if (n) { mods.prodMult *= 1 + n.prod; mods.clickMult *= 1 + n.click; }
+  }
   // Petri Garden — mature plots give passive buffs
   if (state.garden && state.garden.plots) {
     const now = Date.now();
@@ -251,6 +257,28 @@ export function buyBroker() {
   state.biomass -= cost; M.brokers++; return true;
 }
 export function brokerCost() { const M = initMarket(); return marketUnitValue() * 2000 * (M.brokers + 1); }
+
+// ---- Colonization Map ----
+export function colonyClaimed(id) { return !!(state.colony && state.colony[id]); }
+export function colonyUnlocked(node) { return node.requires.every((r) => colonyClaimed(r)); }
+// nodes the frontier can claim now (unlocked + unclaimed) + claimed (for display)
+export function colonyNodes() {
+  return COLONY_NODES.map((n) => ({
+    node: n,
+    claimed: colonyClaimed(n.id),
+    unlocked: colonyUnlocked(n),
+    affordable: (state.biomass || 0) >= n.cost,
+  }));
+}
+export function claimColonyNode(id) {
+  const n = COLONY_BY_ID[id];
+  if (!n || colonyClaimed(id) || !colonyUnlocked(n) || (state.biomass || 0) < n.cost) return false;
+  state.biomass -= n.cost;
+  state.colony = state.colony || {};
+  state.colony[id] = true;
+  return true;
+}
+export function colonyCount() { return Object.keys(state.colony || {}).length; }
 
 // ---- Petri Garden (4A) ----
 function initGarden() {

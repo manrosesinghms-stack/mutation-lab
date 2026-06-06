@@ -14,7 +14,9 @@ import {
   mutagenProgress, genLevel, genLevelCost,
   catalyst, catalystMax, symbioteStage,
   gardenPlots, gardenMature, gardenProgress,
+  colonyNodes, colonyCount,
 } from "./economy.js";
+import { COLONY_NODES } from "./data/colony.js";
 import { SEEDS, SEED_BY_ID } from "./data/garden.js";
 import { HELIX_NODES } from "./data/helix.js";
 import { SPELLS } from "./data/spells.js";
@@ -80,6 +82,7 @@ export function initUI(handlers) {
   el.pantheonModal = document.getElementById("pantheon-modal");
   el.symbioteModal = document.getElementById("symbiote-modal");
   el.gardenModal = document.getElementById("garden-modal");
+  el.colonyModal = document.getElementById("colony-modal");
   el.genomeModal = document.getElementById("genome-modal");
   el.nodeList = document.getElementById("node-list");
   el.speciesList = document.getElementById("species-list");
@@ -128,6 +131,8 @@ export function initUI(handlers) {
   document.getElementById("symbiote-feed").addEventListener("click", () => uiHandlers.onFeedSymbiote());
   document.getElementById("garden-btn").addEventListener("click", () => openGarden());
   document.getElementById("garden-close").addEventListener("click", () => el.gardenModal.classList.add("hidden"));
+  document.getElementById("colony-btn").addEventListener("click", () => openColony());
+  document.getElementById("colony-close").addEventListener("click", () => el.colonyModal.classList.add("hidden"));
   document.getElementById("splice-close").addEventListener("click", () => el.spliceModal.classList.add("hidden"));
   document.getElementById("splice-go").addEventListener("click", () => {
     if (spliceSelA && spliceSelB) uiHandlers.onSplice(spliceSelA, spliceSelB);
@@ -204,6 +209,27 @@ export function renderUpgrades() {
       <div class="node-desc">${u.desc}</div>
       <div class="node-lvl">${u.cond}</div>`;
     if (!broke) row.addEventListener("click", () => uiHandlers.onBuyUpgrade(u.id));
+    list.appendChild(row);
+  }
+}
+
+// ---- Colonization Map ----
+export function openColony() { renderColony(); el.colonyModal.classList.remove("hidden"); }
+export function renderColony() {
+  document.getElementById("colony-count").textContent = colonyCount();
+  document.getElementById("colony-total").textContent = COLONY_NODES.length;
+  const list = document.getElementById("colony-list");
+  list.innerHTML = "";
+  // show claimed + the current frontier (unlocked, unclaimed); hide deep-locked
+  for (const e of colonyNodes()) {
+    if (!e.claimed && !e.unlocked) continue; // hidden beyond the frontier
+    const { node: n } = e;
+    const row = document.createElement("div");
+    row.className = "node" + (e.claimed ? " maxed" : (e.affordable ? "" : " broke"));
+    row.innerHTML = `<div class="node-top"><span>${e.claimed ? "✓ " : ""}${n.name}</span>
+        <span class="node-cost">${e.claimed ? "CLAIMED" : formatNumber(n.cost)}</span></div>
+      <div class="node-desc">${n.desc}</div>`;
+    if (!e.claimed && e.unlocked && e.affordable) row.addEventListener("click", () => uiHandlers.onClaimColony(n.id));
     list.appendChild(row);
   }
 }

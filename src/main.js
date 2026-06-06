@@ -30,6 +30,7 @@ import {
   setSymbioteAura,
   plantSeed,
   harvestPlot,
+  claimColonyNode,
   doTranscend,
   canTranscend,
   buyHelixNode,
@@ -92,7 +93,8 @@ import { creatureName } from "./data/names.js";
 import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
          renderGenomeLab, genomeStatus, openHelp, showChoice, renderChallenges,
          renderHelix, renderSplicer, spliceResult, renderUpgrades, renderMarket,
-         renderMutagen, renderReactor, renderPantheon, renderSymbiote, renderGarden } from "./ui.js";
+         renderMutagen, renderReactor, renderPantheon, renderSymbiote, renderGarden,
+         renderColony } from "./ui.js";
 import { SPELLS } from "./data/spells.js";
 import { SEASON_BY_ID } from "./data/seasons.js";
 import { formatNumber } from "./format.js";
@@ -169,6 +171,10 @@ initUI({
   onHarvest: (i) => {
     const r = harvestPlot(i);
     if (r) { audio.playMilestone(); flashStatus(`🌱 harvested ${r.seed} → +${formatNumber(r.reward)}${r.mutagen ? " + 🧫" : ""}`); renderGarden(); save(); }
+  },
+  onClaimColony: (id) => {
+    if (claimColonyNode(id)) { audio.playMilestone(); cinematicPulse(); flash("rgba(86,227,159,.4)"); renderColony(); flashStatus("🗺️ territory claimed — colony expands!"); save(); }
+    else flashStatus("not enough biomass");
   },
   onSave: () => flashStatus(save() ? "saved" : "save failed"),
   onWipe: () => {
@@ -1001,6 +1007,8 @@ function update() {
   if (rm && !rm.classList.contains("hidden")) renderReactor();
   const gm = document.getElementById("garden-modal");
   if (gm && !gm.classList.contains("hidden")) renderGarden();
+  const cm = document.getElementById("colony-modal");
+  if (cm && !cm.classList.contains("hidden")) renderColony();
   autoTick(dt); // Helix auto-evolve / auto-speciate
   pruneTempBuffs(); // drop expired blooms/Digest buffs
 
