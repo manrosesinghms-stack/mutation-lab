@@ -300,6 +300,22 @@ export function initCreature(canvasEl, onClick) {
 
   scene = new THREE.Scene();
 
+  // environment map so metallic skins (Chrome, Gold) actually reflect/gleam
+  // instead of rendering near-black. A cheap procedural sky-gradient, PMREM'd.
+  try {
+    const ec = document.createElement("canvas");
+    ec.width = 16; ec.height = 64;
+    const ex = ec.getContext("2d");
+    const eg = ex.createLinearGradient(0, 0, 0, 64);
+    eg.addColorStop(0, "#a9c3e6"); eg.addColorStop(0.5, "#41566f"); eg.addColorStop(1, "#0a0f16");
+    ex.fillStyle = eg; ex.fillRect(0, 0, 16, 64);
+    const etex = new THREE.CanvasTexture(ec);
+    etex.mapping = THREE.EquirectangularReflectionMapping;
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromEquirectangular(etex).texture;
+    etex.dispose(); pmrem.dispose();
+  } catch (e) { /* env map is a nicety; ignore if unsupported */ }
+
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
   camera.position.set(0, 0, 4.2);
 
@@ -762,7 +778,9 @@ export function addMutationPart(type) {
 
 // Called whenever the player gains ANY mutation: hue drift + a satisfying squash.
 export function onMutationGained(part) {
-  hueShift = (hueShift + 0.045) % 1;
+  // only a tiny tint per mutation, capped — so bought skins always read as their
+  // colour (Magma stays molten, Amethyst stays purple) instead of drifting away
+  hueShift = Math.min(0.07, hueShift + 0.006);
   applyHue();
   punch = 1.4; // big pop
   if (part) addMutationPart(part);
@@ -770,7 +788,7 @@ export function onMutationGained(part) {
 
 // Rebuild visuals from a saved game (parts = array of part types).
 export function rebuildVisuals(parts, totalMutations) {
-  hueShift = (0.045 * (totalMutations || 0)) % 1;
+  hueShift = Math.min(0.07, 0.006 * (totalMutations || 0));
   applyHue();
   for (const p of parts) addMutationPart(p);
 }
