@@ -319,8 +319,18 @@ html, body {
 .upgrades-open.ready { border-color: var(--accent); box-shadow: 0 0 14px -4px var(--accent); animation: evoPulse 1.6s ease-in-out infinite; }
 .upgrades-open.ready b { color: var(--accent); }
 
-.genome-open { width: 100%; margin-top: 8px; text-align: center; }
+.genome-open { width: 100%; margin-top: 8px; text-align: center; position: relative; overflow: hidden; }
 .genome-open b { color: var(--accent2); }
+/* Genome = a flowing DNA-strand reservoir (animated) */
+.genome-open::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .45;
+  background: repeating-linear-gradient(63deg, transparent 0 7px, rgba(184,140,255,.12) 7px 8px);
+  background-size: 220% 100%; animation: dnaFlow 7s linear infinite;
+}
+@keyframes dnaFlow { to { background-position: 220% 0; } }
+/* EP = glowing neural nodes */
+#ep-value { color: var(--accent2); text-shadow: 0 0 9px rgba(184,140,255,.55); }
+.evo-stats b { transition: text-shadow .3s ease; }
 
 /* genome lab + stats + settings + help modals */
 #genome-modal, #stats-modal, #settings-modal, #help-modal, #codex-modal {
