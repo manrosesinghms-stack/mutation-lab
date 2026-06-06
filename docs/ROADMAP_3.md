@@ -20,10 +20,10 @@ Every resource, threat, and reward should have a **physical, animated, audible**
 | 8 | **Draft presentation** (staggered card reveal + rarity-coloured pulsing glow on epic/legendary/alien) | `ui.js` draft | L | ✅ batch 3 |
 | 9 | **Premium juice** (click ripple + biomass particles flying to the counter · critical extraction at combo ≥12) | `juice.js` + `main.js` | M | ✅ batch 3 |
 | 10 | **Mutation family SFX** (eyes=wet squish, spikes=crack, tentacles=stretch, jaw=chomp, frond=rustle, cilia=shimmer) | `audio.js` | S | ✅ batch 3 |
-| 11 | **Premium skins** (full transformations: Crystal refraction, Machine cyborg, Void disembodied, Celestial galaxy-flesh) | `creature.js` materials/shaders | L | batch 4 |
-| 12 | **Organic material shader** (subsurface glow, wetness, pulsing veins via fresnel/onBeforeCompile) | `creature.js` material | L | batch 4 |
-| 13 | **Endgame reality corruption** (50+ mutations: UI mutates, text glitches, frame tears, creature exceeds frame) | global CSS/JS | M | batch 4 |
-| 14 | **Resource physicality** (biomass tank fills, Genome = DNA strands, pressure = glowing veins, EP = neural nodes) | `ui.js` | M | batch 4 |
+| 11 | **Premium skins** (full transformations: Crystal refraction, Machine cyborg, Void disembodied, Celestial galaxy-flesh) | `creature.js` materials/shaders | L | later |
+| 12 | **Organic material shader** (fresnel subsurface-glow membrane shell; over-glows with metabolic stress; aura-tinted) | `creature.js` material | L | ✅ batch 4 |
+| 13 | **Endgame reality corruption** (35+ mutations: chromatic/scanline overlay, RGB title fracture, periodic frame tears — scales to full at 60) | global CSS/JS | M | ✅ batch 4 |
+| 14 | **Resource physicality** (biomass tank fills, Genome = DNA strands, pressure = glowing veins, EP = neural nodes) | `ui.js` | M | later |
 | 15 | **Mutation evolution stages** (Eye L1→L2→Compound→Cosmic — one mutation visually levels up) | data + `creature.js` | L | batch 5 |
 | 16 | **AAA UI re-skin** (glass-lab/holographic theme — Subnautica/Control vibe) | `style.css` | L | batch 5 |
 | 17 | **"OMG screenshot" tools** (scale slider: mouse→human→mountain · museum specimen showcase) | Photo Mode | M | batch 5 |

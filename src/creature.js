@@ -228,6 +228,29 @@ export function initCreature(canvasEl, onClick) {
   organism = new THREE.Mesh(geo, mat);
   scene.add(organism);
 
+  // organic subsurface-glow rim — a fresnel shell sharing the body geometry.
+  // Light wraps the silhouette like a wet, living membrane (approximated SSS).
+  rimMat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    uniforms: {
+      uColor: { value: new THREE.Color(0x66ffcc) },
+      uPower: { value: 2.6 },
+      uIntensity: { value: 0.6 },
+    },
+    vertexShader: `
+      varying vec3 vN; varying vec3 vView;
+      void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0);
+        vView = normalize(-mv.xyz); vN = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `
+      uniform vec3 uColor; uniform float uPower; uniform float uIntensity;
+      varying vec3 vN; varying vec3 vView;
+      void main(){ float f = pow(1.0 - max(dot(normalize(vN), normalize(vView)), 0.0), uPower);
+        gl_FragColor = vec4(uColor * f * uIntensity, f * uIntensity); }`,
+  });
+  rimMesh = new THREE.Mesh(geo, rimMat);
+  organism.add(rimMesh);
+
   buildHabitat();
 
   // parts ride on the organism so they spin/scale with it
@@ -358,6 +381,8 @@ export function renderCreature(dt, elapsed) {
       organism.material.metalness = skin.metal;
       organism.material.roughness = skin.rough;
     }
+    // wet membrane over-glows as the creature strains toward the wall
+    if (rimMat) rimMat.uniforms.uIntensity.value = 0.6 + stress * 1.1 + Math.sin(elapsed * 1.6) * 0.05;
     // gentler tremble; fully off under reduce-motion (colour/glow still convey stress)
     const tr = reduceMotion ? 0 : stress * 0.016;
     organism.position.set(
@@ -648,9 +673,10 @@ let cineZoom = 0;
 export function cinematicPulse() { punch = 2.4; cineZoom = 1.7; }
 
 // build-dependent aura — the glow light colour tells you the build at a glance
-let glowLight;
+let glowLight, rimMesh, rimMat;
 export function setAura(hex, intensity = 0.8) {
   if (glowLight) { glowLight.color.setHex(hex); glowLight.intensity = intensity; }
+  if (rimMat) rimMat.uniforms.uColor.value.setHex(hex);
 }
 
 // Render a shareable PNG: the creature + a caption bar (name + mutation count).

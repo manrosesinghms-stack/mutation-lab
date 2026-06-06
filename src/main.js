@@ -254,6 +254,30 @@ function updateAura() {
 
 // Metabolic-pressure spectacle: a red screen-edge vignette that fades in past 70%
 // pressure and pulses like a heartbeat once you hit the wall.
+// Endgame reality corruption: at 35+ mutations the screen starts to glitch,
+// scaling to full at 60. Chromatic vignette + scanlines + periodic frame tears.
+const corruptEl = document.getElementById("corruption");
+let corruptGlitchAt = 0;
+function updateCorruption(elapsed) {
+  if (!corruptEl) return;
+  const cr = Math.max(0, Math.min(1, ((state.mutations.length || 0) - 35) / 25));
+  if (cr <= 0) {
+    corruptEl.classList.remove("on");
+    document.body.classList.remove("corrupted");
+    return;
+  }
+  corruptEl.style.setProperty("--cr", cr.toFixed(3));
+  corruptEl.classList.add("on");
+  document.body.classList.add("corrupted");
+  // periodic frame-tear glitch, more frequent as corruption deepens
+  if (!state.reduceMotion && elapsed - corruptGlitchAt > (5 - cr * 3)) {
+    corruptGlitchAt = elapsed;
+    corruptEl.classList.remove("glitch");
+    void corruptEl.offsetWidth;
+    corruptEl.classList.add("glitch");
+  }
+}
+
 const pVig = document.getElementById("pressure-vignette");
 function updatePressureVignette(pressure) {
   if (!pVig) return;
@@ -610,6 +634,7 @@ function update() {
   const pressure = pressureLevel();
   setStress((pressure - 0.6) / 0.6);
   updatePressureVignette(pressure);
+  updateCorruption(elapsed);
   if (pressure >= 1) state.hitWall = true;
   // achievement unlocks
   for (const a of checkAchievements()) {
