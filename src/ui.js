@@ -10,6 +10,7 @@ import {
   canTranscend, transcendGain, helixNodeLevel, helixNodeCost,
   canSplice, spliceCooldownLeft, splicesFound,
   availableUpgrades, affordableUpgradeCount,
+  REAGENTS, marketState, marketUnitValue, brokerFee, brokerCost, maxBuy,
 } from "./economy.js";
 import { HELIX_NODES } from "./data/helix.js";
 import { PART_TYPES, PART_LABEL, HYBRID_LIST } from "./data/hybrids.js";
@@ -66,6 +67,7 @@ export function initUI(handlers) {
   el.upgradesBtn = document.getElementById("upgrades-btn");
   el.upgradesBadge = document.getElementById("upgrades-badge");
   el.upgradesModal = document.getElementById("upgrades-modal");
+  el.marketModal = document.getElementById("market-modal");
   el.genomeModal = document.getElementById("genome-modal");
   el.nodeList = document.getElementById("node-list");
   el.speciesList = document.getElementById("species-list");
@@ -100,6 +102,9 @@ export function initUI(handlers) {
   el.upgradesBtn.addEventListener("click", () => openUpgrades());
   document.getElementById("upgrades-close").addEventListener("click", () => el.upgradesModal.classList.add("hidden"));
   document.getElementById("splice-btn").addEventListener("click", () => openSplicer());
+  document.getElementById("market-btn").addEventListener("click", () => openMarket());
+  document.getElementById("market-close").addEventListener("click", () => el.marketModal.classList.add("hidden"));
+  document.getElementById("broker-buy").addEventListener("click", () => uiHandlers.onBuyBroker());
   document.getElementById("splice-close").addEventListener("click", () => el.spliceModal.classList.add("hidden"));
   document.getElementById("splice-go").addEventListener("click", () => {
     if (spliceSelA && spliceSelB) uiHandlers.onSplice(spliceSelA, spliceSelB);
@@ -172,6 +177,48 @@ export function renderUpgrades() {
       <div class="node-desc">${u.desc}</div>
       <div class="node-lvl">${u.cond}</div>`;
     if (!broke) row.addEventListener("click", () => uiHandlers.onBuyUpgrade(u.id));
+    list.appendChild(row);
+  }
+}
+
+// ---- Biomass Exchange ----
+export function openMarket() { renderMarket(); el.marketModal.classList.remove("hidden"); }
+export function renderMarket() {
+  const M = marketState();
+  document.getElementById("market-fee").textContent = Math.round(brokerFee() * 100) + "%";
+  document.getElementById("broker-cost").textContent = M.brokers >= 9 ? "MAX" : formatNumber(brokerCost());
+  const uv = marketUnitValue();
+  const list = document.getElementById("market-list");
+  list.innerHTML = "";
+  for (const x of REAGENTS) {
+    const r = M.r[x.id], held = M.held[x.id] || 0;
+    const up = r.price >= r.prev;
+    const unit = r.price * uv;
+    const row = document.createElement("div");
+    row.className = "market-row";
+    row.innerHTML = `
+      <div class="mk-name">${x.name}<span class="mk-mode mk-${r.mode}">${r.mode}</span></div>
+      <div class="mk-price ${up ? "up" : "down"}">${up ? "▲" : "▼"} ${formatNumber(Math.round(unit))}</div>
+      <div class="mk-held">held: <b>${held}</b> · worth ${formatNumber(Math.round(held * unit))}</div>
+      <div class="mk-btns">
+        <button data-act="buy" data-id="${x.id}" data-q="1">Buy 1</button>
+        <button data-act="buy" data-id="${x.id}" data-q="10">Buy 10</button>
+        <button data-act="buy" data-id="${x.id}" data-q="max">Buy Max</button>
+        <button data-act="sell" data-id="${x.id}" data-q="1" ${held < 1 ? "disabled" : ""}>Sell 1</button>
+        <button data-act="sell" data-id="${x.id}" data-q="10" ${held < 1 ? "disabled" : ""}>Sell 10</button>
+        <button data-act="sell" data-id="${x.id}" data-q="all" ${held < 1 ? "disabled" : ""}>Sell All</button>
+      </div>`;
+    for (const b of row.querySelectorAll("button")) {
+      b.addEventListener("click", () => {
+        const id = b.dataset.id, act = b.dataset.act;
+        let q = b.dataset.q;
+        if (q === "max") q = maxBuy(id);
+        else if (q === "all") q = M.held[id] || 0;
+        else q = parseInt(q, 10);
+        if (act === "buy") uiHandlers.onMarketBuy(id, q);
+        else uiHandlers.onMarketSell(id, q);
+      });
+    }
     list.appendChild(row);
   }
 }

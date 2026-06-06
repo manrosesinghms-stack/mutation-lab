@@ -159,6 +159,67 @@ export function doSplice(a, b) {
   return { hybrid: hy, key, isNew, power };
 }
 
+// ---- Biomass Exchange (buy low / sell high reagent trading) ----
+export const REAGENTS = [
+  { id: "enzyme", name: "Enzymes" }, { id: "protein", name: "Proteins" },
+  { id: "lipid", name: "Lipids" }, { id: "atp", name: "ATP" }, { id: "rna", name: "RNA" },
+];
+function initMarket() {
+  if (!state.market || !state.market.r) state.market = { r: {}, held: {}, brokers: 0 };
+  for (const x of REAGENTS) {
+    if (!state.market.r[x.id]) state.market.r[x.id] = { price: 100, prev: 100, mode: "stable", t: 6 };
+    if (state.market.held[x.id] == null) state.market.held[x.id] = 0;
+  }
+  return state.market;
+}
+// biomass value per price-point — pegged to income so a trade is "minutes of
+// production" (affordable + always relevant). One unit at base price 100 costs
+// ~100 * uv; with uv = prod*0.04 that's ~4s of income per unit.
+export function marketUnitValue() {
+  return Math.max(50, productionPerSecond() * 0.04);
+}
+export function brokerFee() { return Math.max(0.01, 0.20 - (state.market ? state.market.brokers : 0) * 0.02); }
+export function marketState() { return initMarket(); }
+export function marketTick() {
+  const M = initMarket();
+  for (const x of REAGENTS) {
+    const r = M.r[x.id];
+    r.prev = r.price;
+    if (--r.t <= 0) {
+      r.mode = ["stable", "rise", "rise", "fall", "fall", "volatile"][(Math.random() * 6) | 0];
+      r.t = 4 + ((Math.random() * 9) | 0);
+    }
+    let d = (Math.random() - 0.5) * 5;
+    if (r.mode === "rise") d = 2 + Math.random() * 5;
+    else if (r.mode === "fall") d = -(2 + Math.random() * 5);
+    else if (r.mode === "volatile") d = (Math.random() - 0.5) * 26;
+    r.price = Math.max(8, Math.min(330, r.price + d));
+  }
+}
+export function buyReagent(id, qty) {
+  const M = initMarket(); const r = M.r[id]; if (!r || qty <= 0) return false;
+  const cost = Math.ceil(qty * r.price * marketUnitValue() * (1 + brokerFee()));
+  if (state.biomass < cost) return false;
+  state.biomass -= cost; M.held[id] += qty; return cost;
+}
+export function maxBuy(id) {
+  const M = initMarket(); const r = M.r[id]; if (!r) return 0;
+  return Math.floor(state.biomass / (r.price * marketUnitValue() * (1 + brokerFee())));
+}
+export function sellReagent(id, qty) {
+  const M = initMarket(); const have = M.held[id] || 0; qty = Math.min(qty, have);
+  if (qty <= 0) return false;
+  const gain = Math.floor(qty * M.r[id].price * marketUnitValue());
+  M.held[id] = have - qty; state.biomass += gain; return gain;
+}
+export function buyBroker() {
+  const M = initMarket();
+  const cost = marketUnitValue() * 2000 * (M.brokers + 1);
+  if (M.brokers >= 9 || state.biomass < cost) return false;
+  state.biomass -= cost; M.brokers++; return true;
+}
+export function brokerCost() { const M = initMarket(); return marketUnitValue() * 2000 * (M.brokers + 1); }
+
 // ---- Transcend (3rd prestige layer): reset Genome/Species -> Helix ----
 export function helixNodeLevel(id) { return hLvl(state, id); }
 export function helixNodeCost(id) { return hCost(state, id); }
@@ -194,6 +255,7 @@ export function doTranscend() {
   state.runBiomass = state.biomass;
   state.instabilityResolved = false; state.embraceChaos = false; state.stabilizeBonus = 1;
   state.upgrades = {};
+  if (state.market) state.market.held = {};
   return { gain };
 }
 
@@ -491,6 +553,7 @@ export function doSpeciate() {
   for (const g of GENERATORS) state.owned[g.id] = 0;
   state.instabilityResolved = false; state.embraceChaos = false; state.stabilizeBonus = 1;
   state.upgrades = {}; // upgrade-store toolkit resets on the big reset
+  if (state.market) state.market.held = {}; // market positions don't carry over
   return { card, gain, banked };
 }
 

@@ -17,6 +17,10 @@ import {
   canSpeciate,
   doSplice,
   buyUpgrade,
+  marketTick,
+  buyReagent,
+  sellReagent,
+  buyBroker,
   doTranscend,
   canTranscend,
   buyHelixNode,
@@ -78,7 +82,7 @@ import {
 import { creatureName } from "./data/names.js";
 import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
          renderGenomeLab, genomeStatus, openHelp, showChoice, renderChallenges,
-         renderHelix, renderSplicer, spliceResult, renderUpgrades } from "./ui.js";
+         renderHelix, renderSplicer, spliceResult, renderUpgrades, renderMarket } from "./ui.js";
 import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
@@ -111,6 +115,20 @@ initUI({
     const refund = sellGenerator(genId);
     if (refund > 0) { audio.playClick(0); flashStatus(`sold 1 → +${formatNumber(refund)} biomass`); save(); }
     else flashStatus("none to sell");
+  },
+  onMarketBuy: (id, q) => {
+    const c = buyReagent(id, q);
+    if (c) { audio.playBuy(1); renderMarket(); save(); }
+    else flashStatus("not enough biomass");
+  },
+  onMarketSell: (id, q) => {
+    const g = sellReagent(id, q);
+    if (g) { audio.playBuy(2); flashStatus(`sold → +${formatNumber(g)} biomass`); renderMarket(); save(); }
+    else flashStatus("nothing to sell");
+  },
+  onBuyBroker: () => {
+    if (buyBroker()) { audio.playMilestone(); renderMarket(); flashStatus("🤝 broker hired — lower fees"); save(); }
+    else flashStatus("can't afford a broker");
   },
   onSave: () => flashStatus(save() ? "saved" : "save failed"),
   onWipe: () => {
@@ -818,6 +836,13 @@ setInterval(() => {
   if (!boss && (state.prestiges || 0) >= 1 && Math.random() < 0.4) spawnBoss();
 }, 30000);
 window.__spawnBoss = spawnBoss; // for testing
+
+// Biomass Exchange: prices random-walk every 4s; refresh the modal if it's open
+setInterval(() => {
+  marketTick();
+  const mm = document.getElementById("market-modal");
+  if (mm && !mm.classList.contains("hidden")) renderMarket();
+}, 4000);
 
 // ---- offline progress welcome ----
 const offline = applyOfflineProgress();

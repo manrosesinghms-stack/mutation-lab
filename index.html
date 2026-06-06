@@ -98,6 +98,7 @@
         <button id="codex-btn" class="ghost" title="Codex">📖</button>
         <button id="chal-btn" class="ghost" title="Challenges">⚔️</button>
         <button id="splice-btn" class="ghost" title="Gene Splicer">🧪</button>
+        <button id="market-btn" class="ghost" title="Biomass Exchange">📈</button>
         <button id="stats-btn" class="ghost">📊</button>
         <button id="settings-btn" class="ghost" title="Settings">⚙️</button>
         <button id="photo-btn" class="ghost" title="Photo mode">📸</button>
@@ -257,6 +258,18 @@
         <button id="viewdna-btn" class="ghost">🧬 View shared DNA</button>
         <span id="genome-status"></span>
       </div>
+    </div>
+  </div>
+
+  <!-- Biomass Exchange (buy/sell) modal -->
+  <div id="market-modal" class="hidden">
+    <div class="genome-inner codex-inner">
+      <div class="genome-head">
+        <h2>📈 BIOMASS EXCHANGE</h2>
+        <button id="market-close" class="ghost">✕ Close</button>
+      </div>
+      <p class="genome-hint" style="margin-top:10px">Buy reagents when prices are <b>low</b>, sell when <b>high</b>. Trade fee: <b id="market-fee">20%</b> · <button id="broker-buy" class="ghost" style="padding:3px 9px;font-size:11px">🤝 Hire Broker (−2% fee) · <span id="broker-cost">0</span></button></p>
+      <div id="market-list"></div>
     </div>
   </div>
 

@@ -400,6 +400,27 @@ html, body {
 .switch input:checked + .track::before { transform: translateX(20px); background: var(--accent); }
 .genome-hint { font-size: 11.5px; color: var(--muted); line-height: 1.45; margin: 0 0 10px; opacity: .85; }
 
+/* biomass exchange */
+#market-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.market-row {
+  display: grid; grid-template-columns: 1.3fr auto; grid-template-areas: "name price" "held held" "btns btns";
+  gap: 4px 10px; align-items: center; padding: 12px 14px; border-radius: 12px;
+  background: rgba(255,255,255,.025); border: 1px solid rgba(255,255,255,.06);
+}
+.mk-name { grid-area: name; font-weight: 700; font-size: 14px; }
+.mk-mode { font-size: 9px; text-transform: uppercase; letter-spacing: .1em; margin-left: 8px; padding: 2px 6px; border-radius: 6px; background: rgba(255,255,255,.08); color: var(--muted); }
+.mk-rise { color: #56e39f; } .mk-fall { color: #ff6b6b; } .mk-volatile { color: #ffb13d; }
+.mk-price { grid-area: price; font-weight: 800; font-size: 16px; text-align: right; }
+.mk-price.up { color: #56e39f; } .mk-price.down { color: #ff6b6b; }
+.mk-held { grid-area: held; font-size: 11px; color: var(--muted); }
+.mk-btns { grid-area: btns; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.mk-btns button {
+  background: var(--bg2); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.mk-btns button:hover:not(:disabled) { border-color: var(--accent); }
+.mk-btns button:disabled { opacity: .35; cursor: not-allowed; }
+
 /* gene splicer */
 .splice-pick { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
 .splice-slot {
