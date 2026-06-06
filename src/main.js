@@ -353,13 +353,21 @@ function pickMutation(id) {
   audio.playMutation(rarity);
   if (def && def.part) audio.playPartSfx(def.part); // family SFX: hear what grew
   const c = stageCenter();
-  if (rarity === "legendary") {
+  if (def && def.alien && !state.seenFirstAlien) {
+    // first-ever alien DNA — a memorable one-time beat
+    state.seenFirstAlien = true;
+    audio.playRoar(); cinematicPulse();
+    flash("rgba(57,208,198,0.5)"); shake(16);
+    burst(c.x, c.y, { count: 80, color: "#39d0c6", spread: 240, up: 0, life: 1100 });
+    playCinematic("👽 ALIEN DNA", "Something not of this world…", "#39d0c6");
+  } else if (rarity === "legendary") {
     audio.playMilestone();
     audio.playRoar();
     cinematicPulse();
     flash("rgba(255,177,61,0.5)");
     shake(14);
     burst(c.x, c.y, { count: 70, color: "#ffb13d", spread: 220, up: 0, life: 1000 });
+    playCinematic("LEGENDARY EVOLUTION", def ? def.name : "", "#ffb13d");
   } else {
     const isRare = rarity === "rare";
     const color = isRare ? "#56a0ff" : "#9fb3c8";
@@ -499,8 +507,10 @@ setBloomCallback((sx, sy) => {
   state.bloomCaught = true;
   addTempBuff({ id: "bloom", prodMult: 4, durationMs: 20000 });
   audio.playMilestone();
-  flash("rgba(255,215,107,0.4)");
-  burst(sx, sy, { count: 40, color: "#ffd76b", spread: 160, life: 900 });
+  cinematicPulse();
+  flash("rgba(255,215,107,0.5)");
+  burst(sx, sy, { count: 60, color: "#ffd76b", spread: 200, life: 1000 });
+  playCinematic("⚡ MITOGEN FRENZY", "×4 production · 20s", "#ffd76b");
   flashStatus("MITOGEN BLOOM! ×4 production for 20s (temporary)");
 });
 // ~one bloom per minute when none is active; explain it the first time
@@ -605,6 +615,13 @@ function spawnBoss() {
     vx: (Math.random() - 0.5) * 60, vy: (Math.random() - 0.5) * 60 };
   bossNameEl.textContent = boss.name;
   bossEl.classList.remove("hidden");
+  // arrival spectacle: red flash + alarm roar + cinematic intro
+  flash("rgba(255,40,48,0.4)"); shake(12);
+  audio.playRoar();
+  cinematicPulse();
+  const sub = state.seenFirstBoss ? "It's draining your biomass — destroy it!" : "A rival cell! Click it down before it drains you.";
+  if (!state.seenFirstBoss) { state.seenFirstBoss = true; save(); }
+  playCinematic("⚠ " + boss.name, sub, "#ff5a4a");
   flashStatus(`⚠ ${boss.name} appeared — it's draining your biomass! Click it down fast!`);
   audio.playMutation("rare");
 }
