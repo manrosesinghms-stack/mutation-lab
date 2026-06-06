@@ -589,14 +589,19 @@ function spawnBoss() {
     vx: (Math.random() - 0.5) * 60, vy: (Math.random() - 0.5) * 60 };
   bossNameEl.textContent = boss.name;
   bossEl.classList.remove("hidden");
-  flashStatus(`⚠ ${boss.name} appeared — click it to destroy it!`);
+  flashStatus(`⚠ ${boss.name} appeared — it's draining your biomass! Click it down fast!`);
   audio.playMutation("rare");
 }
 
-document.getElementById("boss-cell").addEventListener("pointerdown", (e) => {
+const bossCellEl = document.getElementById("boss-cell");
+bossCellEl.addEventListener("pointerdown", (e) => {
   if (!boss) return;
   boss.hp -= 1;
-  burst(e.clientX, e.clientY, { count: 8, color: "#ff6b6b", spread: 60, life: 500 });
+  // punchy hit feedback: recoil, damage number, spark burst, tiny shake
+  bossCellEl.classList.remove("boss-hit"); void bossCellEl.offsetWidth; bossCellEl.classList.add("boss-hit");
+  spawnFloatNumber(e.clientX, e.clientY, "-1");
+  burst(e.clientX, e.clientY, { count: 12, color: "#ff6b6b", spread: 80, life: 500 });
+  shake(4);
   audio.playClick(0);
   if (boss.hp <= 0) {
     const reward = 4 + (state.prestiges || 0) + (state.speciations || 0) * 3;
@@ -632,6 +637,22 @@ setInterval(() => {
   bossEl.style.top = (boss.y - 60) + "px";
   bossTimerEl.textContent = Math.ceil(boss.timeLeft);
   bossHpFill.style.width = (boss.hp / boss.maxHp * 100) + "%";
+  // THREAT: while it lives, the rival cell leeches your biomass — scaled to your
+  // INCOME (it eats ~70% of your production) so it stays a real threat at any
+  // stage, with a floor of 1.5%/sec of biomass for idle/low-income moments.
+  if (state.biomass > 0) {
+    const incomeDrain = productionPerSecond() * 0.07; // 70%/sec over 10 ticks
+    const drain = Math.min(state.biomass, Math.max(state.biomass * 0.0015, incomeDrain));
+    state.biomass = Math.max(0, state.biomass - drain);
+    boss._leech = (boss._leech || 0) + drain;
+    boss._leechT = (boss._leechT || 0) + 0.1;
+    if (boss._leechT >= 1) { // "−X" feedback once a second
+      spawnFloatNumber(boss.x, boss.y - 36, "-" + formatNumber(boss._leech));
+      boss._leech = 0; boss._leechT = 0;
+    }
+  }
+  // the cell visibly shrinks as you damage it (satisfying progress)
+  bossCellEl.style.transform = `scale(${(0.55 + 0.45 * (boss.hp / boss.maxHp)).toFixed(3)})`;
 }, 100);
 
 // spawn a boss every ~75s once you've evolved at least once

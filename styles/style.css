@@ -73,9 +73,13 @@ html, body {
   background: radial-gradient(circle at 35% 30%, #ff8a6b, #8a1f2b 70%);
   box-shadow: 0 0 24px rgba(255,80,80,.5);
   animation: bossPulse 1.1s ease-in-out infinite;
+  transition: transform .12s ease; /* smooths the HP-driven shrink between ticks */
 }
-.boss-cell:active { transform: scale(.9); }
-@keyframes bossPulse { 0%,100% { transform: scale(1) } 50% { transform: scale(1.08) } }
+/* pulse via glow (not transform) so JS can own the HP-shrink scale */
+@keyframes bossPulse { 0%,100% { box-shadow: 0 0 22px rgba(255,80,80,.5) } 50% { box-shadow: 0 0 46px rgba(255,90,90,.85) } }
+/* hit recoil — overrides the inline scale briefly, then settles back */
+.boss-cell.boss-hit { animation: bossPulse 1.1s ease-in-out infinite, bossHit .22s ease-out; }
+@keyframes bossHit { 0% { transform: scale(.72) } 55% { transform: scale(1.12) } 100% { transform: scale(1) } }
 #photo-bar .ghost { background: rgba(15,22,31,.85); }
 
 /* photo mode: hide the side panel + UI, let the creature fill the screen */
