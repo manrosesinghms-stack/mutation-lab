@@ -72,7 +72,9 @@
       <footer id="panel-foot">
         <button id="save-btn" class="ghost">Save</button>
         <button id="wipe-btn" class="ghost danger">Wipe</button>
+        <button id="stats-btn" class="ghost">📊</button>
         <button id="mute-btn" class="ghost" title="Toggle sound">🔊</button>
+        <input id="volume" type="range" min="0" max="100" value="50" title="Music volume" />
         <span id="status"></span>
       </footer>
     </aside>
@@ -82,6 +84,17 @@
   <div id="fx-layer"></div>
   <!-- prestige flash overlay -->
   <div id="flash"></div>
+
+  <!-- stats & collection modal -->
+  <div id="stats-modal" class="hidden">
+    <div class="genome-inner">
+      <div class="genome-head">
+        <h2>📊 STATS & COLLECTION</h2>
+        <button id="stats-close" class="ghost">✕ Close</button>
+      </div>
+      <div id="stats-body" class="stats-body"></div>
+    </div>
+  </div>
 
   <!-- genome lab modal (nodes + species + save) -->
   <div id="genome-modal" class="hidden">

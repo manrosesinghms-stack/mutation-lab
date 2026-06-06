@@ -114,6 +114,55 @@ export const MUTATIONS = [
   { id: "hive_queen", name: "Hive Queen", rarity: "legendary",
     desc: "+12% production per organelle owned",
     effect: (m, i) => { m.prodMult *= 1 + 0.12 * i.totalGenerators; } },
+
+  // ---- expanded pool II (30 -> 50) ----
+  // common
+  { id: "vesicle", name: "Vesicles", rarity: "common", desc: "×1.3 production",
+    effect: (m) => { m.prodMult *= 1.3; } },
+  { id: "pilus", name: "Pili", rarity: "common", part: "cilia", desc: "×1.5 click power",
+    effect: (m) => { m.clickMult *= 1.5; } },
+  { id: "glycogen", name: "Glycogen Stores", rarity: "common", desc: "×1.35 production",
+    effect: (m) => { m.prodMult *= 1.35; } },
+  { id: "antenna", name: "Sensory Antenna", rarity: "common", desc: "×1.4 click power",
+    effect: (m) => { m.clickMult *= 1.4; } },
+  { id: "ribozyme", name: "Ribozymes", rarity: "common", desc: "Ribosomes ×2",
+    effect: (m) => { m.genMult.ribosome = (m.genMult.ribosome || 1) * 2; } },
+  { id: "plasmid", name: "Plasmid Swap", rarity: "common", desc: "×1.25 production & ×1.25 click",
+    effect: (m) => { m.prodMult *= 1.25; m.clickMult *= 1.25; } },
+  { id: "spore", name: "Spore Coat", rarity: "common", desc: "×1.45 production",
+    effect: (m) => { m.prodMult *= 1.45; } },
+
+  // rare
+  { id: "mitosis", name: "Mitosis", rarity: "rare", part: "body", desc: "×2 production (it splits)",
+    effect: (m) => { m.prodMult *= 2; } },
+  { id: "chemotaxis", name: "Chemotaxis", rarity: "rare", part: "cilia",
+    desc: "×1.8 production & ×1.5 click",
+    effect: (m) => { m.prodMult *= 1.8; m.clickMult *= 1.5; } },
+  { id: "capsid", name: "Viral Capsid", rarity: "rare", desc: "×2.5 production",
+    effect: (m) => { m.prodMult *= 2.5; } },
+  { id: "symbiont", name: "Symbiont", rarity: "rare", desc: "+6% production per mutation owned",
+    effect: (m, i) => { m.prodMult *= 1 + 0.06 * i.totalMutations; } },
+  { id: "electrocyte", name: "Electrocytes", rarity: "rare", desc: "×2 click & ×1.5 production",
+    effect: (m) => { m.clickMult *= 2; m.prodMult *= 1.5; } },
+  { id: "venom", name: "Venom Glands", rarity: "rare", desc: "×2.8 production, but ×0.8 click",
+    effect: (m) => { m.prodMult *= 2.8; m.clickMult *= 0.8; } },
+  { id: "gigantism", name: "Gigantism", rarity: "rare", part: "body", desc: "×2.2 production",
+    effect: (m) => { m.prodMult *= 2.2; } },
+
+  // legendary
+  { id: "twin", name: "Conjoined Twin", rarity: "legendary", part: "body", desc: "×4 production",
+    effect: (m) => { m.prodMult *= 4; } },
+  { id: "overmind", name: "Overmind", rarity: "legendary", desc: "+15% production per mutation owned",
+    effect: (m, i) => { m.prodMult *= 1 + 0.15 * i.totalMutations; } },
+  { id: "photophore", name: "Photophores", rarity: "legendary", part: "eye", desc: "×5 production",
+    effect: (m) => { m.prodMult *= 5; } },
+  { id: "titan", name: "Titan Physiology", rarity: "legendary", desc: "×5 production & ×2 click",
+    effect: (m) => { m.prodMult *= 5; m.clickMult *= 2; } },
+  { id: "swarm_lord", name: "Swarm Lord", rarity: "legendary", part: "cilia",
+    desc: "+9% production per organelle owned",
+    effect: (m, i) => { m.prodMult *= 1 + 0.09 * i.totalGenerators; } },
+  { id: "omega", name: "Omega Cell", rarity: "legendary", desc: "×4 production & ×4 click",
+    effect: (m) => { m.prodMult *= 4; m.clickMult *= 4; } },
 ];
 
 export const MUT_BY_ID = Object.fromEntries(MUTATIONS.map((m) => [m.id, m]));

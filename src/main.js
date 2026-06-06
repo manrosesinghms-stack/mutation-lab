@@ -21,6 +21,7 @@ import {
   doDigest,
   pruneTempBuffs,
   addTempBuff,
+  checkAchievements,
 } from "./economy.js";
 import {
   initCreature,
@@ -44,6 +45,7 @@ import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
 import * as audio from "./audio.js";
+import { startMusic, setMusicIntensity, setMusicVolume } from "./music.js";
 import { initJuice, burst, shake, updateJuice, flash } from "./juice.js";
 
 // screen-center of the 3D stage, for big bursts
@@ -175,6 +177,7 @@ initCreature(canvas, (sx, sy) => {
   combo = now - lastClickAt < 600 ? combo + 1 : 0;
   lastClickAt = now;
   const gain = click();
+  startMusic(); // first user gesture — kick off ambient music
   spawnFloatNumber(sx, sy, "+" + formatNumber(gain));
   audio.playClick(combo);
   burst(sx, sy, { count: 4 + Math.min(combo, 8), color: "#56e39f", spread: 55, life: 600 });
@@ -191,12 +194,24 @@ const savedParts = state.mutations
 rebuildVisuals(savedParts, state.mutations.length);
 refreshGhosts(); // restore equipped-species ghost overlays
 
-// restore mute preference
+// restore mute preference + music volume
 audio.setMuted(!!state.muted);
 setMuteLabel(!!state.muted);
+const volSlider = document.getElementById("volume");
+const startVol = state.musicVolume == null ? 0.5 : state.musicVolume;
+volSlider.value = Math.round(startVol * 100);
+setMusicVolume(startVol);
+volSlider.addEventListener("input", () => {
+  const v = volSlider.value / 100;
+  state.musicVolume = v;
+  setMusicVolume(v);
+  startMusic();
+  save();
+});
 
 // --- Mitogen Bloom: golden clickable spawn -> frenzy buff (active-play upside) ---
 setBloomCallback((sx, sy) => {
+  state.bloomCaught = true;
   addTempBuff({ id: "bloom", prodMult: 7, durationMs: 20000 });
   audio.playMilestone();
   flash("rgba(255,215,107,0.4)");
@@ -266,7 +281,17 @@ function update() {
   const visualDt = Math.min(dt, 0.1);
   setGrowthFromBiomass(state.biomass);
   // metabolic stress ramps in from pressure 0.6 -> 1.2 (creature strains red)
-  setStress((pressureLevel() - 0.6) / 0.6);
+  const pressure = pressureLevel();
+  setStress((pressure - 0.6) / 0.6);
+  if (pressure >= 1) state.hitWall = true;
+  // achievement unlocks
+  for (const a of checkAchievements()) {
+    audio.playMilestone();
+    flash("rgba(86,227,159,0.35)");
+    flashStatus(`🏆 ${a.name} — ${a.desc}`);
+  }
+  // music intensity grows with total progress
+  setMusicIntensity(Math.min(1, Math.log10((state.lifetimeBiomass || 0) + 10) / 16));
   renderCreature(visualDt, elapsed);
   updateJuice(visualDt);
   renderUI(rate, visualDt);

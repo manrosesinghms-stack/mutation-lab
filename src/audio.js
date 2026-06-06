@@ -84,3 +84,7 @@ export function playMilestone() {
 export function setMuted(v) { muted = !!v; }
 export function isMuted() { return muted; }
 export function toggleMuted() { muted = !muted; return muted; }
+
+// shared context + bus so the music module can reuse them (and respect mute)
+export function getContext() { return ac(); }
+export function getMaster() { ac(); return master; }

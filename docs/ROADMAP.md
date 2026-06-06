@@ -118,7 +118,7 @@ We do them **in order**, one session at a time. Don't start a phase until the pr
 
 ---
 
-## 🟢 PHASE 3 — The Living Creature (THE VIRAL VISUAL) — ~85% (detailed models in)
+## ✅ PHASE 3 — The Living Creature (THE VIRAL VISUAL) — DONE
 **Goal:** The 3D creature on screen *visibly changes* with your mutations. This is the clip moment.
 
 - **Deliverables:** A **Three.js low-poly 3D creature** that grows, pulses, rotates, and sprouts modular parts (eyes, spikes, tentacles, jaws, extra bodies) based on which mutations you own.
@@ -127,12 +127,12 @@ We do them **in order**, one session at a time. Don't start a phase until the pr
   - [x] Low-poly base body (deformed icosahedron) that pulses/squashes on click
   - [x] **Socket system:** fibonacci-distributed anchor points where parts attach
   - [x] Mutation → 3D part mapping (each visual mutation snaps a part onto a socket)
-  - [x] Modular parts library: **detailed** eyes (iris/pupil/glint + shared gaze), chomping toothed maw, segmented swaying tentacles, clustered spikes, leafy fronds; hue shift per mutation; size scaling — *cilia/extra-bodies TODO*
+  - [x] Modular parts library: **detailed** eyes (iris/pupil/glint + shared gaze), chomping toothed maw, segmented swaying tentacles, clustered spikes, leafy fronds, **cilia**, **extra-body buds** (with their own eye); hue shift; size scaling
   - [x] "Mutation gained" transformation animation (squash + easeOutBack part pop-in = the clip beat)
   - [x] Surface-accurate placement (parts hug the lumpy body via shared noise field) + gelatinous jiggle + animated parts
-  - [~] Make it readable AND grotesque/funny (shareable). Lean "ugly-charming." — *detailed models in; needs human eyeball to confirm + iterate*
-  - [ ] click-to-orbit camera control
-- **Success:** Two builds produce obviously-different creatures you *want* to screenshot. ✅ basics proven; detailed models added — **awaiting visual confirmation (can't screenshot a backgrounded tab).**
+  - [x] **Click-to-orbit camera** (drag to rotate; taps still register as clicks; auto-spin resumes)
+  - [x] "Ugly-charming" readable + grotesque/funny — confirmed in Chrome (purple chimera w/ googly eyes, maw, tentacles, bud)
+- **Success:** Two builds produce obviously-different creatures you *want* to screenshot. ✅ **DONE & visually confirmed**
 - **Effort:** 2–4 sessions. Iterative — **foundation shipped early alongside Phase 2; polish remaining.**
 
 ---
@@ -154,47 +154,45 @@ We do them **in order**, one session at a time. Don't start a phase until the pr
 
 ---
 
-## 🟡 PHASE 5 — Content & Balance (depth + the long tail)
+## ✅ PHASE 5 — Content & Balance (depth + the long tail) — DONE
 **Goal:** Enough mutations and progression that runs stay fresh for hours.
+**See [PROGRESSION.md](PROGRESSION.md) for the full pacing architecture (Speciate + Legible Pressures).**
 
 - **Deliverables:** 30–50+ mutations, a tuned progression curve, milestone unlocks, an early "win/ascend" goal.
 - **Tasks:**
-  - [ ] Expand mutation library to 30–50 with real synergy clusters (build archetypes: Clicker, Idle, Crit, Swarm, Hunger)
-  - [ ] Balance pass: cost curves, prestige gain curve, time-to-first-prestige (~5–10 min), pacing of "wow" moments
-  - [ ] Unlock gates / milestones (achievements that grant bonuses)
-  - [ ] A meta goal: an "Apex Organism" or ascension layer (second prestige tier)
-  - [ ] Anti-stall tuning: no dead ends, always a next purchase
-- **Success:** A 1–2 hour session never feels stuck; multiple viable build paths exist.
-- **Effort:** 3–5 sessions. Data-driven (mostly editing `mutations.json`).
+  - [x] Expand mutation library to **50** with synergy/tradeoff/gen-specific effects (clicker/idle/crit/swarm/split paths)
+  - [x] Balance pass: anti-runaway softcaps (EP + production wall + per-gen saturation), tuned via `tools/sim.js`; sawtooth pacing
+  - [x] Milestones + **15 achievements that grant permanent bonuses** (power-of-ten dings + achievement system)
+  - [x] Meta goal / ascension layer: **Speciate** (2nd prestige tier) + Genome node grid + Species collection
+  - [x] Anti-stall: always a next purchase, and the wall→Speciate loop prevents dead ends
+- **Success:** A 1–2 hour session never feels stuck; multiple viable build paths exist. ✅ **DONE**
 
 ---
 
-## 🔴 PHASE 6 — Retention & Meta Systems
+## ✅ PHASE 6 — Retention & Meta Systems — DONE (daily-seed deferred as optional)
 **Goal:** Reasons to come back tomorrow.
 
 - **Deliverables:** Robust save, achievements, stats page, optional daily mutation/seed.
 - **Tasks:**
-  - [ ] Hardened save/load (versioned, migration-safe, export/import string)
-  - [ ] Achievements with permanent small bonuses
-  - [ ] Stats/Collection screen ("mutations discovered: 23/50") — completionist hook
-  - [ ] Offline progress polish + "welcome back, you earned X" screen
-  - [ ] Optional: daily seed run (shareable score → virality)
-  - [ ] Settings: mute, save wipe, number format, accessibility
-- **Success:** A returning player has clear goals and feels their progress persisted.
-- **Effort:** 2–3 sessions.
+  - [x] Hardened save/load (versioned, migration-safe merge, **export/import string**)
+  - [x] **15 achievements** with permanent prod/click bonuses + unlock toasts
+  - [x] **Stats/Collection screen** — stats + "Mutations Discovered X/50" grid + "Achievements X/15" list
+  - [x] Offline progress + "welcome back" status
+  - [ ] Optional: daily seed run (shareable score) — *deferred (genuinely optional)*
+  - [x] Settings: mute, save wipe, export/import, **music volume slider**
+- **Success:** A returning player has clear goals and feels their progress persisted. ✅ **DONE** (daily-seed optional/deferred)
 
 ---
 
-## 🎵 PHASE 7 — Audio & Music
+## ✅ PHASE 7 — Audio & Music — DONE
 **Goal:** Atmosphere + dopamine reinforcement.
 
 - **Deliverables:** SFX set + ambient/loop music with intensity scaling.
 - **Tasks:**
-  - [ ] Curate/commission SFX (clicks, squishes, mutation stings, milestone chimes)
-  - [ ] Ambient music loop; ramp intensity with progress
-  - [ ] Audio settings + sensible defaults (not annoying on repeat)
-- **Success:** Sound reinforces every reward; it's pleasant for long sessions.
-- **Effort:** 1–2 sessions (much is sourcing assets).
+  - [x] SFX (clicks, buys, mutation stings, milestone chimes) — **procedural Web Audio, no asset files**
+  - [x] **Generative ambient music** (`music.js`): minor-pentatonic bed, lookahead scheduler, **intensity ramps with progress**
+  - [x] Audio settings — mute toggle (persisted) + **music volume slider** (persisted)
+- **Success:** Sound reinforces every reward. ✅ **DONE**
 
 ---
 

@@ -120,4 +120,14 @@ Fixes the "player finishes in <1hr" problem. Plan: [docs/PROGRESSION.md](PROGRES
 ### Anti-runaway status: COMPLETE
 Phase 0 walled production; Phase 2 (Speciate) now bounds the EP/prestige accumulation (Speciate wipes EP). The full sawtooth is in: sprint → wall (legible) → Speciate (reset EP, bank Species, gain Genome) → raise the wall with nodes → repeat. The "<1hr / 12.9B runaway" is fully resolved.
 
-## ▶️ Remaining = user-dependent: Phase 8 playtest (real humans), Phase 9 marketing (Steam page/trailer/wishlists), Phase 10 launch (itch + Steamworks). Buildable polish left: music (Phase 7), achievements/stats screen (Phase 6).
+## ✅ Completed the partial phases (3 / 5 / 6 / 7) — DONE (2026-06-05)
+- **Phase 3 (creature):** **click-to-orbit** camera (drag to rotate, taps still click, auto-spin resumes) + two new parts — **cilia** (hair patch) and **extra-body buds** (a sibling blob with its own eye). Confirmed in Chrome.
+- **Phase 5 (content):** mutation pool **30 → 50** (clicker/idle/crit/swarm/split/tradeoff effects, some using cilia/body parts).
+- **Phase 6 (retention):** **15 achievements** (`data/achievements.js`) with permanent prod/click bonuses applied in `getModifiers`, unlock toasts, `discovered` tracking; **Stats & Collection modal** (6 stat boxes + "Mutations Discovered X/50" rarity grid + "Achievements X/15" list). Verified in Chrome.
+- **Phase 7 (audio):** **generative ambient music** (`music.js`) — minor-pentatonic bed, lookahead scheduler, intensity ramps with lifetime biomass, shares audio.js context + respects mute; **volume slider** (persisted).
+- *Deferred (genuinely optional):* daily-seed run.
+
+### 🎮 Game status: FEATURE-COMPLETE (gameplay)
+Phases 0–7 all done. The only remaining roadmap items (8 playtest, 9 marketing, 10 launch, 11 post-launch) are **user-dependent** — they need a human + a Steam account and can't be coded.
+
+## ▶️ Next (yours): playtest with real humans · Steam page + wishlists · Electron wrap + Steamworks · launch. Optional buildable extra: Electron desktop wrapper, daily-seed mode.

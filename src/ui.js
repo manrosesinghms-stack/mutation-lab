@@ -8,8 +8,9 @@ import {
   canSpeciate, genomeForSpeciate, equipSlots,
 } from "./economy.js";
 import { formatNumber } from "./format.js";
-import { getMutation, RARITY } from "./data/mutations.js";
+import { getMutation, RARITY, MUTATIONS } from "./data/mutations.js";
 import { GENOME_NODES, nodeCost, nodeLevel } from "./data/genomeNodes.js";
+import { ACHIEVEMENTS } from "./data/achievements.js";
 
 const el = {};
 let onBuy = null;
@@ -60,6 +61,10 @@ export function initUI(handlers) {
   document.getElementById("genome-close").addEventListener("click", () => el.genomeModal.classList.add("hidden"));
   document.getElementById("export-btn").addEventListener("click", handlers.onExport);
   document.getElementById("import-btn").addEventListener("click", handlers.onImport);
+  el.statsModal = document.getElementById("stats-modal");
+  el.statsBody = document.getElementById("stats-body");
+  document.getElementById("stats-btn").addEventListener("click", () => openStats());
+  document.getElementById("stats-close").addEventListener("click", () => el.statsModal.classList.add("hidden"));
   uiHandlers = handlers;
 
   buildGeneratorRows();
@@ -78,6 +83,54 @@ export function genomeStatus(msg) {
     clearTimeout(el.genomeStatus._t);
     el.genomeStatus._t = setTimeout(() => (el.genomeStatus.textContent = ""), 2500);
   }
+}
+
+// ---- stats & collection ----
+export function openStats() {
+  renderStats();
+  el.statsModal.classList.remove("hidden");
+}
+
+function renderStats() {
+  const s = state;
+  const discovered = s.discovered || {};
+  const discCount = Object.keys(discovered).length;
+  const achCount = Object.keys(s.achievements || {}).length;
+
+  const stat = (k, v) => `<div class="stat-box"><div class="v">${v}</div><div class="k">${k}</div></div>`;
+  const stats = [
+    stat("Lifetime biomass", formatNumber(s.lifetimeBiomass || 0)),
+    stat("Evolutions", formatNumber(s.prestiges || 0)),
+    stat("Speciations", formatNumber(s.speciations || 0)),
+    stat("Genome", formatNumber(s.genome || 0)),
+    stat("Species banked", (s.species || []).length),
+    stat("Evolution Points", formatNumber(s.evolutionPoints || 0)),
+  ].join("");
+
+  const pills = MUTATIONS.map((m) => {
+    const got = !!discovered[m.id];
+    const color = RARITY[m.rarity].color;
+    return got
+      ? `<span class="mut-pill" style="border-color:${color};color:${color}" title="${m.desc}">${m.name}</span>`
+      : `<span class="mut-pill locked">???</span>`;
+  }).join("");
+
+  const achs = ACHIEVEMENTS.map((a) => {
+    const got = !!(s.achievements || {})[a.id];
+    const bonus = a.prodMult ? `+${Math.round((a.prodMult - 1) * 100)}% prod`
+      : a.clickMult ? `+${Math.round((a.clickMult - 1) * 100)}% click` : "";
+    return `<div class="ach ${got ? "got" : ""}">
+      <div class="an">${got ? "🏆 " : "🔒 "}${a.name}</div>
+      <div class="ad">${a.desc}</div>
+      <div class="ab">${bonus}</div></div>`;
+  }).join("");
+
+  el.statsBody.innerHTML = `
+    <div class="stats-grid">${stats}</div>
+    <h3>Mutations Discovered · ${discCount} / ${MUTATIONS.length}</h3>
+    <div class="mut-grid">${pills}</div>
+    <h3>Achievements · ${achCount} / ${ACHIEVEMENTS.length}</h3>
+    <div class="ach-list">${achs}</div>`;
 }
 
 // Build the Genome Lab contents (nodes + species). Call after any change.

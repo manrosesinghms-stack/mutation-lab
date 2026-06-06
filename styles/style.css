@@ -201,13 +201,30 @@ html, body {
 .genome-open { width: 100%; margin-top: 8px; text-align: center; }
 .genome-open b { color: var(--accent2); }
 
-/* genome lab modal */
-#genome-modal {
+/* genome lab + stats modals */
+#genome-modal, #stats-modal {
   position: fixed; inset: 0; z-index: 100;
   display: flex; align-items: center; justify-content: center;
   background: rgba(4,7,11,.85); backdrop-filter: blur(6px); animation: fadeIn .2s ease;
 }
-#genome-modal.hidden { display: none; }
+#genome-modal.hidden, #stats-modal.hidden { display: none; }
+
+/* stats & collection */
+.stats-body { margin-top: 16px; overflow-y: auto; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.stat-box { background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.stat-box .v { font-size: 18px; font-weight: 800; }
+.stat-box .k { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+.stats-body h3 { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 6px 0 10px; }
+.mut-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+.mut-pill { font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); }
+.mut-pill.locked { color: #3a4a5a; border-style: dashed; }
+.ach-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ach { background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; opacity: .5; }
+.ach.got { opacity: 1; border-color: var(--accent); }
+.ach .an { font-weight: 700; font-size: 13px; }
+.ach .ad { color: var(--muted); font-size: 11px; }
+.ach .ab { color: var(--accent); font-size: 10px; font-weight: 700; }
 .genome-inner {
   width: min(880px, 94vw); max-height: 88vh; overflow: hidden;
   background: linear-gradient(180deg, #121a24, #0a0e13);
@@ -306,6 +323,7 @@ html, body {
 }
 .ghost:hover { color: var(--ink); border-color: var(--accent); }
 .ghost.danger:hover { color: var(--danger); border-color: var(--danger); }
+#volume { width: 64px; accent-color: var(--accent); cursor: pointer; }
 #status { color: var(--muted); font-size: 11px; margin-left: auto; }
 
 /* ---------- floating click fx ---------- */

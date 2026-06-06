@@ -5,6 +5,7 @@ import { GENERATORS } from "./data/generators.js";
 import { MUTATIONS, MUT_BY_ID } from "./data/mutations.js";
 import { TUN, softknee } from "./data/tunables.js";
 import { NODE_BY_ID, nodeLevel, nodeCost } from "./data/genomeNodes.js";
+import { ACHIEVEMENTS } from "./data/achievements.js";
 
 // EP payoff with a softcap: linear +10%/EP early, sqrt tail late (anti-runaway).
 function epPayoffMult(ep) {
@@ -51,7 +52,26 @@ export function getModifiers() {
     if (b.prodMult) mods.prodMult *= b.prodMult;
     if (b.clickMult) mods.clickMult *= b.clickMult;
   }
+  // permanent achievement bonuses
+  const ach = state.achievements || {};
+  for (const a of ACHIEVEMENTS) {
+    if (!ach[a.id]) continue;
+    if (a.prodMult) mods.prodMult *= a.prodMult;
+    if (a.clickMult) mods.clickMult *= a.clickMult;
+  }
   return mods;
+}
+
+// Unlock any newly-satisfied achievements; returns the list of new ones.
+export function checkAchievements() {
+  const unlocked = [];
+  for (const a of ACHIEVEMENTS) {
+    if (!state.achievements[a.id] && a.check(state)) {
+      state.achievements[a.id] = true;
+      unlocked.push(a);
+    }
+  }
+  return unlocked;
 }
 
 // ---- temporary buffs (Phase 3: blooms + Digest) ----
@@ -311,7 +331,11 @@ export function rollDraft(n = 3) {
 }
 
 export function acquireMutation(id) {
-  if (MUT_BY_ID[id]) state.mutations.push(id);
+  if (MUT_BY_ID[id]) {
+    state.mutations.push(id);
+    state.discovered = state.discovered || {};
+    state.discovered[id] = true; // for the collection / completionist achievement
+  }
 }
 
 // Apply offline progress on load. Returns biomass earned while away.

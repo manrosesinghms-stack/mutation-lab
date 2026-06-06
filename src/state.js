@@ -27,6 +27,11 @@ function freshState() {
     equippedSpecies: [],   // ids of currently-equipped species (capped by nodes)
     genomeNodes: {},       // { nodeId: level } purchased node grid
     speciations: 0,        // how many times Speciated
+    musicVolume: 0.5,      // 0..1 ambient music volume
+    achievements: {},      // { achievementId: true } unlocked set
+    discovered: {},        // { mutationId: true } every mutation ever drafted
+    hitWall: false,        // ever reached the production wall (achievement)
+    bloomCaught: false,    // ever clicked a Mitogen Bloom (achievement)
     lastSeen: nowSeconds(), // for offline progress
   };
 }
@@ -64,6 +69,8 @@ export function load() {
       species: Array.isArray(data.species) ? data.species : [],
       equippedSpecies: Array.isArray(data.equippedSpecies) ? data.equippedSpecies : [],
       genomeNodes: (data.genomeNodes && typeof data.genomeNodes === "object") ? data.genomeNodes : {},
+      achievements: (data.achievements && typeof data.achievements === "object") ? data.achievements : {},
+      discovered: (data.discovered && typeof data.discovered === "object") ? data.discovered : {},
     };
     // for an existing big save, start milestones at the current tier so we don't
     // dump a backlog of dings on load

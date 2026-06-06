@@ -22,6 +22,9 @@ let stressTarget = 0;
 let engorge = 0;        // transient swell from Digest
 let activeBloom = null; // the current Mitogen Bloom mesh (clickable)
 let onBloomCb = null;
+// drag-to-orbit
+let dragging = false, dragMoved = false, dragX = 0, dragY = 0;
+let orbitYaw = 0, orbitPitch = 0, autoYaw = 0;
 const BASE_HSL = { h: 0.42, s: 0.62, l: 0.55 };
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -137,10 +140,12 @@ export function initCreature(canvasEl, onClick) {
   organism.add(partsGroup);
   applyHue();
 
-  // click handling via raycast (so only clicks ON the creature count)
+  // click + drag-to-orbit handling
   raycaster = new THREE.Raycaster();
   pointer = new THREE.Vector2();
-  canvas.addEventListener("pointerdown", handlePointer);
+  canvas.addEventListener("pointerdown", onPointerDown);
+  window.addEventListener("pointermove", onPointerMove);
+  window.addEventListener("pointerup", onPointerUp);
 
   resize();
   window.addEventListener("resize", resize);
@@ -152,14 +157,34 @@ function bloomAncestor(obj) {
   return null;
 }
 
-function handlePointer(e) {
+function onPointerDown(e) {
+  dragging = true;
+  dragMoved = false;
+  dragX = e.clientX;
+  dragY = e.clientY;
+}
+
+function onPointerMove(e) {
+  if (!dragging) return;
+  const dx = e.clientX - dragX, dy = e.clientY - dragY;
+  if (Math.abs(dx) + Math.abs(dy) > 4) dragMoved = true; // it's an orbit, not a tap
+  orbitYaw += dx * 0.008;
+  orbitPitch = Math.max(-1.2, Math.min(1.2, orbitPitch + dy * 0.008));
+  dragX = e.clientX;
+  dragY = e.clientY;
+}
+
+function onPointerUp(e) {
+  if (!dragging) return;
+  dragging = false;
+  if (dragMoved) return; // dragged to orbit — not a click
+  // a tap: raycast at the release point
   const rect = canvas.getBoundingClientRect();
   pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
   const hit = raycaster.intersectObject(organism, true);
   if (hit.length === 0) return;
-  // clicking the bloom triggers its reward instead of a normal click
   const bloom = bloomAncestor(hit[0].object);
   if (bloom) {
     removeBloom();
@@ -215,8 +240,10 @@ export function renderCreature(dt, elapsed) {
   // Digest swell
   engorge += (0 - engorge) * Math.min(1, dt * 2);
   if (engorge > 0.001) organism.scale.multiplyScalar(1 + engorge * 0.45);
-  organism.rotation.y += dt * 0.35;
-  organism.rotation.x = Math.sin(elapsed * 0.4) * 0.12;
+  // auto-spin (paused while dragging) + manual orbit offset
+  if (!dragging) autoYaw += dt * 0.35;
+  organism.rotation.y = autoYaw + orbitYaw;
+  organism.rotation.x = Math.sin(elapsed * 0.4) * 0.12 + orbitPitch;
 
   // metabolic stress: desaturate, tremble, and over-glow as the wall approaches
   stress += (stressTarget - stress) * Math.min(1, dt * 4);
@@ -407,6 +434,37 @@ function buildFrond() {
   return g;
 }
 
+function buildCilia() {
+  const g = new THREE.Group();
+  const mat = matte(0xc9e8d0);
+  for (let i = 0; i < 14; i++) {
+    const h = 0.12 + Math.random() * 0.14;
+    const hair = new THREE.Mesh(new THREE.ConeGeometry(0.013, h, 4), mat);
+    const a = Math.random() * Math.PI * 2, r = Math.random() * 0.15;
+    hair.position.set(Math.cos(a) * r, h / 2, Math.sin(a) * r);
+    hair.rotation.set((Math.random() - 0.5) * 0.5, 0, (Math.random() - 0.5) * 0.5);
+    g.add(hair);
+  }
+  g.userData.sway = true;
+  return g;
+}
+
+function buildExtraBody() {
+  const g = new THREE.Group();
+  const blob = new THREE.Mesh(
+    makeOrganismGeometry(2, 0.5),
+    new THREE.MeshStandardMaterial({ color: 0x5be39f, roughness: 0.32, metalness: 0.1,
+      flatShading: true, emissive: 0x0a3d2a, emissiveIntensity: 0.5 }));
+  blob.position.y = 0.42;
+  g.add(blob);
+  // a little eye so the bud reads as a sibling organism
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), glossy(0xf7f8fc));
+  const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), glossy(0x07070d));
+  eye.position.set(0, 0.6, 0.36); pupil.position.set(0, 0.62, 0.44);
+  g.add(eye, pupil);
+  return g;
+}
+
 function buildPart(type) {
   switch (type) {
     case "eye": return buildEye();
@@ -414,6 +472,8 @@ function buildPart(type) {
     case "tentacle": return buildTentacle();
     case "jaw": return buildMaw();
     case "frond": return buildFrond();
+    case "cilia": return buildCilia();
+    case "body": return buildExtraBody();
     default: {
       const g = new THREE.Group();
       g.add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), glossy(0xffffff)));
