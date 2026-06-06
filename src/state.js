@@ -29,6 +29,7 @@ function freshState() {
     speciations: 0,        // how many times Speciated
     musicVolume: 0.5,      // 0..1 ambient music volume
     musicTrack: "lofi",    // selected music theme
+    background: "aurora",  // selected animated background
     shake: "subtle",       // screen shake: off | subtle | full
     reduceMotion: false,   // disable creature tremble + extra motion
     namingStyle: "scientific", // creature name style: scientific | cute | eldritch

@@ -12,6 +12,7 @@ import { getMutation, RARITY, MUTATIONS } from "./data/mutations.js";
 import { GENOME_NODES, nodeCost, nodeLevel } from "./data/genomeNodes.js";
 import { ACHIEVEMENTS } from "./data/achievements.js";
 import { MUSIC_THEMES } from "./music.js";
+import { BACKGROUNDS } from "./background.js";
 import { creatureName } from "./data/names.js";
 
 const el = {};
@@ -77,6 +78,7 @@ export function initUI(handlers) {
   el.setShake = document.getElementById("set-shake");
   el.setReduce = document.getElementById("set-reduce");
   el.setMute = document.getElementById("set-mute");
+  el.setBg = document.getElementById("set-bg");
   document.getElementById("settings-btn").addEventListener("click", () => openSettings());
   document.getElementById("settings-close").addEventListener("click", () => el.settingsModal.classList.add("hidden"));
   // help / how to play
@@ -88,6 +90,7 @@ export function initUI(handlers) {
   el.setReduce.addEventListener("change", () => { handlers.onSetReduce(el.setReduce.checked); renderSettings(); });
   el.setMute.addEventListener("click", () => { handlers.onMute(); renderSettings(); });
   el.setNaming.addEventListener("click", (e) => { const v = e.target.dataset.v; if (v) { handlers.onSetNaming(v); renderSettings(); el._mutSig = null; } });
+  el.setBg.addEventListener("click", (e) => { const v = e.target.dataset.v; if (v) { handlers.onSetBackground(v); renderSettings(); } });
   uiHandlers = handlers;
 
   buildGeneratorRows();
@@ -124,9 +127,17 @@ function renderSettings() {
   for (const t of MUSIC_THEMES) {
     const b = document.createElement("button");
     b.textContent = t.name;
-    if ((state.musicTrack || "primordial") === t.id) b.classList.add("active");
+    if ((state.musicTrack || "lofi") === t.id) b.classList.add("active");
     b.addEventListener("click", () => { uiHandlers.onSetTheme(t.id); renderSettings(); });
     el.setThemes.appendChild(b);
+  }
+  el.setBg.innerHTML = "";
+  for (const bg of BACKGROUNDS) {
+    const b = document.createElement("button");
+    b.textContent = bg.name;
+    if ((state.background || "aurora") === bg.id) b.classList.add("active");
+    b.addEventListener("click", () => { uiHandlers.onSetBackground(bg.id); renderSettings(); });
+    el.setBg.appendChild(b);
   }
   for (const b of el.setShake.querySelectorAll("button")) {
     b.classList.toggle("active", b.dataset.v === (state.shake || "subtle"));

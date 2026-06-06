@@ -50,6 +50,7 @@ import { GENERATORS } from "./data/generators.js";
 import * as audio from "./audio.js";
 import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme, hasTheme } from "./music.js";
 import { initJuice, burst, shake, updateJuice, flash, setShakeScale } from "./juice.js";
+import { initBackground, renderBackground, setBackground, hasBackground, resizeBackground } from "./background.js";
 
 // screen-center of the 3D stage, for big bursts
 function stageCenter() {
@@ -103,6 +104,7 @@ initUI({
   onSetShake: (v) => { state.shake = v; applyShakeSetting(v); save(); },
   onSetReduce: (b) => { state.reduceMotion = b; setReduceMotion(b); save(); },
   onSetNaming: (v) => { state.namingStyle = v; save(); },
+  onSetBackground: (v) => { state.background = v; setBackground(v); save(); },
   onSpeciate: () => {
     const res = doSpeciate();
     if (!res) { flashStatus("can't speciate yet — reach the wall first"); return; }
@@ -194,6 +196,7 @@ initCreature(canvas, (sx, sy) => {
 });
 
 initJuice();
+initBackground(document.getElementById("bg-canvas"));
 
 // restore creature parts from a saved game (visual mutations only)
 const savedParts = state.mutations
@@ -214,6 +217,8 @@ if (!hasTheme(state.musicTrack)) state.musicTrack = "lofi"; // migrate old/unkno
 setMusicTheme(state.musicTrack);
 applyShakeSetting(state.shake || "subtle");
 setReduceMotion(!!state.reduceMotion);
+if (!hasBackground(state.background)) state.background = "aurora";
+setBackground(state.background);
 
 // first-ever launch: pop the How-to-Play so players aren't lost
 if (!state.seenHelp) {
@@ -245,15 +250,16 @@ setInterval(() => {
 // --- Photo Mode (hide UI, free-orbit, save a screenshot of your creature) ---
 const appEl = document.getElementById("app");
 const photoBar = document.getElementById("photo-bar");
+const relayout = () => { resizeCreature(); resizeBackground(); };
 document.getElementById("photo-btn").addEventListener("click", () => {
   appEl.classList.add("photo-mode");
   photoBar.classList.remove("hidden");
-  setTimeout(resizeCreature, 60);
+  setTimeout(relayout, 60);
 });
 document.getElementById("photo-exit").addEventListener("click", () => {
   appEl.classList.remove("photo-mode");
   photoBar.classList.add("hidden");
-  setTimeout(resizeCreature, 60);
+  setTimeout(relayout, 60);
 });
 document.getElementById("photo-shot").addEventListener("click", () => {
   const name = creatureName(state.mutations, state.namingStyle || "scientific");
@@ -325,6 +331,7 @@ function update() {
 
   // visuals (clamp the animation dt so squash/pop stay sane after long gaps)
   const visualDt = Math.min(dt, 0.1);
+  renderBackground(visualDt);
   setGrowthFromBiomass(state.biomass);
   // metabolic stress ramps in from pressure 0.6 -> 1.2 (creature strains red)
   const pressure = pressureLevel();
@@ -360,7 +367,7 @@ setInterval(update, 250); // background fallback so the organism keeps living
 // keep canvas crisp when the panel/layout changes
 window.addEventListener("resize", resizeCreature);
 // nudge a resize after first paint (canvas sizing can lag the layout)
-setTimeout(resizeCreature, 60);
+setTimeout(() => { resizeCreature(); resizeBackground(); }, 60);
 
 // save on exit
 window.addEventListener("beforeunload", save);

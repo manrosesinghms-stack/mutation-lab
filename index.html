@@ -18,6 +18,7 @@
   <div id="app">
     <!-- 3D creature lives here -->
     <div id="stage">
+      <canvas id="bg-canvas"></canvas>
       <canvas id="creature-canvas"></canvas>
       <div id="creature-name"></div>
       <div id="creature-hint">click the organism · drag to spin</div>
@@ -146,6 +147,7 @@
             <button data-v="scientific">Scientific</button><button data-v="cute">Cute</button><button data-v="eldritch">Eldritch</button>
           </div>
         </div>
+        <div class="set-row"><label>Background</label><div id="set-bg" class="seg"></div></div>
         <div class="set-row"><label>Music theme</label><div id="set-themes" class="seg"></div></div>
         <div class="set-row"><label>Screen shake</label>
           <div id="set-shake" class="seg">
