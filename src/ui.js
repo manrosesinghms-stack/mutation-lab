@@ -505,12 +505,15 @@ function renderMutationChips() {
 // Show the mutation draft. onPick(id) when chosen; onReroll() if a reroll token is spent.
 export function showDraft(ids, onPick, onReroll) {
   el.draftCards.innerHTML = "";
+  let di = 0;
   for (const id of ids) {
     const def = getMutation(id);
     if (!def) continue;
     const r = RARITY[def.rarity];
+    const high = def.alien || def.rarity === "legendary" || def.rarity === "epic";
     const card = document.createElement("div");
-    card.className = "draft-card" + (def.defect ? " defect" : "") + (def.alien ? " alien" : "");
+    card.className = "draft-card reveal" + (high ? " glow" : "") + (def.defect ? " defect" : "") + (def.alien ? " alien" : "");
+    card.style.animationDelay = (di++ * 0.1).toFixed(2) + "s";
     card.style.setProperty("--rarity", def.alien ? "#39d0c6" : def.defect ? "#ff6b6b" : r.color);
     card.innerHTML = `
       <div class="rarity">${def.alien ? "👽 ALIEN DNA" : def.defect ? "⚠ CURSED" : r.label}</div>

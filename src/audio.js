@@ -88,6 +88,54 @@ export function playRoar() {
   voice({ freq: 400, slideTo: 120, type: "triangle", dur: 0.5, gain: 0.08, release: 0.25, delay: 0.05 });
 }
 
+// Mutation-family SFX — each body part type erupts with its own organic texture,
+// so you *hear* what grew (eyes squish, spikes crack, tentacles stretch…).
+const noiseBurst = (dur, gain, hp = 800) => {
+  const c = ac();
+  if (!c || muted) return;
+  const t0 = c.currentTime;
+  const len = Math.max(1, Math.floor(c.sampleRate * dur));
+  const buf = c.createBuffer(1, len, c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = c.createBufferSource(); src.buffer = buf;
+  const f = c.createBiquadFilter(); f.type = "highpass"; f.frequency.value = hp;
+  const g = c.createGain();
+  g.gain.setValueAtTime(gain, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  src.connect(f).connect(g).connect(master);
+  src.start(t0); src.stop(t0 + dur + 0.02);
+};
+
+export function playPartSfx(part) {
+  switch (part) {
+    case "eye": // wet squish
+      voice({ freq: 600, slideTo: 220, type: "sine", dur: 0.16, gain: 0.12, release: 0.1 });
+      voice({ freq: 1200, slideTo: 500, type: "sine", dur: 0.1, gain: 0.05, delay: 0.02 });
+      break;
+    case "spike": // bony crack
+      noiseBurst(0.09, 0.18, 1800);
+      voice({ freq: 180, slideTo: 90, type: "square", dur: 0.06, gain: 0.1 });
+      break;
+    case "tentacle": // rubbery stretch
+      voice({ freq: 140, slideTo: 380, type: "sawtooth", dur: 0.28, gain: 0.09, release: 0.15 });
+      break;
+    case "jaw": // gnashing chomp
+      voice({ freq: 90, slideTo: 45, type: "square", dur: 0.14, gain: 0.16, release: 0.1 });
+      noiseBurst(0.06, 0.1, 600);
+      break;
+    case "frond": // soft leafy rustle
+      noiseBurst(0.22, 0.05, 3000);
+      voice({ freq: 520, type: "triangle", dur: 0.12, gain: 0.05 });
+      break;
+    case "cilia": // shimmer
+      [880, 1320, 1760].forEach((f, i) => voice({ freq: f, type: "sine", dur: 0.1, gain: 0.04, delay: i * 0.03 }));
+      break;
+    default: // generic organ bloom
+      voice({ freq: 320, slideTo: 480, type: "triangle", dur: 0.14, gain: 0.08, release: 0.1 });
+  }
+}
+
 export function setMuted(v) { muted = !!v; }
 export function isMuted() { return muted; }
 export function toggleMuted() { muted = !muted; return muted; }

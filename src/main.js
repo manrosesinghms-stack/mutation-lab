@@ -70,7 +70,7 @@ import { GENERATORS } from "./data/generators.js";
 import * as audio from "./audio.js";
 import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme, hasTheme, setMusicStress, setMusicDanger } from "./music.js";
 import { initCinematic, playCinematic } from "./cinematic.js";
-import { initJuice, burst, shake, updateJuice, flash, setShakeScale } from "./juice.js";
+import { initJuice, burst, shake, updateJuice, flash, setShakeScale, setJuiceReduceMotion, ripple, flyToCounter } from "./juice.js";
 import { initBackground, renderBackground, setBackground, hasBackground, resizeBackground } from "./background.js";
 
 // screen-center of the 3D stage, for big bursts
@@ -130,7 +130,7 @@ initUI({
   onSetVolume: (v) => { state.musicVolume = v; setMusicVolume(v); startMusic(); save(); },
   onSetTheme: (id) => { state.musicTrack = id; setMusicTheme(id); startMusic(); save(); },
   onSetShake: (v) => { state.shake = v; applyShakeSetting(v); save(); },
-  onSetReduce: (b) => { state.reduceMotion = b; setReduceMotion(b); save(); },
+  onSetReduce: (b) => { state.reduceMotion = b; setReduceMotion(b); setJuiceReduceMotion(b); save(); },
   onSetNaming: (v) => { state.namingStyle = v; save(); },
   onSetBackground: (v) => { state.background = v; setBackground(v); save(); },
   onSpeciate: () => {
@@ -297,6 +297,7 @@ function pickMutation(id) {
   onMutationGained(def && def.part); // hue drift + squash + grow a part
   const rarity = def ? def.rarity : "common";
   audio.playMutation(rarity);
+  if (def && def.part) audio.playPartSfx(def.part); // family SFX: hear what grew
   const c = stageCenter();
   if (rarity === "legendary") {
     audio.playMilestone();
@@ -353,7 +354,10 @@ initCreature(canvas, (sx, sy) => {
   startMusic(); // first user gesture — kick off ambient music
   spawnFloatNumber(sx, sy, "+" + formatNumber(gain));
   audio.playClick(combo);
-  burst(sx, sy, { count: 4 + Math.min(combo, 8), color: "#56e39f", spread: 55, life: 600 });
+  const crit = combo >= 12; // chained-click "critical extraction"
+  ripple(sx, sy, crit ? "#ffd76b" : "#7be3b0");
+  flyToCounter(sx, sy, crit ? "#ffd76b" : "#7be3b0");
+  burst(sx, sy, { count: 4 + Math.min(combo, 8), color: crit ? "#ffd76b" : "#56e39f", spread: 55, life: 600 });
   // (no per-click screen shake — the creature squash is the feedback; constant
   //  clicking made the whole screen jitter. Shake is reserved for big events.)
 });
@@ -381,6 +385,7 @@ if (!hasTheme(state.musicTrack)) state.musicTrack = "lofi"; // migrate old/unkno
 setMusicTheme(state.musicTrack);
 applyShakeSetting(state.shake || "subtle");
 setReduceMotion(!!state.reduceMotion);
+setJuiceReduceMotion(!!state.reduceMotion);
 if (!hasBackground(state.background)) state.background = "aurora";
 setBackground(state.background);
 setHabitat(state.biome); // theme the 3D habitat to the run's biome

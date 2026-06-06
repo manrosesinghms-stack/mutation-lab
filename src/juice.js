@@ -4,15 +4,55 @@
 let fxLayer = null;
 let shakeEl = null;
 let flashEl = null;
+let biomassEl = null;
 let shakeAmt = 0;
 let shakeScale = 0.5; // global multiplier on all shake (0 = off); set from settings
+let reduce = false;
 
 export function setShakeScale(v) { shakeScale = Math.max(0, v || 0); }
+export function setJuiceReduceMotion(v) { reduce = !!v; }
 
 export function initJuice() {
   fxLayer = document.getElementById("fx-layer");
   shakeEl = document.getElementById("app");
   flashEl = document.getElementById("flash");
+  biomassEl = document.getElementById("biomass-value");
+}
+
+// Premium click feedback: an expanding ring at the click point.
+export function ripple(x, y, color = "#7be3b0") {
+  if (!fxLayer || reduce) return;
+  const r = document.createElement("div");
+  r.className = "ripple";
+  r.style.left = x + "px";
+  r.style.top = y + "px";
+  r.style.borderColor = color;
+  fxLayer.appendChild(r);
+  const kill = () => r.remove();
+  r.addEventListener("animationend", kill);
+  setTimeout(kill, 600);
+}
+
+// Biomass particles that fly from the click point up to the resource counter,
+// so you see the value you just earned "land" in your total.
+export function flyToCounter(x, y, color = "#7be3b0") {
+  if (!fxLayer || reduce || !biomassEl) return;
+  const rect = biomassEl.getBoundingClientRect();
+  const tx = rect.left + rect.width / 2, ty = rect.top + rect.height / 2;
+  const p = document.createElement("div");
+  p.className = "fly-bit";
+  p.style.left = x + "px";
+  p.style.top = y + "px";
+  p.style.background = color;
+  p.style.color = color;
+  fxLayer.appendChild(p);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    p.style.transform = `translate(${(tx - x).toFixed(0)}px, ${(ty - y).toFixed(0)}px) scale(.35)`;
+    p.style.opacity = "0";
+  }));
+  const kill = () => p.remove();
+  p.addEventListener("transitionend", kill);
+  setTimeout(kill, 800);
 }
 
 // Spawn a radial burst of particles at screen (x, y).

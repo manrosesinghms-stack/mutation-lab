@@ -428,6 +428,12 @@ html, body {
 .draft-card .mname { font-size: 19px; font-weight: 800; line-height: 1.15; }
 .draft-card .mdesc { color: var(--muted); font-size: 13px; line-height: 1.45; margin-top: auto; }
 .draft-card .part-tag { font-size: 10px; color: var(--accent); letter-spacing: .08em; }
+/* high-rarity (epic/legendary/alien) cards pulse with a rarity-coloured glow */
+.draft-card.glow { animation: cardIn .4s cubic-bezier(.2,.9,.3,1.3) backwards, draftGlow 1.6s ease-in-out infinite; }
+@keyframes draftGlow {
+  0%, 100% { box-shadow: 0 0 14px -2px var(--rarity), inset 0 0 18px -8px var(--rarity); }
+  50% { box-shadow: 0 0 30px 2px var(--rarity), inset 0 0 26px -6px var(--rarity); }
+}
 
 #panel-foot { margin-top: auto; display: flex; align-items: center; gap: 8px; }
 .ghost {
@@ -475,6 +481,18 @@ html, body {
 }
 
 /* cinematic moment overlay */
+.ripple {
+  position: absolute; border: 2px solid #7be3b0; border-radius: 50%;
+  pointer-events: none; transform: translate(-50%, -50%);
+  animation: rippleGo .5s ease-out forwards;
+}
+@keyframes rippleGo { from { width: 6px; height: 6px; opacity: .65 } to { width: 88px; height: 88px; opacity: 0 } }
+.fly-bit {
+  position: absolute; width: 9px; height: 9px; border-radius: 50%; pointer-events: none;
+  transform: translate(-50%, -50%); box-shadow: 0 0 8px currentColor;
+  transition: transform .55s cubic-bezier(.5, 0, .35, 1), opacity .55s ease;
+}
+
 #pressure-vignette {
   position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: 0;
   box-shadow: inset 0 0 120px 24px rgba(255, 40, 48, .55), inset 0 0 320px 80px rgba(180, 12, 30, .35);
