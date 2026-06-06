@@ -497,12 +497,20 @@ export function renderUI(rate, dt = 0.016) {
   if (canSpec) el.speciateGain.textContent = `+${formatNumber(genomeForSpeciate())} Genome`;
   el.genomeValue.textContent = formatNumber(state.genome || 0);
 
-  // Transcend (3rd prestige) — button appears once it's unlockable; Helix tree
-  // button appears once you've ever Transcended or have Helix to spend.
-  const canTr = canTranscend();
-  el.transcendBtn.classList.toggle("hidden", !canTr);
-  if (canTr) el.transcendGain.textContent = `+${formatNumber(transcendGain())} Helix`;
-  const showHelix = (state.transcensions || 0) > 0 || (state.helix || 0) > 0;
+  // Transcend (3rd prestige) — show as a LOCKED TEASER once you're a few
+  // Speciations in, so players can SEE the next layer coming (with progress),
+  // not just hit an invisible wall. Unlocks for real at 8 Speciations.
+  const spec = state.speciations || 0;
+  const everTr = (state.transcensions || 0) > 0;
+  const showTr = spec >= 3 || everTr;
+  el.transcendBtn.classList.toggle("hidden", !showTr);
+  if (showTr) {
+    const canTr = canTranscend();
+    el.transcendBtn.classList.toggle("locked", !canTr);
+    el.transcendBtn.disabled = !canTr;
+    el.transcendGain.textContent = canTr ? `+${formatNumber(transcendGain())} Helix` : `🔒 ${spec}/8 Speciations`;
+  }
+  const showHelix = everTr || (state.helix || 0) > 0;
   el.helixBtn.classList.toggle("hidden", !showHelix);
   if (showHelix) el.helixValue.textContent = formatNumber(state.helix || 0);
 

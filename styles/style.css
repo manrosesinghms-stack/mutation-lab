@@ -299,6 +299,12 @@ html, body {
 .transcend:active { transform: translateY(1px); }
 .transcend.hidden { display: none; }
 .transcend .evolve-gain { color: #d9c2ff; font-size: 13px; }
+.transcend.locked, .transcend:disabled {
+  background: linear-gradient(90deg, #1a1330, #2a2148);
+  border-color: #4a3a6a; color: #9484b8; cursor: not-allowed;
+  animation: none; box-shadow: none; filter: none;
+}
+.transcend.locked .evolve-gain { color: #7e6ea8; }
 
 .genome-open { width: 100%; margin-top: 8px; text-align: center; }
 .genome-open b { color: var(--accent2); }
