@@ -84,7 +84,7 @@ import * as audio from "./audio.js";
 import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme, hasTheme, setMusicStress, setMusicDanger } from "./music.js";
 import { initCinematic, playCinematic } from "./cinematic.js";
 import { initJuice, burst, shake, updateJuice, flash, setShakeScale, setJuiceReduceMotion, ripple, flyToCounter } from "./juice.js";
-import { initBackground, renderBackground, setBackground, hasBackground, resizeBackground, setBackgroundReduceMotion } from "./background.js";
+import { initBackground, renderBackground, setBackground, hasBackground, resizeBackground, setBackgroundReduceMotion, setDnaStorm } from "./background.js";
 
 // screen-center of the 3D stage, for big bursts
 function stageCenter() {
@@ -890,6 +890,7 @@ function update() {
   setMusicStress((pressure - 0.6) / 0.5);
   setMusicDanger(!!boss);
   if (state._auraN !== state.mutations.length) { state._auraN = state.mutations.length; updateAura(); }
+  setDnaStorm((state.transcensions || 0) > 0 || state.mutations.length >= 40); // late-game ambient (guards internally)
   renderCreature(visualDt, elapsed);
   updateJuice(visualDt);
   renderUI(rate, visualDt);

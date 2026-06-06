@@ -7,6 +7,8 @@ let parts = [], stars = [], decor = [], shoot = null, t = 0;
 let themeId = "aurora";
 let reduceMotion = false;
 export function setBackgroundReduceMotion(v) { reduceMotion = !!v; }
+let dnaStorm = false;
+export function setDnaStorm(on) { on = !!on; if (on !== dnaStorm) { dnaStorm = on; seed(); } }
 
 const THEMES = {
   aurora: { name: "Aurora", a: [16, 28, 40], b: [24, 64, 54], c: [46, 30, 80], p: "#56e39f", n: 40, stars: 0, kind: "ocean" },
@@ -77,6 +79,10 @@ function seedDecor(kind) {
   } else if (kind === "void") {
     for (let i = 0; i < 4; i++) decor.push({ t: "tear", x: rnd(w * 0.1, w * 0.9), y: rnd(h * 0.1, h * 0.9), len: rnd(60, 180), ang: rnd(0, 6.28), ph: rnd(0, 6.28) });
     decor.push({ t: "lens", x: rnd(w * 0.3, w * 0.7), y: rnd(h * 0.3, h * 0.6), r: rnd(70, 130) });
+  }
+  // late-game DNA storm: drifting double-helix strands, on top of any biome
+  if (dnaStorm) {
+    for (let i = 0; i < 9; i++) decor.push({ t: "dna", x: rnd(0, w), y: rnd(0, h), len: rnd(80, 160), vy: rnd(10, 26), ph: rnd(0, 6.28), spin: rnd(2, 4) });
   }
 }
 
@@ -184,6 +190,27 @@ function drawDecor(th, dt) {
       ctx.beginPath(); ctx.moveTo(-d.len / 2, 0);
       for (let s = -d.len / 2; s < d.len / 2; s += 8) ctx.lineTo(s, (Math.random() - 0.5) * 6);
       ctx.lineTo(d.len / 2, 0); ctx.stroke(); ctx.restore();
+    } else if (d.t === "dna") {
+      d.y -= d.vy * dt * m;
+      if (d.y < -d.len) { d.y = H + d.len; d.x = Math.random() * W; }
+      ctx.strokeStyle = "rgba(123,227,176,0.28)"; ctx.lineWidth = 1.4;
+      const turns = d.len / 22;
+      for (let s = 0; s <= 1; s++) {
+        ctx.beginPath();
+        for (let k = 0; k <= turns; k += 0.12) {
+          const yy = d.y + k * 22;
+          const xx = d.x + Math.sin(k * Math.PI + t * (reduceMotion ? 0 : d.spin) + s * Math.PI) * 9;
+          k === 0 ? ctx.moveTo(xx, yy) : ctx.lineTo(xx, yy);
+        }
+        ctx.stroke();
+      }
+      // rungs
+      ctx.strokeStyle = "rgba(159,232,255,0.18)";
+      for (let k = 0.25; k <= turns; k += 1) {
+        const yy = d.y + k * 22;
+        const a = k * Math.PI + t * (reduceMotion ? 0 : d.spin);
+        ctx.beginPath(); ctx.moveTo(d.x + Math.sin(a) * 9, yy); ctx.lineTo(d.x + Math.sin(a + Math.PI) * 9, yy); ctx.stroke();
+      }
     } else if (d.t === "lens") {
       const lg = ctx.createRadialGradient(d.x, d.y, d.r * 0.4, d.x, d.y, d.r);
       lg.addColorStop(0, "rgba(0,0,0,0)"); lg.addColorStop(0.7, "rgba(120,80,200,0.10)"); lg.addColorStop(0.85, "rgba(180,140,255,0.22)"); lg.addColorStop(1, "rgba(0,0,0,0)");
