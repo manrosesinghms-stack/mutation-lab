@@ -54,6 +54,7 @@ import {
   setVariant,
   setSkin,
   setAura,
+  setHabitat,
   setBloomCallback,
   spawnBloom,
   hasBloom,
@@ -251,6 +252,19 @@ function updateAura() {
   setAura(AURA[top] || 0x66ffcc, top ? 1.1 : 0.6);
 }
 
+// Metabolic-pressure spectacle: a red screen-edge vignette that fades in past 70%
+// pressure and pulses like a heartbeat once you hit the wall.
+const pVig = document.getElementById("pressure-vignette");
+function updatePressureVignette(pressure) {
+  if (!pVig) return;
+  const t = Math.max(0, Math.min(1, (pressure - 0.7) / 0.3));
+  const op = t * 0.85;
+  pVig.style.setProperty("--pv", op.toFixed(3));
+  pVig.style.opacity = op.toFixed(3);
+  const crit = pressure >= 0.98 && !state.reduceMotion;
+  pVig.classList.toggle("crit", crit);
+}
+
 function refreshGhosts() {
   setEquippedGhosts((state.equippedSpecies || [])
     .map((id) => (state.species || []).find((s) => s.id === id))
@@ -369,6 +383,7 @@ applyShakeSetting(state.shake || "subtle");
 setReduceMotion(!!state.reduceMotion);
 if (!hasBackground(state.background)) state.background = "aurora";
 setBackground(state.background);
+setHabitat(state.biome); // theme the 3D habitat to the run's biome
 setVariant(state.variant); // apply any rare run variant
 setSkin(SKIN_BY_ID[state.skin] || SKIN_BY_ID.default); // apply equipped skin
 
@@ -377,6 +392,7 @@ function startNewRun() {
   // roll a biome → sets the backdrop + a build buff for this run
   const biome = rollBiome();
   setBackground(biome.background);
+  setHabitat(biome.id);
   flashStatus(`${BIOME_ICON[biome.id] || "🌍"} ${biome.name} — ${biome.desc}`);
   rollAndApplyVariant();
 }
@@ -588,6 +604,7 @@ function update() {
   // metabolic stress ramps in from pressure 0.6 -> 1.2 (creature strains red)
   const pressure = pressureLevel();
   setStress((pressure - 0.6) / 0.6);
+  updatePressureVignette(pressure);
   if (pressure >= 1) state.hitWall = true;
   // achievement unlocks
   for (const a of checkAchievements()) {

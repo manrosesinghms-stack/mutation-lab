@@ -108,6 +108,86 @@ function makeOrganismGeometry(detail = 3, radius = 1) {
   return geo;
 }
 
+// ---- Creature Habitat: a lab-tank / biome environment instead of a void ----
+// floor platform + atmospheric depth fog + drifting biome motes (bubbles, embers,
+// spores, plankton…). Lives in the scene (not on the organism) so it stays put
+// while the creature spins, giving real parallax + a sense of place.
+let habitatGroup, floorMesh, motes, moteSpeeds, moteCount = 64;
+const HABITATS = {
+  ocean:    { fog: 0x0a2236, floor: 0x0d2f47, mote: 0x6fd6ff },
+  volcanic: { fog: 0x1f0a06, floor: 0x301008, mote: 0xff8a3d },
+  verdant:  { fog: 0x0b2011, floor: 0x14331c, mote: 0x9be36b },
+  glacial:  { fog: 0x0e1f2b, floor: 0x163240, mote: 0xcdeeff },
+  abyssal:  { fog: 0x060f1f, floor: 0x0a1a33, mote: 0x8a6bff },
+  voidrift: { fog: 0x110824, floor: 0x1c0d34, mote: 0xc69cff },
+  _default: { fog: 0x0a141f, floor: 0x102233, mote: 0x66ffcc },
+};
+let habitat = HABITATS._default;
+
+function buildHabitat() {
+  habitatGroup = new THREE.Group();
+  scene.add(habitatGroup);
+
+  // depth fog — far edges of the tank dissolve into the gloom
+  scene.fog = new THREE.Fog(habitat.fog, 9, 30);
+
+  // floor platform the creature rests above
+  floorMesh = new THREE.Mesh(
+    new THREE.CircleGeometry(16, 56),
+    new THREE.MeshStandardMaterial({ color: habitat.floor, emissive: habitat.floor, emissiveIntensity: 0.35, roughness: 0.95, metalness: 0.0 }));
+  floorMesh.rotation.x = -Math.PI / 2;
+  floorMesh.position.y = -2.3;
+  habitatGroup.add(floorMesh);
+
+  // a soft glowing pad directly under the creature (a specimen spotlight)
+  const pad = new THREE.Mesh(
+    new THREE.RingGeometry(1.4, 2.4, 56),
+    new THREE.MeshBasicMaterial({ color: habitat.mote, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }));
+  pad.rotation.x = -Math.PI / 2;
+  pad.position.y = -2.28;
+  habitatGroup.add(pad);
+
+  // drifting ambient motes (bubbles / embers / spores depending on biome)
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(moteCount * 3);
+  moteSpeeds = new Float32Array(moteCount);
+  for (let i = 0; i < moteCount; i++) {
+    const a = (i * 2.399963) % (Math.PI * 2), r = 1.5 + (i % 9) * 1.2;
+    pos[i * 3] = Math.cos(a) * r;
+    pos[i * 3 + 1] = -2.2 + ((i * 0.137) % 1) * 8;
+    pos[i * 3 + 2] = Math.sin(a) * r;
+    moteSpeeds[i] = 0.18 + ((i * 0.061) % 1) * 0.5;
+  }
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  motes = new THREE.Points(geo, new THREE.PointsMaterial({
+    color: habitat.mote, size: 0.09, sizeAttenuation: true,
+    transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
+  habitatGroup.add(motes);
+}
+
+// Recolour the habitat to match the run's biome.
+export function setHabitat(biomeId) {
+  habitat = HABITATS[biomeId] || HABITATS._default;
+  if (scene && scene.fog) scene.fog.color.setHex(habitat.fog);
+  if (floorMesh) { floorMesh.material.color.setHex(habitat.floor); floorMesh.material.emissive.setHex(habitat.floor); }
+  if (motes) motes.material.color.setHex(habitat.mote);
+}
+
+function updateHabitat(dt, elapsed) {
+  if (!motes) return;
+  const p = motes.geometry.attributes.position;
+  const arr = p.array;
+  const rise = reduceMotion ? 0.25 : 1;
+  for (let i = 0; i < moteCount; i++) {
+    let y = arr[i * 3 + 1] + moteSpeeds[i] * dt * rise;
+    if (y > 6) { y = -2.2; }
+    arr[i * 3 + 1] = y;
+    if (!reduceMotion) arr[i * 3] += Math.sin(elapsed * 0.5 + i) * dt * 0.05;
+  }
+  p.needsUpdate = true;
+  if (habitatGroup && !reduceMotion) habitatGroup.rotation.y += dt * 0.01;
+}
+
 export function initCreature(canvasEl, onClick) {
   canvas = canvasEl;
   onClickCb = onClick;
@@ -147,6 +227,8 @@ export function initCreature(canvasEl, onClick) {
   });
   organism = new THREE.Mesh(geo, mat);
   scene.add(organism);
+
+  buildHabitat();
 
   // parts ride on the organism so they spin/scale with it
   partsGroup = new THREE.Group();
@@ -288,6 +370,12 @@ export function renderCreature(dt, elapsed) {
   // shared gaze + chomp phases so all eyes/maws move together (reads as one mind)
   const gazeX = Math.sin(elapsed * 0.6) * 0.28;
   const gazeZ = Math.cos(elapsed * 0.45) * 0.28;
+  // periodic blink — every ~4.3s the eyes snap shut for a beat (alive, not static)
+  let blinkAmt = 0;
+  if (!reduceMotion) {
+    const bp = elapsed % 4.3;
+    if (bp < 0.14) blinkAmt = 1 - Math.abs(bp - 0.07) / 0.07;
+  }
 
   if (partsGroup) {
     for (const p of partsGroup.children) {
@@ -305,6 +393,7 @@ export function renderCreature(dt, elapsed) {
       if (p.userData.look) {
         p.userData.look.rotation.x = gazeX;
         p.userData.look.rotation.z = gazeZ;
+        if (p.userData.growT >= 1) p.scale.y = p.userData.targetScale * (1 - blinkAmt * 0.85);
       }
       if (p.userData.jaw) {
         const open = Math.max(0, Math.sin(elapsed * 1.1 + p.userData.seed)) * 0.5;
@@ -321,6 +410,8 @@ export function renderCreature(dt, elapsed) {
     activeBloom.rotation.y += dt * 2.5;
     if (activeBloom.userData.born > 12) removeBloom();
   }
+
+  updateHabitat(dt, elapsed);
 
   renderer.render(scene, camera);
 }
