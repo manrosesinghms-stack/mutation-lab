@@ -649,14 +649,75 @@ if (!state.seenHelp) {
 // --- Mitogen Bloom: golden clickable spawn -> frenzy buff (active-play upside) ---
 setBloomCallback((sx, sy) => {
   state.bloomCaught = true;
-  addTempBuff({ id: "bloom", prodMult: 4, durationMs: 20000 });
+  const prod = productionPerSecond();
+  const r = Math.random();
+  let label, sub, color = "#ffd76b";
+  if (r < 0.42) {                       // Frenzy
+    addTempBuff({ id: "bloom", prodMult: 4, durationMs: 20000 });
+    label = "⚡ MITOGEN FRENZY"; sub = "×4 production · 20s";
+  } else if (r < 0.66) {                // Lucky — instant biomass lump
+    const lump = Math.max(50, Math.floor(prod * 600 + state.biomass * 0.10));
+    addBiomass(lump); color = "#56e39f";
+    label = "🍀 LUCKY!"; sub = `+${formatNumber(lump)} biomass`;
+  } else if (r < 0.84) {                // Click Frenzy
+    addTempBuff({ id: "clickfrenzy", clickMult: 7, durationMs: 15000 }); color = "#9fe8ff";
+    label = "👆 CLICK FRENZY"; sub = "×7 click power · 15s";
+  } else if (r < 0.95) {                // Cosmic (rare big)
+    addTempBuff({ id: "cosmic", prodMult: 7, durationMs: 25000 }); color = "#b88cff";
+    label = "🌌 COSMIC BLOOM"; sub = "×7 production · 25s";
+  } else {                              // Wrath — risky 60/40
+    if (Math.random() < 0.6) {
+      const jackpot = Math.max(100, Math.floor(prod * 1800 + state.biomass * 0.25));
+      addBiomass(jackpot); color = "#ff6b6b";
+      label = "💀 WRATH → JACKPOT"; sub = `+${formatNumber(jackpot)} biomass`;
+    } else {
+      state.biomass = Math.floor(state.biomass * 0.75);
+      addTempBuff({ id: "wrath", prodMult: 0.5, durationMs: 12000 }); color = "#ff3344";
+      label = "💀 WRATH"; sub = "backfired — production halved 12s";
+    }
+  }
   audio.playMilestone();
   cinematicPulse();
-  flash("rgba(255,215,107,0.5)");
-  burst(sx, sy, { count: 60, color: "#ffd76b", spread: 200, life: 1000 });
-  playCinematic("⚡ MITOGEN FRENZY", "×4 production · 20s", "#ffd76b");
-  flashStatus("MITOGEN BLOOM! ×4 production for 20s (temporary)");
+  flash(color + "88"); // hex8: ~53% alpha tint
+  burst(sx, sy, { count: 60, color, spread: 200, life: 1000 });
+  playCinematic(label, sub, color);
+  flashStatus(`${label} — ${sub}`);
 });
+// ---- Leeches (parasites that drain production; pop for a refund + interest) ----
+const leechStage = document.getElementById("stage");
+let leeches = [];
+function spawnLeech() {
+  const w = leechStage.clientWidth, h = leechStage.clientHeight;
+  if (w < 80 || leeches.length >= 3) return;
+  const el = document.createElement("div");
+  el.className = "leech";
+  const L = { el, eaten: 0, x: w * 0.3 + Math.random() * w * 0.4, y: h * 0.3 + Math.random() * h * 0.4 };
+  el.style.left = (L.x - 18) + "px"; el.style.top = (L.y - 18) + "px";
+  el.addEventListener("pointerdown", (e) => { e.stopPropagation(); popLeech(L, e); });
+  leechStage.appendChild(el);
+  leeches.push(L);
+  flashStatus("🪱 A leech latched on — pop it to reclaim what it eats!");
+}
+function popLeech(L, e) {
+  const refund = Math.floor(L.eaten * 1.15);
+  addBiomass(refund);
+  burst(e ? e.clientX : leechStage.clientWidth / 2, e ? e.clientY : 200, { count: 26, color: "#b06bff", spread: 130, life: 700 });
+  audio.playMilestone();
+  flashStatus(`🪱 leech popped — reclaimed +${formatNumber(refund)} (×1.15)`);
+  L.el.remove();
+  leeches = leeches.filter((x) => x !== L);
+}
+function drainLeeches(rate, dt) {
+  for (const L of leeches) {
+    const eat = rate * 0.02 * dt;
+    state.biomass = Math.max(0, state.biomass - eat);
+    L.eaten += eat;
+  }
+}
+setInterval(() => {
+  if (((state.prestiges || 0) >= 1 || (state.speciations || 0) >= 1) && leeches.length < 3 && Math.random() < 0.5) spawnLeech();
+}, 45000);
+
 // ~one bloom per minute when none is active; explain it the first time
 setInterval(() => {
   if (hasBloom() || Math.random() >= 0.5) return;
@@ -879,6 +940,7 @@ function update() {
   // passive production (full dt so background ticks accrue correctly)
   const rate = productionPerSecond();
   if (rate > 0) addBiomass(rate * dt);
+  drainLeeches(rate, dt); // parasites skim production into themselves
 
   // Mitosis Engine node: auto-buy organelles (only when toggled on)
   if (hasNode("auto_gen") && state.autoBuyOn !== false) autoBuyGenerators();
