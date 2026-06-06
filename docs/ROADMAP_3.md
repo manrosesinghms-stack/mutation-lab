@@ -16,7 +16,7 @@ Every resource, threat, and reward should have a **physical, animated, audible**
 | 4 | **Living creature** (breathing/twitch · periodic blink) | `creature.js` | S | ✅ batch 2 |
 | 5 | **Metabolic-pressure spectacle** (red screen-edge vignette → heartbeat pulse at the wall) | `creature.js` + DOM vignette + `music.js` | M | ✅ batch 2 |
 | 6 | **Creature Habitat** (the #1 call-out: floor + specimen pad + depth fog + drifting biome motes) | `creature.js` scene | L | ✅ batch 2 |
-| 7 | **Living backgrounds** — covered by habitat motes (batch 2) layered over the existing 7 animated backgrounds | `background.js` | M | ✅ (via habitat) |
+| 7 | **Living backgrounds** — per-biome animated decor: ocean bubbles+shadows, volcanic embers+ash, verdant spores+light shafts, cosmos nebula+shooting stars, void tears+lensing | `background.js` | M | ✅ done |
 | 8 | **Draft presentation** (staggered card reveal + rarity-coloured pulsing glow on epic/legendary/alien) | `ui.js` draft | L | ✅ batch 3 |
 | 9 | **Premium juice** (click ripple + biomass particles flying to the counter · critical extraction at combo ≥12) | `juice.js` + `main.js` | M | ✅ batch 3 |
 | 10 | **Mutation family SFX** (eyes=wet squish, spikes=crack, tentacles=stretch, jaw=chomp, frond=rustle, cilia=shimmer) | `audio.js` | S | ✅ batch 3 |
