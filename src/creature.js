@@ -583,9 +583,9 @@ function buildEye() {
   pupil.position.y = 0.205;
   // two glints (big + small) for that lively cartoon sparkle
   const litMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 1 });
-  const glint = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 8), litMat);
+  const glint = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), litMat);
   glint.position.set(0.07, 0.225, 0.06);
-  const glint2 = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 8), litMat);
+  const glint2 = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 8), litMat);
   glint2.position.set(-0.05, 0.2, 0.07);
   look.add(iris, pupil, glint, glint2);
   g.add(look);
@@ -595,8 +595,8 @@ function buildEye() {
 
 function buildSpikeCluster() {
   const g = new THREE.Group();
-  const bone = matte(0xe8e2d0);
-  const tip = matte(0x9a8f78);
+  const bone = new THREE.MeshStandardMaterial({ color: 0xeef0f5, roughness: 0.22, metalness: 0.35, flatShading: true });
+  const tip = new THREE.MeshStandardMaterial({ color: 0xfff4d6, emissive: 0xffd98a, emissiveIntensity: 0.55, roughness: 0.14, metalness: 0.3, flatShading: true });
   const make = (r, h, tx, tz, tilt) => {
     const c = new THREE.Mesh(new THREE.ConeGeometry(r, h, 7), bone);
     c.position.set(tx, h / 2, tz);
