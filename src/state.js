@@ -37,6 +37,7 @@ function freshState() {
     seenBloomHint: false,  // shown the first-bloom hint once
     achievements: {},      // { achievementId: true } unlocked set
     discovered: {},        // { mutationId: true } every mutation ever drafted
+    discoveredTraits: {},  // { synergyId / set_setId: true } unlocked species traits
     hitWall: false,        // ever reached the production wall (achievement)
     bloomCaught: false,    // ever clicked a Mitogen Bloom (achievement)
     lastSeen: nowSeconds(), // for offline progress
@@ -78,6 +79,7 @@ export function load() {
       genomeNodes: (data.genomeNodes && typeof data.genomeNodes === "object") ? data.genomeNodes : {},
       achievements: (data.achievements && typeof data.achievements === "object") ? data.achievements : {},
       discovered: (data.discovered && typeof data.discovered === "object") ? data.discovered : {},
+      discoveredTraits: (data.discoveredTraits && typeof data.discoveredTraits === "object") ? data.discoveredTraits : {},
     };
     // for an existing big save, start milestones at the current tier so we don't
     // dump a backlog of dings on load

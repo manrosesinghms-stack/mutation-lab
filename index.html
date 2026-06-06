@@ -80,6 +80,7 @@
         <button id="save-btn" class="ghost">Save</button>
         <button id="wipe-btn" class="ghost danger">Wipe</button>
         <button id="help-btn" class="ghost" title="How to play">❓</button>
+        <button id="codex-btn" class="ghost" title="Codex">📖</button>
         <button id="stats-btn" class="ghost">📊</button>
         <button id="settings-btn" class="ghost" title="Settings">⚙️</button>
         <button id="photo-btn" class="ghost" title="Photo mode">📸</button>
@@ -93,6 +94,17 @@
   <div id="fx-layer"></div>
   <!-- prestige flash overlay -->
   <div id="flash"></div>
+
+  <!-- codex modal (traits + sets + mutation encyclopedia) -->
+  <div id="codex-modal" class="hidden">
+    <div class="genome-inner codex-inner">
+      <div class="genome-head">
+        <h2>📖 CODEX</h2>
+        <button id="codex-close" class="ghost">✕ Close</button>
+      </div>
+      <div id="codex-body" class="codex-body"></div>
+    </div>
+  </div>
 
   <!-- how to play modal -->
   <div id="help-modal" class="hidden">

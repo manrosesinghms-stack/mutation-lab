@@ -6,6 +6,8 @@ import { MUTATIONS, MUT_BY_ID } from "./data/mutations.js";
 import { TUN, softknee } from "./data/tunables.js";
 import { NODE_BY_ID, nodeLevel, nodeCost } from "./data/genomeNodes.js";
 import { ACHIEVEMENTS } from "./data/achievements.js";
+import { activeSynergies } from "./data/synergies.js";
+import { completedSets } from "./data/sets.js";
 
 // EP payoff with a softcap: linear +10%/EP early, sqrt tail late (anti-runaway).
 function epPayoffMult(ep) {
@@ -36,6 +38,9 @@ export function getModifiers() {
   applyMutationEffects(mods, state.mutations);
   // Evolution Point payoff — softcapped so it can't run away (see tunables.js)
   mods.prodMult *= epPayoffMult(state.evolutionPoints || 0);
+  // synergies (combo traits) + completed set bonuses
+  for (const syn of activeSynergies(state.mutations)) if (syn.effect) syn.effect(mods);
+  for (const set of completedSets(state.mutations)) if (set.bonus) set.bonus(mods);
   // equipped Species contribute their frozen build at reduced (sqrt) weight
   for (const sid of state.equippedSpecies || []) {
     const sp = (state.species || []).find((s) => s.id === sid);
@@ -60,6 +65,26 @@ export function getModifiers() {
     if (a.clickMult) mods.clickMult *= a.clickMult;
   }
   return mods;
+}
+
+// Unlock any newly-discovered synergy traits / completed sets; returns new ones.
+export function checkTraits() {
+  state.discoveredTraits = state.discoveredTraits || {};
+  const found = [];
+  for (const syn of activeSynergies(state.mutations)) {
+    if (!state.discoveredTraits[syn.id]) {
+      state.discoveredTraits[syn.id] = true;
+      found.push({ kind: "trait", name: syn.name, flavor: syn.flavor });
+    }
+  }
+  for (const set of completedSets(state.mutations)) {
+    const key = "set_" + set.id;
+    if (!state.discoveredTraits[key]) {
+      state.discoveredTraits[key] = true;
+      found.push({ kind: "set", name: set.form, flavor: `${set.name} set complete!` });
+    }
+  }
+  return found;
 }
 
 // Unlock any newly-satisfied achievements; returns the list of new ones.

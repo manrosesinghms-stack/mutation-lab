@@ -11,6 +11,8 @@ import { formatNumber } from "./format.js";
 import { getMutation, RARITY, MUTATIONS } from "./data/mutations.js";
 import { GENOME_NODES, nodeCost, nodeLevel } from "./data/genomeNodes.js";
 import { ACHIEVEMENTS } from "./data/achievements.js";
+import { SYNERGIES, synergyProgress } from "./data/synergies.js";
+import { SETS, setProgress } from "./data/sets.js";
 import { MUSIC_THEMES } from "./music.js";
 import { BACKGROUNDS } from "./background.js";
 import { creatureName } from "./data/names.js";
@@ -85,6 +87,11 @@ export function initUI(handlers) {
   el.helpModal = document.getElementById("help-modal");
   document.getElementById("help-btn").addEventListener("click", () => el.helpModal.classList.remove("hidden"));
   document.getElementById("help-close").addEventListener("click", () => el.helpModal.classList.add("hidden"));
+  // codex
+  el.codexModal = document.getElementById("codex-modal");
+  el.codexBody = document.getElementById("codex-body");
+  document.getElementById("codex-btn").addEventListener("click", () => openCodex());
+  document.getElementById("codex-close").addEventListener("click", () => el.codexModal.classList.add("hidden"));
   el.setVolume.addEventListener("input", () => handlers.onSetVolume(el.setVolume.value / 100));
   el.setShake.addEventListener("click", (e) => { const v = e.target.dataset.v; if (v) { handlers.onSetShake(v); renderSettings(); } });
   el.setReduce.addEventListener("change", () => { handlers.onSetReduce(el.setReduce.checked); renderSettings(); });
@@ -105,6 +112,58 @@ export function openGenomeLab() {
 
 export function openHelp() {
   el.helpModal.classList.remove("hidden");
+}
+
+// ---- codex: species traits + set forms + mutation encyclopedia ----
+export function openCodex() {
+  renderCodex();
+  el.codexModal.classList.remove("hidden");
+}
+
+function renderCodex() {
+  const dt = state.discoveredTraits || {};
+  const muts = state.mutations || [];
+
+  const traits = SYNERGIES.map((s) => {
+    const got = !!dt[s.id];
+    if (got) return `<div class="trait got"><div class="tn">⭐ ${s.name}</div><div class="tf">"${s.flavor}"</div></div>`;
+    if (s.hidden) return `<div class="trait hidden-trait"><div class="tn">??? — Hidden Evolution</div><div class="tf">A secret combination awaits.</div></div>`;
+    const p = synergyProgress(s, muts);
+    return `<div class="trait"><div class="tn">${s.name}</div><div class="tf">${s.hint || ""}</div><div class="tp">${p.have} / ${p.need}</div></div>`;
+  }).join("");
+
+  const sets = SETS.map((s) => {
+    const p = setProgress(s, muts);
+    const done = p.have >= p.need;
+    const owned = new Set(muts);
+    const members = s.members.map((id) => {
+      const d = getMutation(id);
+      const has = owned.has(id);
+      return `<span class="mut-pill ${has ? "" : "locked"}" ${has ? `style="border-color:${RARITY[d.rarity].color}"` : ""}>${has ? d.name : "???"}</span>`;
+    }).join("");
+    return `<div class="trait ${done ? "got" : ""}">
+      <div class="tn">${done ? "⭐ " : ""}${s.name} Set → <i>${s.form}</i></div>
+      <div class="tp">${p.have} / ${p.need}</div>
+      <div class="mut-grid" style="margin-top:6px">${members}</div></div>`;
+  }).join("");
+
+  const discovered = state.discovered || {};
+  const pills = MUTATIONS.map((m) => {
+    const found = !!discovered[m.id];
+    const color = RARITY[m.rarity].color;
+    return found
+      ? `<span class="mut-pill" style="border-color:${color};color:${color}" title="${m.desc}">${m.name}</span>`
+      : `<span class="mut-pill locked">???</span>`;
+  }).join("");
+
+  const tCount = SYNERGIES.filter((s) => dt[s.id]).length;
+  el.codexBody.innerHTML = `
+    <h3>⭐ Species Traits · ${tCount} / ${SYNERGIES.length} discovered</h3>
+    ${traits}
+    <h3>🧩 Set Forms</h3>
+    ${sets}
+    <h3>🦠 Mutation Encyclopedia · ${Object.keys(discovered).length} / ${MUTATIONS.length}</h3>
+    <div class="mut-grid">${pills}</div>`;
 }
 
 export function genomeStatus(msg) {

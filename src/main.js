@@ -22,6 +22,7 @@ import {
   pruneTempBuffs,
   addTempBuff,
   checkAchievements,
+  checkTraits,
 } from "./economy.js";
 import {
   initCreature,
@@ -342,6 +343,16 @@ function update() {
     audio.playMilestone();
     flash("rgba(86,227,159,0.35)");
     flashStatus(`🏆 ${a.name} — ${a.desc}`);
+  }
+  // species-trait / synergy discoveries — the big dopamine beat
+  for (const tr of checkTraits()) {
+    audio.playMutation("legendary");
+    prestigeFlash();
+    flash("rgba(184,140,255,0.55)");
+    shake(12);
+    const c = stageCenter();
+    burst(c.x, c.y, { count: 70, color: "#b88cff", spread: 220, up: 0, life: 1100 });
+    flashStatus(`⭐ NEW SPECIES TRAIT — ${tr.name}: ${tr.flavor}`);
   }
   // music intensity grows with total progress
   setMusicIntensity(Math.min(1, Math.log10((state.lifetimeBiomass || 0) + 10) / 16));
