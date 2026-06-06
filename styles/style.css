@@ -97,6 +97,8 @@ html, body {
   flex-direction: column;
   gap: 18px;
   overflow-y: auto;
+  /* glass-lab feel: faint top sheen + a neon bio-edge along the left seam */
+  box-shadow: inset 1px 0 0 rgba(123,227,176,.10), inset 0 1px 0 rgba(255,255,255,.04);
 }
 #panel-head h1 {
   margin: 0;
@@ -173,17 +175,26 @@ html, body {
 #generator-list { display: flex; flex-direction: column; gap: 8px; }
 
 .gen {
+  position: relative; overflow: hidden;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 2px 10px;
   align-items: center;
-  background: var(--bg2);
+  background: linear-gradient(110deg, var(--bg2), rgba(22,44,36,.32));
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 11px 13px;
+  padding: 11px 13px 11px 17px;
   cursor: pointer;
   transition: transform .06s ease, border-color .15s ease, background .15s ease;
 }
+/* living organelle accent — a bioluminescent strip down the left edge */
+.gen::before {
+  content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--accent2); opacity: .28;
+  transition: opacity .2s ease, box-shadow .2s ease;
+}
+.gen:hover:not(.locked)::before, .gen.affordable::before { opacity: .95; box-shadow: 0 0 9px var(--accent); }
+.gen.locked::before { opacity: .1; }
 .gen:hover:not(.locked) { border-color: var(--accent); transform: translateY(-1px); }
 .gen:active:not(.locked) { transform: translateY(1px) scale(.99); }
 .gen.locked { opacity: .45; cursor: not-allowed; }
