@@ -41,17 +41,21 @@ function voice({ freq = 440, dur = 0.08, type = "sine", gain = 0.2,
 
 // ---- the sound set ----
 
-// Click: a short blip whose pitch rises slightly with a combo (chained clicks).
+// Click: a wet organic "pop" — a downward sine blip + a tiny filtered noise
+// squish, so it reads as poking a living cell, not a UI beep. Pitch lifts a bit
+// with a combo (chained clicks).
 export function playClick(combo = 0) {
-  const base = 240 + Math.min(combo, 30) * 8 + Math.random() * 30;
-  voice({ freq: base, slideTo: base * 1.6, type: "triangle", dur: 0.05, gain: 0.10 });
+  const base = 300 + Math.min(combo, 30) * 10 + Math.random() * 40;
+  voice({ freq: base, slideTo: base * 0.6, type: "sine", dur: 0.06, gain: 0.11, attack: 0.002, release: 0.05 });
+  voice({ freq: base * 0.5, slideTo: base * 0.32, type: "triangle", dur: 0.05, gain: 0.05, delay: 0.005 });
 }
 
-// Buy: a quick two-note "ka-ching" up; pitch lifts with the generator tier.
+// Buy: a soft organic "bloop" — two rounded sine notes up (membrane absorbing),
+// no harsh square beeps. Pitch lifts with the generator tier.
 export function playBuy(tier = 0) {
   const lift = 1 + Math.min(tier, 4) * 0.12;
-  voice({ freq: 420 * lift, type: "square", dur: 0.05, gain: 0.08 });
-  voice({ freq: 640 * lift, type: "square", dur: 0.07, gain: 0.08, delay: 0.05 });
+  voice({ freq: 300 * lift, slideTo: 360 * lift, type: "sine", dur: 0.06, gain: 0.09, release: 0.05 });
+  voice({ freq: 480 * lift, slideTo: 540 * lift, type: "triangle", dur: 0.08, gain: 0.07, delay: 0.05, release: 0.06 });
 }
 
 // Evolve / prestige: a rising sweep + a low sub boom.
