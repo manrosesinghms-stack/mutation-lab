@@ -587,7 +587,7 @@ html, body {
   50% { box-shadow: 0 0 30px 2px var(--rarity), inset 0 0 26px -6px var(--rarity); }
 }
 
-#panel-foot { margin-top: auto; display: flex; align-items: center; gap: 8px; }
+#panel-foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .ghost {
   background: transparent; color: var(--muted);
   border: 1px solid var(--line); border-radius: 9px;
@@ -598,7 +598,7 @@ html, body {
 .ghost:active { transform: translateY(1px) scale(.97); }
 .ghost.danger:hover { color: var(--danger); border-color: var(--danger); }
 #volume { width: 64px; accent-color: var(--accent); cursor: pointer; }
-#status { color: var(--muted); font-size: 11px; margin-left: auto; }
+#status { color: var(--muted); font-size: 11px; flex-basis: 100%; margin-top: 2px; }
 
 /* ---------- floating click fx ---------- */
 #fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
