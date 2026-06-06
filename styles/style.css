@@ -426,7 +426,9 @@ html, body {
   border: 1px solid var(--line); border-radius: 9px;
   padding: 7px 12px; font-size: 12px; cursor: pointer; font-weight: 600;
 }
-.ghost:hover { color: var(--ink); border-color: var(--accent); }
+.ghost { transition: transform .06s ease, border-color .15s ease, color .15s ease, background .15s ease; }
+.ghost:hover { color: var(--ink); border-color: var(--accent); transform: translateY(-1px); }
+.ghost:active { transform: translateY(1px) scale(.97); }
 .ghost.danger:hover { color: var(--danger); border-color: var(--danger); }
 #volume { width: 64px; accent-color: var(--accent); cursor: pointer; }
 #status { color: var(--muted); font-size: 11px; margin-left: auto; }

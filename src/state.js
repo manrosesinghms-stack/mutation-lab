@@ -33,6 +33,11 @@ function freshState() {
     fossils: [],           // collected ancient fossils (museum)
     dailyActive: false,    // currently in a daily seed run
     dailyBest: {},         // { daySeed: bestRunBiomass }
+    // --- local analytics ---
+    playSeconds: 0,        // total time played
+    totalClicks: 0,        // lifetime clicks
+    skin: "default",       // equipped cosmetic skin
+    skinsOwned: { default: true }, // purchased skins
     musicVolume: 0.5,      // 0..1 ambient music volume
     musicTrack: "lofi",    // selected music theme
     background: "aurora",  // selected animated background
@@ -94,6 +99,7 @@ export function load() {
       discoveredTraits: (data.discoveredTraits && typeof data.discoveredTraits === "object") ? data.discoveredTraits : {},
       challengesDone: (data.challengesDone && typeof data.challengesDone === "object") ? data.challengesDone : {},
       fossils: Array.isArray(data.fossils) ? data.fossils : [],
+      skinsOwned: (data.skinsOwned && typeof data.skinsOwned === "object") ? data.skinsOwned : { default: true },
     };
     // for an existing big save, start milestones at the current tier so we don't
     // dump a backlog of dings on load

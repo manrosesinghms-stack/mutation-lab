@@ -35,7 +35,9 @@ import {
   startDailyRun,
   endDailyRun,
   currentWeekly,
+  buySkin,
 } from "./economy.js";
+import { SKIN_BY_ID } from "./data/skins.js";
 import {
   initCreature,
   renderCreature,
@@ -49,6 +51,7 @@ import {
   setEquippedGhosts,
   setReduceMotion,
   setVariant,
+  setSkin,
   setBloomCallback,
   spawnBloom,
   hasBloom,
@@ -169,6 +172,14 @@ initUI({
     abandonChallenge(); resetParts(); refreshGhosts();
     flashStatus("challenge abandoned");
     renderChallenges();
+    save();
+  },
+  onBuySkin: (id) => {
+    const sk = buySkin(id);
+    if (!sk) { genomeStatus("not enough Genome"); return; }
+    setSkin(SKIN_BY_ID[id]);
+    audio.playBuy(2);
+    renderGenomeLab();
     save();
   },
   onStartDaily: () => {
@@ -301,6 +312,7 @@ initCreature(canvas, (sx, sy) => {
   combo = now - lastClickAt < 600 ? combo + 1 : 0;
   lastClickAt = now;
   const gain = click();
+  state.totalClicks = (state.totalClicks || 0) + 1;
   startMusic(); // first user gesture — kick off ambient music
   spawnFloatNumber(sx, sy, "+" + formatNumber(gain));
   audio.playClick(combo);
@@ -334,6 +346,7 @@ setReduceMotion(!!state.reduceMotion);
 if (!hasBackground(state.background)) state.background = "aurora";
 setBackground(state.background);
 setVariant(state.variant); // apply any rare run variant
+setSkin(SKIN_BY_ID[state.skin] || SKIN_BY_ID.default); // apply equipped skin
 
 const BIOME_ICON = { ocean: "🌊", volcanic: "🌋", verdant: "🌿", glacial: "❄️", abyssal: "🌌", voidrift: "🕳️" };
 function startNewRun() {
@@ -520,6 +533,7 @@ function update() {
   if (dt < 0) dt = 0;
   dt = Math.min(dt, 60); // allow catch-up after a throttled gap, cap runaway
   elapsed += dt;
+  state.playSeconds = (state.playSeconds || 0) + dt;
 
   // passive production (full dt so background ticks accrue correctly)
   const rate = productionPerSecond();

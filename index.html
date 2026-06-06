@@ -9,7 +9,7 @@
   <script type="importmap">
   {
     "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+      "three": "./vendor/three.module.js"
     }
   }
   </script>
@@ -218,6 +218,10 @@
           <h3>Species · <span id="species-count">0</span> banked · <span id="equip-info">0/1 equipped</span></h3>
           <div id="species-list"></div>
         </div>
+      </div>
+      <div class="genome-skins">
+        <h3 style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px">🎨 Skins</h3>
+        <div id="skin-list" class="seg"></div>
       </div>
       <div class="genome-foot">
         <button id="fuse-btn" class="ghost">🧪 Reactor: fuse 3 → 1 rarer (2 ◆)</button>

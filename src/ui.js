@@ -15,6 +15,7 @@ import { ACHIEVEMENTS } from "./data/achievements.js";
 import { SYNERGIES, synergyProgress } from "./data/synergies.js";
 import { SETS, setProgress } from "./data/sets.js";
 import { CHALLENGES } from "./data/challenges.js";
+import { SKINS } from "./data/skins.js";
 import { MUSIC_THEMES } from "./music.js";
 import { BACKGROUNDS } from "./background.js";
 import { creatureName } from "./data/names.js";
@@ -268,6 +269,8 @@ function renderStats() {
   const achCount = Object.keys(s.achievements || {}).length;
 
   const stat = (k, v) => `<div class="stat-box"><div class="v">${v}</div><div class="k">${k}</div></div>`;
+  const secs = Math.floor(s.playSeconds || 0);
+  const playtime = secs >= 3600 ? `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m` : `${Math.floor(secs / 60)}m ${secs % 60}s`;
   const stats = [
     stat("Lifetime biomass", formatNumber(s.lifetimeBiomass || 0)),
     stat("Evolutions", formatNumber(s.prestiges || 0)),
@@ -275,6 +278,8 @@ function renderStats() {
     stat("Genome", formatNumber(s.genome || 0)),
     stat("Species banked", (s.species || []).length),
     stat("Evolution Points", formatNumber(s.evolutionPoints || 0)),
+    stat("Time played", playtime),
+    stat("Total clicks", formatNumber(s.totalClicks || 0)),
   ].join("");
 
   const pills = MUTATIONS.map((m) => {
@@ -337,6 +342,22 @@ export function renderGenomeLab() {
       <div class="node-lvl">Lv ${lvl}${n.maxLevel > 1 ? " / " + n.maxLevel : ""}</div>`;
     if (!maxed && !broke) row.addEventListener("click", () => uiHandlers.onBuyNode(n.id));
     el.nodeList.appendChild(row);
+  }
+
+  // skins
+  const skinList = document.getElementById("skin-list");
+  if (skinList) {
+    skinList.innerHTML = "";
+    const owned = state.skinsOwned || { default: true };
+    for (const sk of SKINS) {
+      const b = document.createElement("button");
+      const isOwned = !!owned[sk.id];
+      const equipped = (state.skin || "default") === sk.id;
+      b.className = equipped ? "active" : "";
+      b.textContent = equipped ? `${sk.name} ✓` : isOwned ? sk.name : `${sk.name} · ${sk.cost}◆`;
+      b.addEventListener("click", () => uiHandlers.onBuySkin(sk.id));
+      skinList.appendChild(b);
+    }
   }
 
   // species

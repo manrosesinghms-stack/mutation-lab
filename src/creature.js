@@ -25,7 +25,8 @@ let onBloomCb = null;
 // drag-to-orbit
 let dragging = false, dragMoved = false, dragX = 0, dragY = 0;
 let orbitYaw = 0, orbitPitch = 0, autoYaw = 0;
-const BASE_HSL = { h: 0.42, s: 0.62, l: 0.55 };
+let skin = { h: 0.42, s: 0.62, l: 0.55, metal: 0.1, rough: 0.32, emi: 0.55 };
+export function setSkin(p) { if (p) skin = { ...skin, ...p }; }
 const UP = new THREE.Vector3(0, 1, 0);
 
 // Drive the "about to pop" look: desaturate + tremble + over-glow. 0..1.
@@ -268,10 +269,11 @@ export function renderCreature(dt, elapsed) {
       organism.material.metalness = V.metal;
       organism.material.roughness = V.rough;
     } else {
-      const h = (BASE_HSL.h + hueShift) % 1;
-      organism.material.color.setHSL(h, BASE_HSL.s * (1 - 0.7 * stress), BASE_HSL.l + 0.05 * stress);
-      organism.material.emissiveIntensity = 0.55 + stress * 1.3;
-      organism.material.metalness = 0.1;
+      const h = (skin.h + hueShift) % 1;
+      organism.material.color.setHSL(h, skin.s * (1 - 0.7 * stress), skin.l + 0.05 * stress);
+      organism.material.emissiveIntensity = skin.emi + stress * 1.3;
+      organism.material.metalness = skin.metal;
+      organism.material.roughness = skin.rough;
     }
     // gentler tremble; fully off under reduce-motion (colour/glow still convey stress)
     const tr = reduceMotion ? 0 : stress * 0.016;
@@ -325,9 +327,9 @@ export function renderCreature(dt, elapsed) {
 // ---- mutation visuals ----
 function applyHue() {
   if (!organism) return;
-  const h = (BASE_HSL.h + hueShift) % 1;
-  organism.material.color.setHSL(h, BASE_HSL.s, BASE_HSL.l);
-  organism.material.emissive.setHSL(h, BASE_HSL.s, 0.12);
+  const h = (skin.h + hueShift) % 1;
+  organism.material.color.setHSL(h, skin.s, skin.l);
+  organism.material.emissive.setHSL(h, skin.s, 0.12);
 }
 
 const glossy = (color, extra = {}) =>

@@ -123,7 +123,7 @@ We do them **in order**, one session at a time. Don't start a phase until the pr
 
 - **Deliverables:** A **Three.js low-poly 3D creature** that grows, pulses, rotates, and sprouts modular parts (eyes, spikes, tentacles, jaws, extra bodies) based on which mutations you own.
 - **Tasks:**
-  - [x] Three.js scene: camera, lights, slow auto-rotate (+ camera dollies back as it grows). *click-to-orbit still TODO*
+  - [x] Three.js scene: camera, lights, auto-rotate, camera dolly, **click-to-orbit** (done in v2)
   - [x] Low-poly base body (deformed icosahedron) that pulses/squashes on click
   - [x] **Socket system:** fibonacci-distributed anchor points where parts attach
   - [x] Mutation → 3D part mapping (each visual mutation snaps a part onto a socket)
@@ -178,7 +178,7 @@ We do them **in order**, one session at a time. Don't start a phase until the pr
   - [x] **15 achievements** with permanent prod/click bonuses + unlock toasts
   - [x] **Stats/Collection screen** — stats + "Mutations Discovered X/50" grid + "Achievements X/15" list
   - [x] Offline progress + "welcome back" status
-  - [ ] Optional: daily seed run (shareable score) — *deferred (genuinely optional)*
+  - [x] Daily seed run (shareable score) — **DONE in v2 / Release G** (local best; online leaderboard needs a backend)
   - [x] Settings: mute, save wipe, export/import, **music volume slider**
 - **Success:** A returning player has clear goals and feels their progress persisted. ✅ **DONE** (daily-seed optional/deferred)
 

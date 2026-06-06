@@ -10,6 +10,21 @@ import { activeSynergies, partCounts } from "./data/synergies.js";
 import { completedSets } from "./data/sets.js";
 import { BIOMES, BIOME_BY_ID } from "./data/biomes.js";
 import { CHALLENGE_BY_ID } from "./data/challenges.js";
+import { SKIN_BY_ID } from "./data/skins.js";
+
+// buy (if needed) + equip a cosmetic skin; returns the skin or null
+export function buySkin(id) {
+  const s = SKIN_BY_ID[id];
+  if (!s) return null;
+  state.skinsOwned = state.skinsOwned || { default: true };
+  if (!state.skinsOwned[id]) {
+    if ((state.genome || 0) < s.cost) return null;
+    state.genome -= s.cost;
+    state.skinsOwned[id] = true;
+  }
+  state.skin = id;
+  return s;
+}
 
 function challengeRule() {
   return state.challenge ? (CHALLENGE_BY_ID[state.challenge] || {}).rule : null;
