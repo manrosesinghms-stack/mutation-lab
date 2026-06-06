@@ -669,6 +669,7 @@ function renderMutationChips() {
   }
 }
 
+const DRAFT_GLYPH = { eye: "👁️", spike: "🦴", tentacle: "🐙", jaw: "🦷", frond: "🌿", cilia: "✨", body: "🦠" };
 // Show the mutation draft. onPick(id) when chosen; onReroll() if a reroll token is spent.
 export function showDraft(ids, onPick, onReroll, onSkip) {
   el.draftCards.innerHTML = "";
@@ -682,8 +683,10 @@ export function showDraft(ids, onPick, onReroll, onSkip) {
     card.className = "draft-card reveal" + (high ? " glow" : "") + (def.defect ? " defect" : "") + (def.alien ? " alien" : "");
     card.style.animationDelay = (di++ * 0.1).toFixed(2) + "s";
     card.style.setProperty("--rarity", def.alien ? "#39d0c6" : def.defect ? "#ff6b6b" : r.color);
+    const glyph = def.alien ? "👽" : (DRAFT_GLYPH[def.part] || "🧬");
     card.innerHTML = `
       <div class="rarity">${def.alien ? "👽 ALIEN DNA" : def.defect ? "⚠ CURSED" : r.label}</div>
+      <div class="draft-spin"><span>${glyph}</span></div>
       <div class="mname">${def.name}</div>
       ${def.part ? `<div class="part-tag">＋ grows a ${def.part}</div>` : ""}
       <div class="mdesc">${def.desc}</div>`;

@@ -523,6 +523,11 @@ html, body {
 .draft-card .mname { font-size: 19px; font-weight: 800; line-height: 1.15; }
 .draft-card .mdesc { color: var(--muted); font-size: 13px; line-height: 1.45; margin-top: auto; }
 .draft-card .part-tag { font-size: 10px; color: var(--accent); letter-spacing: .08em; }
+/* rotating "specimen" preview — pack-opening feel, pure CSS 3D (no WebGL) */
+.draft-spin { height: 60px; display: flex; align-items: center; justify-content: center; perspective: 240px; margin: 2px 0 4px; }
+.draft-spin > span { font-size: 46px; display: inline-block; transform-style: preserve-3d; animation: draftSpin 3.6s linear infinite; filter: drop-shadow(0 0 10px var(--rarity)); }
+@keyframes draftSpin { from { transform: rotateY(0); } to { transform: rotateY(360deg); } }
+@media (prefers-reduced-motion: reduce) { .draft-spin > span { animation: none; } }
 /* high-rarity (epic/legendary/alien) cards pulse with a rarity-coloured glow */
 .draft-card.glow { animation: cardIn .4s cubic-bezier(.2,.9,.3,1.3) backwards, draftGlow 1.6s ease-in-out infinite; }
 @keyframes draftGlow {
