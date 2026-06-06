@@ -524,6 +524,10 @@ export function renderCreature(dt, elapsed) {
         if (p.userData.fromPos && p.userData.toPos) {
           p.position.lerpVectors(p.userData.fromPos, p.userData.toPos, p.userData.growT);
         }
+      } else {
+        // ease toward current targetScale so evolution-stage level-ups animate in
+        const cur = p.scale.x, tgt = p.userData.targetScale;
+        if (Math.abs(cur - tgt) > 0.002) p.scale.setScalar(cur + (tgt - cur) * Math.min(1, dt * 3));
       }
       if (p.userData.sway) {
         p.rotation.z = p.userData.baseRotZ + Math.sin(elapsed * 2 + p.userData.seed) * 0.18;
@@ -531,7 +535,7 @@ export function renderCreature(dt, elapsed) {
       if (p.userData.look) {
         p.userData.look.rotation.x = gazeX;
         p.userData.look.rotation.z = gazeZ;
-        if (p.userData.growT >= 1) p.scale.y = p.userData.targetScale * (1 - blinkAmt * 0.85);
+        if (p.userData.growT >= 1) p.scale.y = p.scale.x * (1 - blinkAmt * 0.85);
       }
       if (p.userData.jaw) {
         const open = Math.max(0, Math.sin(elapsed * 1.1 + p.userData.seed)) * 0.5;
@@ -757,11 +761,46 @@ export function addMutationPart(type) {
   part.position.copy(part.userData.fromPos);
   part.userData.growT = 0;
   part.userData.targetScale = 1;
+  part.userData.partType = type;
   part.userData.baseRotZ = part.rotation.z;
   if (part.userData.seed === undefined) part.userData.seed = partIndex * 1.7;
   part.scale.setScalar(0.0001);
   partsGroup.add(part);
   partIndex++;
+  relevelParts(); // re-evaluate evolution stages (more of a type = grander parts)
+}
+
+// Mutation evolution stages: the more of a body-part type you've grown, the
+// grander every part of that type becomes (bigger + glowier). Eye → Eye II →
+// Compound → Cosmic, etc. Re-applied whenever parts change.
+const PART_TIERS = [
+  { min: 1, scale: 1.0, emi: 0 },
+  { min: 3, scale: 1.3, emi: 0.4 },
+  { min: 6, scale: 1.65, emi: 1.0 },
+  { min: 10, scale: 2.1, emi: 1.8 },
+];
+function partTierFor(count) {
+  let t = PART_TIERS[0];
+  for (const x of PART_TIERS) if (count >= x.min) t = x;
+  return t;
+}
+function relevelParts() {
+  if (!partsGroup) return;
+  const counts = {};
+  for (const p of partsGroup.children) {
+    if (p.userData.partType) counts[p.userData.partType] = (counts[p.userData.partType] || 0) + 1;
+  }
+  for (const p of partsGroup.children) {
+    if (!p.userData.partType) continue;
+    const t = partTierFor(counts[p.userData.partType] || 1);
+    p.userData.targetScale = t.scale;
+    p.traverse((o) => {
+      if (o.material && o.material.emissive) {
+        if (o.userData._baseEmi === undefined) o.userData._baseEmi = o.material.emissiveIntensity || 0;
+        o.material.emissiveIntensity = o.userData._baseEmi + t.emi;
+      }
+    });
+  }
 }
 
 // Called whenever the player gains ANY mutation: hue drift + a satisfying squash.
