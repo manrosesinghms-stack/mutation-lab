@@ -551,6 +551,7 @@ export function renderCreature(dt, elapsed) {
 
   updateHabitat(dt, elapsed);
   updateTierCrown(dt, elapsed);
+  updateAuraParticles(elapsed);
 
   renderer.render(scene, camera);
 }
@@ -789,18 +790,58 @@ export function prestigeFlash() {
 let cineZoom = 0;
 export function cinematicPulse() { punch = 2.4; cineZoom = 1.7; }
 
-// build-dependent aura — the glow light colour tells you the build at a glance
+// build-dependent aura — the glow light colour + a cloud of orbiting particles
+// tell you the build at a glance (recognize a build from a screenshot)
 let glowLight, rimMesh, rimMat;
+let auraGroup, auraPts, auraN = 0, auraColor = 0x66ffcc;
+let auraAng, auraRad, auraYB, auraSpd, auraPhase;
 export function setAura(hex, intensity = 0.8) {
   if (glowLight) { glowLight.color.setHex(hex); glowLight.intensity = intensity; }
   if (rimMat) rimMat.uniforms.uColor.value.setHex(hex);
+  auraColor = hex;
+  if (auraPts) auraPts.material.color.setHex(hex);
+}
+function buildAuraParticles(n) {
+  if (!scene) return;
+  if (!auraGroup) { auraGroup = new THREE.Group(); scene.add(auraGroup); }
+  if (auraPts) { auraGroup.remove(auraPts); auraPts.geometry.dispose(); auraPts.material.dispose(); auraPts = null; }
+  auraN = n;
+  if (n <= 0) return;
+  auraAng = new Float32Array(n); auraRad = new Float32Array(n);
+  auraYB = new Float32Array(n); auraSpd = new Float32Array(n); auraPhase = new Float32Array(n);
+  const pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    auraAng[i] = (i * 2.39996) % (Math.PI * 2);
+    auraRad[i] = 1.3 + ((i * 0.193) % 1) * 1.3;
+    auraYB[i] = (((i * 0.371) % 1) * 2 - 1) * 1.2;
+    auraSpd[i] = (0.3 + ((i * 0.117) % 1) * 0.6) * (i % 2 ? 1 : -1);
+    auraPhase[i] = (i * 1.7) % (Math.PI * 2);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  auraPts = new THREE.Points(g, new THREE.PointsMaterial({
+    color: auraColor, size: 0.08, sizeAttenuation: true,
+    transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending }));
+  auraGroup.add(auraPts);
+}
+function updateAuraParticles(elapsed) {
+  if (!auraPts || auraN <= 0) return;
+  const arr = auraPts.geometry.attributes.position.array;
+  const sc = currentScale * 1.15;
+  for (let i = 0; i < auraN; i++) {
+    const a = auraAng[i] + elapsed * auraSpd[i];
+    arr[i * 3] = Math.cos(a) * auraRad[i] * sc;
+    arr[i * 3 + 1] = (auraYB[i] + Math.sin(elapsed * 1.5 + auraPhase[i]) * 0.3) * sc;
+    arr[i * 3 + 2] = Math.sin(a) * auraRad[i] * sc;
+  }
+  auraPts.geometry.attributes.position.needsUpdate = true;
 }
 
 // ---- Graphics quality: trade premium effects for framerate ----
 const QUALITY_PRESETS = {
-  low:    { pixelRatio: 1.0,  maxParts: 12, motes: 14, env: false, rim: false },
-  medium: { pixelRatio: 1.25, maxParts: 18, motes: 30, env: false, rim: false },
-  high:   { pixelRatio: 1.75, maxParts: 28, motes: 60, env: true,  rim: true },
+  low:    { pixelRatio: 1.0,  maxParts: 12, motes: 14, aura: 0,  env: false, rim: false },
+  medium: { pixelRatio: 1.25, maxParts: 18, motes: 30, aura: 26, env: false, rim: false },
+  high:   { pixelRatio: 1.75, maxParts: 28, motes: 60, aura: 54, env: true,  rim: true },
 };
 let QUALITY = QUALITY_PRESETS.medium;
 export function setQuality(level) {
@@ -809,6 +850,7 @@ export function setQuality(level) {
   applyEnvMap(QUALITY.env);
   applyRim(QUALITY.rim);
   if (habitatGroup) rebuildMotes(QUALITY.motes);
+  buildAuraParticles(QUALITY.aura);
 }
 export function maxParts() { return QUALITY.maxParts; }
 
