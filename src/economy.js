@@ -102,6 +102,8 @@ export function getModifiers() {
   mods.clickMult *= 1 + 1.5 * hLvl(state, "touch");
   // Gene Splicer — each discovered Hybrid is a small permanent production bonus
   mods.prodMult *= 1 + 0.02 * Object.keys(state.splices || {}).length;
+  // Challenge Tower — each cleared challenge is a permanent +8% production
+  mods.prodMult *= 1 + 0.08 * Object.keys(state.challengesDone || {}).length;
   // Upgrade Store — purchased upgrades (persist across Evolve, reset on Speciate)
   const up = state.upgrades || {};
   for (const id in up) {

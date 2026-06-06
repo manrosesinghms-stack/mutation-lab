@@ -11,6 +11,15 @@ export const CHALLENGES = [
     desc: "Every mutation is ×4. The creature becomes absurd." },
   { id: "fragile", name: "Fragile Genome", rule: "fastWall", goal: 3e5, reward: 3,
     desc: "The Metabolic wall arrives 60% sooner." },
+  // ---- the tower: harder reruns, bigger rewards (each clear = permanent boost) ----
+  { id: "starve", name: "Starvation", rule: "noGenerators", goal: 5e7, reward: 6,
+    desc: "Tier II — no organelles, a far higher bar." },
+  { id: "deepidle", name: "Deep Idle", rule: "noClick", goal: 5e7, reward: 6,
+    desc: "Tier II — pure idle, a far higher bar." },
+  { id: "glass", name: "Glass Genome", rule: "fastWall", goal: 5e7, reward: 8,
+    desc: "Tier III — the wall comes sooner and the bar is brutal." },
+  { id: "chaos", name: "Chaos Bloom", rule: "hyper", goal: 5e9, reward: 12,
+    desc: "Tier III — every mutation ×4, an astronomical bar." },
 ];
 
 export const CHALLENGE_BY_ID = Object.fromEntries(CHALLENGES.map((c) => [c.id, c]));
