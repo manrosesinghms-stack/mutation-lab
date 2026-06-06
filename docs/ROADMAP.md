@@ -145,7 +145,7 @@ We do them **in order**, one session at a time. Don't start a phase until the pr
   - [x] Floating "+N" numbers on every click (done in P1) + count-up tween on biomass
   - [x] Particle bursts (biomass splatter) on click and on purchase (combo-scaled)
   - [x] Screen shake on big events (prestige 18px, legendary mutation 14px)
-  - [x] Smooth count-up tweening on numbers; juicy part pop-in (button micro-anims TODO)
+  - [x] Smooth count-up tweening on numbers; juicy part pop-in; **button micro-animations** (done)
   - [x] Sound: click, buy, prestige, mutation-draw, milestone — **procedural Web Audio (no Howler, no assets)**
   - [x] Prestige "explosion" transition (radial flash + shake + burst + sweep); rarity-gold legendary fanfare
   - [x] Mute toggle, persisted in save
@@ -202,7 +202,7 @@ We do them **in order**, one session at a time. Don't start a phase until the pr
 - **Deliverables:** Playtest builds, feedback loop, analytics on where players stall/quit.
 - **Tasks:**
   - [ ] Ship a public web build (itch.io / GitHub Pages) for feedback
-  - [ ] Lightweight analytics (session length, prestige count, drop-off point)
+  - [x] Lightweight **local analytics** (time played, total clicks; in Stats) — *server-side drop-off analytics needs a backend*
   - [ ] Collect feedback (Discord, Reddit r/incremental_games — a goldmine audience)
   - [ ] Iterate balance + first-time-user experience (first 60 seconds must hook)
 - **Success:** Median session length climbs; r/incremental_games gives positive signal.
@@ -248,9 +248,9 @@ We do them **in order**, one session at a time. Don't start a phase until the pr
 
 - **Deliverables:** Update cadence, cosmetic monetization, community-driven content.
 - **Tasks:**
-  - [ ] Cosmetic mutation skins / creature themes (the planned money model)
+  - [x] Cosmetic **creature skins** (7, Genome-bought) — built; could become paid DLC later
   - [ ] Content updates (new mutation packs, ascension layers) to re-trigger Steam visibility
-  - [ ] Seasonal/daily events for retention
+  - [x] **Daily Seed + Weekly Event** for retention (built; online leaderboards need a backend)
   - [ ] Listen to community; double down on the builds people love to clip
   - [ ] Consider mobile port (idle games' $7.8B IAP market) if web/Steam validate
 - **Success:** Sustained players + recurring revenue + organic clip sharing.

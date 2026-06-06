@@ -84,7 +84,7 @@ Upgraded the procedural parts from simple cones/spheres into characterful, anima
 - **Better lighting** — added warm fill + a teal point light for specular pop on the glossy eyes.
 - **Verified:** all 5 part builders construct without throwing; loads with zero console errors.
 - ⚠️ **Not pixel-verified yet** — the preview screenshot tool can't capture while the tab is backgrounded (it waits for a foreground compositor frame). **Needs a human eyeball at http://localhost:8137** to confirm the look + steer art direction.
-- Still TODO in Phase 3: click-to-orbit camera; cilia / extra-body parts.
+- Phase 3 fully done in v2: click-to-orbit camera ✅, cilia + extra-body parts ✅.
 
 ## 🔒 Security + art polish pass (2026-06-05, reviewed live in Chrome)
 - **Patched cheat console (Exploit #1):** the `window.ML` dev handle is now gated behind `?debug` — the default build exposes NO console cheat surface. Verified in Chrome: `localhost:8137` → `window.ML` undefined; `localhost:8137/?debug=1` → enabled for our testing.
