@@ -15,6 +15,7 @@ import { HELIX_NODES, HELIX_BY_ID, helixLevel as hLvl, helixCost as hCost } from
 import { HYBRID_BY_KEY, spliceKey } from "./data/hybrids.js";
 import { UPGRADES, UPG_BY_ID } from "./data/upgrades.js";
 import { GENE_BY_ID, PANTHEON_SLOTS, SYMBIOTE_THRESH, AURA_BY_ID } from "./data/genes.js";
+import { SEED_BY_ID } from "./data/garden.js";
 
 // buy (if needed) + equip a cosmetic skin; returns the skin or null
 export function buySkin(id) {
@@ -119,6 +120,15 @@ export function getModifiers() {
     mods.prodMult *= 1 + 0.05 * symbioteStage();
     const a = AURA_BY_ID[state.symbiote.aura];
     if (a) { mods.prodMult *= 1 + a.prod; mods.clickMult *= 1 + a.click; }
+  }
+  // Petri Garden — mature plots give passive buffs
+  if (state.garden && state.garden.plots) {
+    const now = Date.now();
+    for (const p of state.garden.plots) {
+      if (!p) continue;
+      const seed = SEED_BY_ID[p.seed];
+      if (seed && now - p.at >= seed.growMs) { mods.prodMult *= 1 + seed.prod; mods.clickMult *= 1 + seed.click; }
+    }
   }
   // Upgrade Store — purchased upgrades (persist across Evolve, reset on Speciate)
   const up = state.upgrades || {};
@@ -235,6 +245,39 @@ export function buyBroker() {
   state.biomass -= cost; M.brokers++; return true;
 }
 export function brokerCost() { const M = initMarket(); return marketUnitValue() * 2000 * (M.brokers + 1); }
+
+// ---- Petri Garden (4A) ----
+function initGarden() {
+  if (!state.garden || !Array.isArray(state.garden.plots)) state.garden = { plots: Array(9).fill(null) };
+  return state.garden;
+}
+export function gardenPlots() { return initGarden().plots; }
+export function gardenMature(i) {
+  const p = initGarden().plots[i]; if (!p) return false;
+  const s = SEED_BY_ID[p.seed]; return s && (Date.now() - p.at) >= s.growMs;
+}
+export function gardenProgress(i) {
+  const p = initGarden().plots[i]; if (!p) return 0;
+  const s = SEED_BY_ID[p.seed]; if (!s) return 0;
+  return Math.max(0, Math.min(1, (Date.now() - p.at) / s.growMs));
+}
+export function plantSeed(i, seedId) {
+  const g = initGarden();
+  if (g.plots[i] || !SEED_BY_ID[seedId]) return false;
+  g.plots[i] = { seed: seedId, at: Date.now() };
+  return true;
+}
+export function harvestPlot(i) {
+  const g = initGarden();
+  if (!gardenMature(i)) return null;
+  const seed = SEED_BY_ID[g.plots[i].seed];
+  g.plots[i] = null;
+  const reward = Math.max(50, Math.floor(productionPerSecond() * 120));
+  let mutagen = 0;
+  if (Math.random() < 0.2) { state.mutagen = (state.mutagen || 0) + 1; mutagen = 1; }
+  state.biomass += reward;
+  return { reward, mutagen, seed: seed.name };
+}
 
 // ---- Genome Pantheon (4C) ----
 export function setPantheonSlot(slotId, geneId) {

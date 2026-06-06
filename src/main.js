@@ -28,6 +28,8 @@ import {
   setPantheonSlot,
   feedSymbiote,
   setSymbioteAura,
+  plantSeed,
+  harvestPlot,
   doTranscend,
   canTranscend,
   buyHelixNode,
@@ -90,7 +92,7 @@ import { creatureName } from "./data/names.js";
 import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
          renderGenomeLab, genomeStatus, openHelp, showChoice, renderChallenges,
          renderHelix, renderSplicer, spliceResult, renderUpgrades, renderMarket,
-         renderMutagen, renderReactor, renderPantheon, renderSymbiote } from "./ui.js";
+         renderMutagen, renderReactor, renderPantheon, renderSymbiote, renderGarden } from "./ui.js";
 import { SPELLS } from "./data/spells.js";
 import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
@@ -162,6 +164,11 @@ initUI({
     else flashStatus("need more biomass to feed");
   },
   onSetAura: (id) => { setSymbioteAura(id); audio.playMilestone(); renderSymbiote(); flashStatus("aura attuned"); save(); },
+  onPlant: (i, seedId) => { if (plantSeed(i, seedId)) { audio.playBuy(1); renderGarden(); save(); } },
+  onHarvest: (i) => {
+    const r = harvestPlot(i);
+    if (r) { audio.playMilestone(); flashStatus(`🌱 harvested ${r.seed} → +${formatNumber(r.reward)}${r.mutagen ? " + 🧫" : ""}`); renderGarden(); save(); }
+  },
   onSave: () => flashStatus(save() ? "saved" : "save failed"),
   onWipe: () => {
     if (confirm("Wipe all progress? This cannot be undone.")) {
@@ -978,6 +985,8 @@ function update() {
   tickCatalyst();
   const rm = document.getElementById("reactor-modal");
   if (rm && !rm.classList.contains("hidden")) renderReactor();
+  const gm = document.getElementById("garden-modal");
+  if (gm && !gm.classList.contains("hidden")) renderGarden();
   autoTick(dt); // Helix auto-evolve / auto-speciate
   pruneTempBuffs(); // drop expired blooms/Digest buffs
 

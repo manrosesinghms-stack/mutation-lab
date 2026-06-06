@@ -13,7 +13,9 @@ import {
   REAGENTS, marketState, marketUnitValue, brokerFee, brokerCost, maxBuy,
   mutagenProgress, genLevel, genLevelCost,
   catalyst, catalystMax, symbioteStage,
+  gardenPlots, gardenMature, gardenProgress,
 } from "./economy.js";
+import { SEEDS, SEED_BY_ID } from "./data/garden.js";
 import { HELIX_NODES } from "./data/helix.js";
 import { SPELLS } from "./data/spells.js";
 import { ANCESTRAL_GENES, GENE_BY_ID, PANTHEON_SLOTS, SYMBIOTE_STAGES, SYMBIOTE_THRESH, SYMBIOTE_AURAS } from "./data/genes.js";
@@ -76,6 +78,7 @@ export function initUI(handlers) {
   el.reactorModal = document.getElementById("reactor-modal");
   el.pantheonModal = document.getElementById("pantheon-modal");
   el.symbioteModal = document.getElementById("symbiote-modal");
+  el.gardenModal = document.getElementById("garden-modal");
   el.genomeModal = document.getElementById("genome-modal");
   el.nodeList = document.getElementById("node-list");
   el.speciesList = document.getElementById("species-list");
@@ -122,6 +125,8 @@ export function initUI(handlers) {
   document.getElementById("symbiote-btn").addEventListener("click", () => openSymbiote());
   document.getElementById("symbiote-close").addEventListener("click", () => el.symbioteModal.classList.add("hidden"));
   document.getElementById("symbiote-feed").addEventListener("click", () => uiHandlers.onFeedSymbiote());
+  document.getElementById("garden-btn").addEventListener("click", () => openGarden());
+  document.getElementById("garden-close").addEventListener("click", () => el.gardenModal.classList.add("hidden"));
   document.getElementById("splice-close").addEventListener("click", () => el.spliceModal.classList.add("hidden"));
   document.getElementById("splice-go").addEventListener("click", () => {
     if (spliceSelA && spliceSelB) uiHandlers.onSplice(spliceSelA, spliceSelB);
@@ -195,6 +200,40 @@ export function renderUpgrades() {
       <div class="node-lvl">${u.cond}</div>`;
     if (!broke) row.addEventListener("click", () => uiHandlers.onBuyUpgrade(u.id));
     list.appendChild(row);
+  }
+}
+
+// ---- Petri Garden ----
+let gardenSeed = "vine";
+export function openGarden() { renderGarden(); el.gardenModal.classList.remove("hidden"); }
+export function renderGarden() {
+  const seeds = document.getElementById("garden-seeds");
+  seeds.innerHTML = "";
+  for (const s of SEEDS) {
+    const b = document.createElement("button");
+    b.textContent = `${s.emoji} ${s.name}`;
+    if (s.id === gardenSeed) b.classList.add("active");
+    b.addEventListener("click", () => { gardenSeed = s.id; renderGarden(); });
+    seeds.appendChild(b);
+  }
+  const grid = document.getElementById("garden-grid");
+  grid.innerHTML = "";
+  const plots = gardenPlots();
+  for (let i = 0; i < plots.length; i++) {
+    const p = plots[i], cell = document.createElement("div");
+    cell.className = "plot";
+    if (!p) { cell.classList.add("empty"); cell.innerHTML = `<span class="plot-plus">+</span>`; }
+    else {
+      const s = SEED_BY_ID[p.seed], mature = gardenMature(i);
+      cell.classList.add(mature ? "ripe" : "growing");
+      cell.innerHTML = `<span class="plot-emoji">${s.emoji}</span>` +
+        (mature ? `<span class="plot-tag">ripe ✓</span>` : `<span class="plot-bar"><span style="width:${(gardenProgress(i) * 100).toFixed(0)}%"></span></span>`);
+    }
+    cell.addEventListener("click", () => {
+      if (!plots[i]) uiHandlers.onPlant(i, gardenSeed);
+      else if (gardenMature(i)) uiHandlers.onHarvest(i);
+    });
+    grid.appendChild(cell);
   }
 }
 

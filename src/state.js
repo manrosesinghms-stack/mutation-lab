@@ -36,6 +36,8 @@ function freshState() {
     pantheon: {},          // { slot: geneId } slotted ancestral genes
     symbiote: { fed: 0, aura: null }, // companion: total fed + chosen aura
     season: null,          // active seasonal event id (null = none)
+    garden: { plots: [null, null, null, null, null, null, null, null, null] }, // Petri Garden
+    gardenStrains: {},     // discovered rare garden strains (collection)
     mutagen: 0,            // slow-growing rare currency (Sugar-Lump analog)
     mutagenStart: 0,       // ms timestamp the current Mutagen began ripening
     genLevels: {},         // { genId: level } organelle levels bought with Mutagen

@@ -100,6 +100,7 @@
         <button id="splice-btn" class="ghost" title="Gene Splicer">🧪</button>
         <button id="market-btn" class="ghost" title="Biomass Exchange">📈</button>
         <button id="mutagen-btn" class="ghost" title="Mutagen — level organelles">🧫</button>
+        <button id="garden-btn" class="ghost" title="Petri Garden">🌱</button>
         <button id="reactor-btn" class="ghost" title="Reactor — cast spells">🔬</button>
         <button id="pantheon-btn" class="ghost" title="Genome Pantheon">🏛️</button>
         <button id="symbiote-btn" class="ghost" title="Symbiote companion">🐛</button>
@@ -262,6 +263,16 @@
         <button id="viewdna-btn" class="ghost">🧬 View shared DNA</button>
         <span id="genome-status"></span>
       </div>
+    </div>
+  </div>
+
+  <!-- Petri Garden modal -->
+  <div id="garden-modal" class="hidden">
+    <div class="genome-inner codex-inner">
+      <div class="genome-head"><h2>🌱 PETRI GARDEN</h2><button id="garden-close" class="ghost">✕ Close</button></div>
+      <p class="genome-hint" style="margin-top:10px">Pick a seed, then click an empty plot to plant. Mature strains give a <b>passive buff</b> while planted — click a ripe one to harvest (biomass + a chance at Mutagen).</p>
+      <div id="garden-seeds" class="seg" style="justify-content:flex-start;margin-bottom:12px"></div>
+      <div id="garden-grid"></div>
     </div>
   </div>
 
