@@ -264,6 +264,8 @@ html, body {
 .trait.got .tn { color: var(--accent2); }
 .trait .tf { color: var(--muted); font-size: 12px; font-style: italic; margin-top: 2px; }
 .trait .tp { color: var(--accent); font-size: 11px; font-weight: 700; margin-top: 4px; }
+.trait .ghost { margin-top: 8px; }
+#chal-abandon { margin-top: 12px; }
 .codex-body .mut-grid { margin-bottom: 8px; }
 
 /* how to play */

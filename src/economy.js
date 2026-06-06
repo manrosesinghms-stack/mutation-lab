@@ -9,6 +9,11 @@ import { ACHIEVEMENTS } from "./data/achievements.js";
 import { activeSynergies, partCounts } from "./data/synergies.js";
 import { completedSets } from "./data/sets.js";
 import { BIOMES, BIOME_BY_ID } from "./data/biomes.js";
+import { CHALLENGE_BY_ID } from "./data/challenges.js";
+
+function challengeRule() {
+  return state.challenge ? (CHALLENGE_BY_ID[state.challenge] || {}).rule : null;
+}
 
 // EP payoff with a softcap: linear +10%/EP early, sqrt tail late (anti-runaway).
 function epPayoffMult(ep) {
@@ -46,6 +51,7 @@ export function getModifiers() {
   const biome = BIOME_BY_ID[state.biome]; // per-run world buff
   if (biome) biome.buff(mods, partCounts(state.mutations));
   mods.prodMult *= state.stabilizeBonus || 1; // genetic-instability stabilize choice
+  if (challengeRule() === "hyper") { mods.prodMult *= 4; mods.clickMult *= 4; }
   // equipped Species contribute their frozen build at reduced (sqrt) weight
   for (const sid of state.equippedSpecies || []) {
     const sp = (state.species || []).find((s) => s.id === sid);
@@ -144,6 +150,7 @@ export function canAfford(genId) {
 }
 
 export function buy(genId) {
+  if (challengeRule() === "noGenerators") return false; // Parasite challenge
   const cost = costOf(genId);
   if (state.biomass < cost) return false;
   state.biomass -= cost;
@@ -169,7 +176,8 @@ function rawProduction() {
 // (never by prestige count; the sim proved that defeats the wall).
 export function productionSoftcapThreshold() {
   const wall = 1 + 1.5 * nodeLevel(state, "wall_up");
-  return TUN.prodSoftcap.base * wall;
+  const fragile = challengeRule() === "fastWall" ? 0.4 : 1; // Fragile Genome challenge
+  return TUN.prodSoftcap.base * wall * fragile;
 }
 
 // 0..1+ : how close production is to the wall (drives the Phase-1 Pressure meter).
@@ -189,6 +197,7 @@ export function effectiveClickPower() {
 
 // A manual click.
 export function click() {
+  if (challengeRule() === "noClick") return 0; // Pacifist challenge
   const gain = effectiveClickPower();
   addBiomass(gain);
   return gain;
@@ -325,6 +334,46 @@ export function toggleEquip(sid) {
 
 export function hasNode(id) {
   return nodeLevel(state, id) > 0;
+}
+
+// ---- challenge runs ----
+export function startChallenge(id) {
+  if (!CHALLENGE_BY_ID[id]) return false;
+  state.challenge = id;
+  state.evolutionPoints = 0; state.mutations = []; state.prestiges = 0;
+  state.biomass = 0; state.runBiomass = 0; state.lastMilestoneExp = 2;
+  state.instabilityResolved = false; state.embraceChaos = false; state.stabilizeBonus = 1;
+  for (const g of GENERATORS) state.owned[g.id] = 0;
+  return true;
+}
+export function abandonChallenge() {
+  state.challenge = null;
+  state.biomass = 0; state.runBiomass = 0; state.mutations = []; state.evolutionPoints = 0;
+  for (const g of GENERATORS) state.owned[g.id] = 0;
+}
+export function checkChallenge() {
+  if (!state.challenge) return null;
+  const c = CHALLENGE_BY_ID[state.challenge];
+  if (!c) { state.challenge = null; return null; }
+  if (state.runBiomass >= c.goal) {
+    state.challengesDone = state.challengesDone || {};
+    state.challengesDone[c.id] = true;
+    grantReroll(c.reward);
+    state.challenge = null;
+    return c;
+  }
+  return null;
+}
+export function currentChallenge() { return state.challenge ? CHALLENGE_BY_ID[state.challenge] : null; }
+
+// ---- ancient fossils (collectibles / museum) ----
+const FOSSIL_NAMES = ["Trilobite Husk", "Ammonite Spiral", "Primordial Tooth", "Amber Drop",
+  "Stromatolite", "Ancient Spore", "Petrified Eye", "Crystal Vertebra", "Fossil Egg", "Tar-Black Claw"];
+export function grantFossil() {
+  state.fossils = state.fossils || [];
+  const name = FOSSIL_NAMES[(Math.random() * FOSSIL_NAMES.length) | 0];
+  if (!state.fossils.includes(name)) { state.fossils.push(name); return name; }
+  return null;
 }
 
 // ---- biomes (per-run world) ----

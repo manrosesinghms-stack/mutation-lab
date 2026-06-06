@@ -13,6 +13,7 @@ import { GENOME_NODES, nodeCost, nodeLevel } from "./data/genomeNodes.js";
 import { ACHIEVEMENTS } from "./data/achievements.js";
 import { SYNERGIES, synergyProgress } from "./data/synergies.js";
 import { SETS, setProgress } from "./data/sets.js";
+import { CHALLENGES } from "./data/challenges.js";
 import { MUSIC_THEMES } from "./music.js";
 import { BACKGROUNDS } from "./background.js";
 import { creatureName } from "./data/names.js";
@@ -93,6 +94,11 @@ export function initUI(handlers) {
   el.codexBody = document.getElementById("codex-body");
   document.getElementById("codex-btn").addEventListener("click", () => openCodex());
   document.getElementById("codex-close").addEventListener("click", () => el.codexModal.classList.add("hidden"));
+  // challenges
+  el.chalModal = document.getElementById("chal-modal");
+  el.chalBody = document.getElementById("chal-body");
+  document.getElementById("chal-btn").addEventListener("click", () => openChallenges());
+  document.getElementById("chal-close").addEventListener("click", () => el.chalModal.classList.add("hidden"));
   el.setVolume.addEventListener("input", () => handlers.onSetVolume(el.setVolume.value / 100));
   el.setShake.addEventListener("click", (e) => { const v = e.target.dataset.v; if (v) { handlers.onSetShake(v); renderSettings(); } });
   el.setReduce.addEventListener("change", () => { handlers.onSetReduce(el.setReduce.checked); renderSettings(); });
@@ -115,7 +121,27 @@ export function openHelp() {
   el.helpModal.classList.remove("hidden");
 }
 
-// ---- codex: species traits + set forms + mutation encyclopedia ----
+// ---- challenges ----
+export function openChallenges() { renderChallenges(); el.chalModal.classList.remove("hidden"); }
+export function renderChallenges() {
+  const done = state.challengesDone || {};
+  const active = state.challenge;
+  el.chalBody.innerHTML = `
+    ${active ? `<div class="trait got"><div class="tn">⚔️ Active challenge</div><div class="tf">Reach the goal — or abandon below.</div></div>` : `<p class="help-tip" style="margin-bottom:10px">Starting a challenge resets your current run (your Species, Genome &amp; achievements are kept).</p>`}
+    ${CHALLENGES.map((c) => `
+      <div class="trait ${done[c.id] ? "got" : ""}">
+        <div class="tn">${done[c.id] ? "✓ " : ""}${c.name}</div>
+        <div class="tf">${c.desc}</div>
+        <div class="tp">goal ${formatNumber(c.goal)} biomass · reward ${c.reward} 🎲</div>
+        <button class="ghost chal-start" data-id="${c.id}" ${active ? "disabled" : ""}>${active === c.id ? "in progress" : "Start"}</button>
+      </div>`).join("")}
+    ${active ? `<button id="chal-abandon" class="ghost danger">Abandon challenge</button>` : ""}`;
+  el.chalBody.querySelectorAll(".chal-start").forEach((b) => b.addEventListener("click", () => uiHandlers.onStartChallenge(b.dataset.id)));
+  const ab = document.getElementById("chal-abandon");
+  if (ab) ab.addEventListener("click", () => uiHandlers.onAbandonChallenge());
+}
+
+// ---- codex: species traits + set forms + mutation encyclopedia + museum ----
 export function openCodex() {
   renderCodex();
   el.codexModal.classList.remove("hidden");
@@ -158,11 +184,17 @@ function renderCodex() {
   }).join("");
 
   const tCount = SYNERGIES.filter((s) => dt[s.id]).length;
+  const fossils = state.fossils || [];
+  const fossilHtml = fossils.length
+    ? fossils.map((f) => `<span class="mut-pill" style="border-color:#caa46a;color:#caa46a">🦴 ${f}</span>`).join("")
+    : `<span class="mut-pill locked">no fossils yet — beat bosses to find them</span>`;
   el.codexBody.innerHTML = `
     <h3>⭐ Species Traits · ${tCount} / ${SYNERGIES.length} discovered</h3>
     ${traits}
     <h3>🧩 Set Forms</h3>
     ${sets}
+    <h3>🏛️ Museum · ${fossils.length} / 10 fossils</h3>
+    <div class="mut-grid">${fossilHtml}</div>
     <h3>🦠 Mutation Encyclopedia · ${Object.keys(discovered).length} / ${MUTATIONS.length}</h3>
     <div class="mut-grid">${pills}</div>`;
 }

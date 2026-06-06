@@ -28,6 +28,9 @@ function freshState() {
     genomeNodes: {},       // { nodeId: level } purchased node grid
     speciations: 0,        // how many times Speciated
     rerolls: 0,            // draft reroll tokens
+    challenge: null,       // active challenge id
+    challengesDone: {},    // completed challenges
+    fossils: [],           // collected ancient fossils (museum)
     musicVolume: 0.5,      // 0..1 ambient music volume
     musicTrack: "lofi",    // selected music theme
     background: "aurora",  // selected animated background
@@ -87,6 +90,8 @@ export function load() {
       achievements: (data.achievements && typeof data.achievements === "object") ? data.achievements : {},
       discovered: (data.discovered && typeof data.discovered === "object") ? data.discovered : {},
       discoveredTraits: (data.discoveredTraits && typeof data.discoveredTraits === "object") ? data.discoveredTraits : {},
+      challengesDone: (data.challengesDone && typeof data.challengesDone === "object") ? data.challengesDone : {},
+      fossils: Array.isArray(data.fossils) ? data.fossils : [],
     };
     // for an existing big save, start milestones at the current tier so we don't
     // dump a backlog of dings on load

@@ -28,6 +28,10 @@ import {
   useReroll,
   fuseMutations,
   rollBiome,
+  startChallenge,
+  abandonChallenge,
+  checkChallenge,
+  grantFossil,
 } from "./economy.js";
 import {
   initCreature,
@@ -50,7 +54,7 @@ import {
 } from "./creature.js";
 import { creatureName } from "./data/names.js";
 import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
-         renderGenomeLab, genomeStatus, openHelp, showChoice } from "./ui.js";
+         renderGenomeLab, genomeStatus, openHelp, showChoice, renderChallenges } from "./ui.js";
 import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
@@ -148,6 +152,20 @@ initUI({
     renderGenomeLab();
     audio.playMutation("legendary");
     genomeStatus(`fused → ${pick.name}!`);
+    save();
+  },
+  onStartChallenge: (id) => {
+    if (!startChallenge(id)) return;
+    resetParts(); refreshGhosts();
+    audio.playEvolve(); flash("rgba(255,107,107,.4)");
+    flashStatus("⚔️ Challenge begun — your run is reset");
+    renderChallenges();
+    save();
+  },
+  onAbandonChallenge: () => {
+    abandonChallenge(); resetParts(); refreshGhosts();
+    flashStatus("challenge abandoned");
+    renderChallenges();
     save();
   },
 });
@@ -400,7 +418,8 @@ document.getElementById("boss-cell").addEventListener("pointerdown", (e) => {
     burst(c.x, c.y, { count: 60, color: "#56e39f", spread: 200, up: 0, life: 1000 });
     audio.playMilestone();
     grantReroll(1);
-    flashStatus(`💥 ${boss.name} destroyed! +${reward} Genome + a free mutation`);
+    const fossil = Math.random() < 0.4 ? grantFossil() : null;
+    flashStatus(`💥 ${boss.name} destroyed! +${reward} Genome${fossil ? ` + 🦴 ${fossil}` : ""} + a free mutation`);
     boss = null;
     bossEl.classList.add("hidden");
     openDraft();
@@ -488,6 +507,14 @@ function update() {
     audio.playMilestone();
     flash("rgba(86,227,159,0.35)");
     flashStatus(`🏆 ${a.name} — ${a.desc}`);
+  }
+  // challenge completion
+  const cc = checkChallenge();
+  if (cc) {
+    audio.playMilestone(); flash("rgba(86,227,159,.5)"); shake(16);
+    const c = stageCenter();
+    burst(c.x, c.y, { count: 70, color: "#56e39f", spread: 220, up: 0, life: 1100 });
+    flashStatus(`🏆 CHALLENGE COMPLETE — ${cc.name}! +${cc.reward} 🎲 rerolls`);
   }
   // species-trait / synergy discoveries — the big dopamine beat
   for (const tr of checkTraits()) {
