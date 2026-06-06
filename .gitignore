@@ -1,0 +1,13 @@
+# dependencies (none yet — vanilla, but future-proof)
+node_modules/
+
+# os / editor cruft
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# build output (if we add a bundler later)
+dist/
+.cache/

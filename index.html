@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mutation Lab — prototype</title>
+  <link rel="stylesheet" href="styles/style.css" />
+  <!-- Three.js via import map (browser-native ES modules, no bundler) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <!-- 3D creature lives here -->
+    <div id="stage">
+      <canvas id="creature-canvas"></canvas>
+      <div id="creature-hint">click the organism</div>
+    </div>
+
+    <!-- UI overlay -->
+    <aside id="panel">
+      <header id="panel-head">
+        <h1>MUTATION&nbsp;LAB</h1>
+        <p class="tag">working title · low-poly 3D prototype</p>
+      </header>
+
+      <section id="resources">
+        <div class="biomass">
+          <span id="biomass-value">0</span>
+          <span class="unit">biomass</span>
+        </div>
+        <div class="rate"><span id="biomass-rate">0</span> /sec</div>
+        <div class="rate small">+<span id="click-power">1</span> per click</div>
+      </section>
+
+      <section id="generators">
+        <h2>Organelles</h2>
+        <div id="generator-list"><!-- injected by ui.js --></div>
+      </section>
+
+      <section id="evolution">
+        <h2>Evolution</h2>
+        <button id="evolve-btn" class="evolve" disabled>
+          <span class="evolve-label">EVOLVE</span>
+          <span class="evolve-gain" id="evolve-gain">+0 EP</span>
+        </button>
+        <div class="evo-stats">
+          <span><b id="ep-value">0</b> Evolution Points</span>
+          <span><b id="prestige-count">0</b> evolutions</span>
+        </div>
+        <div id="mutation-collection"><!-- chips injected by ui.js --></div>
+      </section>
+
+      <footer id="panel-foot">
+        <button id="save-btn" class="ghost">Save</button>
+        <button id="wipe-btn" class="ghost danger">Wipe</button>
+        <button id="mute-btn" class="ghost" title="Toggle sound">🔊</button>
+        <span id="status"></span>
+      </footer>
+    </aside>
+  </div>
+
+  <!-- floating click numbers + particles render here -->
+  <div id="fx-layer"></div>
+  <!-- prestige flash overlay -->
+  <div id="flash"></div>
+
+  <!-- mutation draft modal -->
+  <div id="draft-modal" class="hidden">
+    <div class="draft-inner">
+      <h2>MUTATION DRAFT</h2>
+      <p class="draft-sub">Choose one. It's permanent. It stacks.</p>
+      <div id="draft-cards"></div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

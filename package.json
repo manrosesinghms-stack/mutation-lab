@@ -1,0 +1,10 @@
+{
+  "name": "mutation-lab",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "An incremental + roguelike where you grow a mutating cell.",
+  "scripts": {
+    "sim": "node tools/sim.js"
+  }
+}

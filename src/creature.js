@@ -1,0 +1,393 @@
+// The 3D creature. A low-poly deformed organism that pulses on click, slowly
+// rotates, jiggles like jelly, grows with biomass, and sprouts detailed,
+// animated modular parts (eyes that look around, a chomping maw, swaying
+// tentacles, clustered spikes, leafy fronds) as the player drafts mutations.
+
+import * as THREE from "three";
+
+let renderer, scene, camera, organism, light;
+let canvas;
+let punch = 0;          // transient squash impulse from clicks
+let targetScale = 1;    // grows with biomass
+let currentScale = 1;
+let onClickCb = null;
+let raycaster, pointer;
+
+// mutation visuals
+let partsGroup;
+let partIndex = 0;      // how many parts attached (also the anchor seed)
+let hueShift = 0;       // accumulates per mutation -> creature drifts color
+const BASE_HSL = { h: 0.42, s: 0.62, l: 0.55 };
+const UP = new THREE.Vector3(0, 1, 0);
+
+const easeOutBack = (t) => {
+  const c1 = 1.70158, c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+};
+
+// Layered pseudo-noise over a unit direction — the SAME field used to deform the
+// body, so we can also query it to place parts exactly on the lumpy surface.
+function bumpAt(n) {
+  return (
+    0.18 * Math.sin(n.x * 4.0 + n.y * 2.0) +
+    0.12 * Math.sin(n.y * 6.0 + n.z * 3.0) +
+    0.08 * Math.cos(n.z * 8.0 + n.x * 5.0)
+  );
+}
+function surfaceRadius(dir) {
+  return 1 + bumpAt(dir);
+}
+
+// Evenly-distributed direction on a sphere (fibonacci) for socket placement.
+function anchorDir(i) {
+  const ga = Math.PI * (3 - Math.sqrt(5));
+  const y = 1 - (i % 32) / 31 * 2;       // -1..1
+  const r = Math.sqrt(Math.max(0, 1 - y * y));
+  const theta = ga * i;
+  return new THREE.Vector3(Math.cos(theta) * r, y, Math.sin(theta) * r).normalize();
+}
+
+function makeOrganismGeometry(detail = 3, radius = 1) {
+  const geo = new THREE.IcosahedronGeometry(radius, detail);
+  const pos = geo.attributes.position;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const n = v.clone().normalize();
+    v.addScaledVector(n, bumpAt(n));
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
+export function initCreature(canvasEl, onClick) {
+  canvas = canvasEl;
+  onClickCb = onClick;
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.set(0, 0, 4.2);
+
+  // lights — key + warm fill + cool rim for a gooey low-poly look
+  scene.add(new THREE.AmbientLight(0x35506b, 1.0));
+  light = new THREE.DirectionalLight(0xffffff, 1.5);
+  light.position.set(3, 4, 5);
+  scene.add(light);
+  const fill = new THREE.DirectionalLight(0xffd9a0, 0.5);
+  fill.position.set(-2, 1, 4);
+  scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xb88cff, 1.0);
+  rim.position.set(-4, -2, -3);
+  scene.add(rim);
+  const glow = new THREE.PointLight(0x66ffcc, 0.5, 12);
+  glow.position.set(0, 0, 3);
+  scene.add(glow);
+
+  // the organism
+  const geo = makeOrganismGeometry(3, 1);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x56e39f,
+    roughness: 0.32,
+    metalness: 0.1,
+    flatShading: true,
+    emissive: 0x0a3d2a,
+    emissiveIntensity: 0.55,
+  });
+  organism = new THREE.Mesh(geo, mat);
+  scene.add(organism);
+
+  // parts ride on the organism so they spin/scale with it
+  partsGroup = new THREE.Group();
+  organism.add(partsGroup);
+  applyHue();
+
+  // click handling via raycast (so only clicks ON the creature count)
+  raycaster = new THREE.Raycaster();
+  pointer = new THREE.Vector2();
+  canvas.addEventListener("pointerdown", handlePointer);
+
+  resize();
+  window.addEventListener("resize", resize);
+}
+
+function handlePointer(e) {
+  const rect = canvas.getBoundingClientRect();
+  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hit = raycaster.intersectObject(organism, true);
+  if (hit.length > 0) {
+    punch = 1; // trigger squash
+    if (onClickCb) onClickCb(e.clientX, e.clientY);
+  }
+}
+
+export function resize() {
+  if (!renderer) return;
+  const w = canvas.clientWidth || canvas.parentElement.clientWidth;
+  const h = canvas.clientHeight || canvas.parentElement.clientHeight;
+  // ignore degenerate sizes (e.g. clientHeight reports 0 on a backgrounded tab)
+  if (w < 2 || h < 2) return;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+
+// Map biomass -> a gentle size so growth is visible but never fills the screen.
+export function setGrowthFromBiomass(biomass) {
+  const t = Math.log10(Math.max(1, biomass + 1));
+  targetScale = 0.8 + Math.min(t * 0.12, 1.4); // ~0.8 .. 2.2
+}
+
+// Called every frame.
+export function renderCreature(dt, elapsed) {
+  if (!renderer) return;
+
+  // ease scale toward target
+  currentScale += (targetScale - currentScale) * Math.min(1, dt * 3);
+
+  // dolly the camera back as the organism grows so it stays framed — extra
+  // pullback so parts sticking out (spikes/tentacles) never clip the top edge
+  const targetZ = 4.6 + (currentScale - 1) * 4.2;
+  camera.position.z += (targetZ - camera.position.z) * Math.min(1, dt * 2.5);
+  camera.lookAt(0, 0, 0);
+
+  // squash impulse decays; gives a juicy click "pop"
+  punch += (0 - punch) * Math.min(1, dt * 8);
+  const squash = 1 + punch * 0.18;
+  const stretch = 1 - punch * 0.12;
+
+  // base scale + breathing + per-axis jelly jiggle
+  const breathe = 1 + Math.sin(elapsed * 1.6) * 0.02;
+  organism.scale.set(
+    currentScale * squash * breathe * (1 + Math.sin(elapsed * 2.3) * 0.022),
+    currentScale * stretch * breathe * (1 + Math.sin(elapsed * 1.9 + 2) * 0.022),
+    currentScale * squash * breathe * (1 + Math.sin(elapsed * 2.6 + 4) * 0.022)
+  );
+  organism.rotation.y += dt * 0.35;
+  organism.rotation.x = Math.sin(elapsed * 0.4) * 0.12;
+
+  // shared gaze + chomp phases so all eyes/maws move together (reads as one mind)
+  const gazeX = Math.sin(elapsed * 0.6) * 0.28;
+  const gazeZ = Math.cos(elapsed * 0.45) * 0.28;
+
+  if (partsGroup) {
+    for (const p of partsGroup.children) {
+      // pop-in (juicy overshoot)
+      if (p.userData.growT < 1) {
+        p.userData.growT = Math.min(1, p.userData.growT + dt * 2.4);
+        p.scale.setScalar(Math.max(0.0001, easeOutBack(p.userData.growT) * p.userData.targetScale));
+      }
+      if (p.userData.sway) {
+        p.rotation.z = p.userData.baseRotZ + Math.sin(elapsed * 2 + p.userData.seed) * 0.18;
+      }
+      if (p.userData.look) {
+        p.userData.look.rotation.x = gazeX;
+        p.userData.look.rotation.z = gazeZ;
+      }
+      if (p.userData.jaw) {
+        const open = Math.max(0, Math.sin(elapsed * 1.1 + p.userData.seed)) * 0.5;
+        p.userData.jaw.upper.rotation.x = -open;
+        p.userData.jaw.lower.rotation.x = open;
+      }
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+// ---- mutation visuals ----
+function applyHue() {
+  if (!organism) return;
+  const h = (BASE_HSL.h + hueShift) % 1;
+  organism.material.color.setHSL(h, BASE_HSL.s, BASE_HSL.l);
+  organism.material.emissive.setHSL(h, BASE_HSL.s, 0.12);
+}
+
+const glossy = (color, extra = {}) =>
+  new THREE.MeshStandardMaterial({ color, roughness: 0.18, metalness: 0.05, ...extra });
+const matte = (color, extra = {}) =>
+  new THREE.MeshStandardMaterial({ color, roughness: 0.5, flatShading: true, ...extra });
+
+// ---- detailed part builders ----
+
+// a tuned iris palette — varied but always reads nicely (no muddy random hues)
+const IRIS_PALETTE = [0x39d0c6, 0xffb13d, 0xb86bff, 0x4aa3ff, 0x5be36b, 0xff6b9d];
+
+function buildEye() {
+  const g = new THREE.Group();
+  // big, expressive, bulging eyeball — the most shareable feature
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.24, 22, 22), glossy(0xf7f8fc));
+  ball.scale.set(1, 0.92, 1);
+  g.add(ball);
+  // a moving "look" group (iris + pupil + glints) so the eye can gaze around
+  const look = new THREE.Group();
+  const c = IRIS_PALETTE[Math.floor(Math.random() * IRIS_PALETTE.length)];
+  const iris = new THREE.Mesh(new THREE.SphereGeometry(0.135, 18, 18),
+    new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.45, roughness: 0.22 }));
+  iris.position.y = 0.155;
+  iris.scale.set(1, 0.5, 1);
+  const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 14), glossy(0x07070d));
+  pupil.position.y = 0.205;
+  // two glints (big + small) for that lively cartoon sparkle
+  const litMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 1 });
+  const glint = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 8), litMat);
+  glint.position.set(0.07, 0.225, 0.06);
+  const glint2 = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 8), litMat);
+  glint2.position.set(-0.05, 0.2, 0.07);
+  look.add(iris, pupil, glint, glint2);
+  g.add(look);
+  g.userData.look = look;
+  return g;
+}
+
+function buildSpikeCluster() {
+  const g = new THREE.Group();
+  const bone = matte(0xe8e2d0);
+  const tip = matte(0x9a8f78);
+  const make = (r, h, tx, tz, tilt) => {
+    const c = new THREE.Mesh(new THREE.ConeGeometry(r, h, 7), bone);
+    c.position.set(tx, h / 2, tz);
+    c.rotation.set(tilt, 0, tilt);
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(r * 0.45, h * 0.28, 7), tip);
+    cap.position.y = h * 0.5;
+    c.add(cap);
+    return c;
+  };
+  g.add(make(0.075, 0.52, 0, 0, 0));
+  g.add(make(0.05, 0.34, 0.1, 0.05, 0.35));
+  g.add(make(0.045, 0.3, -0.09, -0.04, -0.32));
+  return g;
+}
+
+function buildTentacle() {
+  const g = new THREE.Group();
+  const mat = matte(0xb88cff);
+  let y = 0;
+  for (let i = 0; i < 6; i++) {
+    const r = 0.09 * (1 - i / 7);
+    const seg = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 10), mat);
+    y += r * 1.3;
+    seg.position.set(Math.sin(i * 0.7) * 0.06, y, 0); // gentle curve
+    y += r * 0.4;
+    g.add(seg);
+  }
+  // sucker tip
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), glossy(0xd9b3ff));
+  tip.position.y = y + 0.02;
+  g.add(tip);
+  g.userData.sway = true;
+  return g;
+}
+
+function buildMaw() {
+  const g = new THREE.Group();
+  // dark cavity
+  const cavity = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), matte(0x2a0608));
+  cavity.scale.set(1, 0.55, 1);
+  cavity.position.y = 0.04;
+  g.add(cavity);
+
+  const lipMat = matte(0x8a1f2b);
+  const toothMat = matte(0xf2efe2);
+  const makeJaw = (sign) => {
+    const hinge = new THREE.Group();
+    hinge.position.y = 0.04;
+    const lip = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), lipMat);
+    lip.scale.set(1, 0.5 * sign, 1);
+    lip.position.y = 0.02 * sign;
+    hinge.add(lip);
+    // teeth around the front rim
+    const n = 7;
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + (i / (n - 1)) * Math.PI;
+      const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.11, 6), toothMat);
+      tooth.position.set(Math.cos(a) * 0.17, 0.04 * sign, Math.sin(a) * 0.17 + 0.04);
+      tooth.rotation.x = sign > 0 ? Math.PI : 0; // point inward
+      hinge.add(tooth);
+    }
+    return hinge;
+  };
+  const upper = makeJaw(1);
+  const lower = makeJaw(-1);
+  g.add(upper, lower);
+  g.userData.jaw = { upper, lower };
+  g.userData.seed = Math.random() * 6;
+  return g;
+}
+
+function buildFrond() {
+  const g = new THREE.Group();
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, 0.34, 6), matte(0x2f8f4a));
+  stem.position.y = 0.17;
+  g.add(stem);
+  const leafMat = matte(0x3fd06a);
+  for (let i = 0; i < 5; i++) {
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.34, 5), leafMat);
+    const a = (i / 5) * Math.PI * 2;
+    leaf.position.set(Math.cos(a) * 0.06, 0.34, Math.sin(a) * 0.06);
+    leaf.rotation.set(Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5);
+    leaf.scale.z = 0.22; // flatten to a blade
+    g.add(leaf);
+  }
+  g.userData.sway = true;
+  return g;
+}
+
+function buildPart(type) {
+  switch (type) {
+    case "eye": return buildEye();
+    case "spike": return buildSpikeCluster();
+    case "tentacle": return buildTentacle();
+    case "jaw": return buildMaw();
+    case "frond": return buildFrond();
+    default: {
+      const g = new THREE.Group();
+      g.add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), glossy(0xffffff)));
+      return g;
+    }
+  }
+}
+
+// Attach one part at the next anchor on the actual body surface; it animates in.
+export function addMutationPart(type) {
+  if (!partsGroup || !type) return;
+  const dir = anchorDir(partIndex);
+  const part = buildPart(type);
+  // align the part's +Y to point outward from the body
+  part.quaternion.setFromUnitVectors(UP, dir);
+  // sit on the lumpy surface (sink the base slightly so it doesn't float)
+  part.position.copy(dir).multiplyScalar(surfaceRadius(dir) - 0.05);
+  part.userData.growT = 0;
+  part.userData.targetScale = 1;
+  part.userData.baseRotZ = part.rotation.z;
+  if (part.userData.seed === undefined) part.userData.seed = partIndex * 1.7;
+  part.scale.setScalar(0.0001);
+  partsGroup.add(part);
+  partIndex++;
+}
+
+// Called whenever the player gains ANY mutation: hue drift + a satisfying squash.
+export function onMutationGained(part) {
+  hueShift = (hueShift + 0.045) % 1;
+  applyHue();
+  punch = 1.4; // big pop
+  if (part) addMutationPart(part);
+}
+
+// Rebuild visuals from a saved game (parts = array of part types).
+export function rebuildVisuals(parts, totalMutations) {
+  hueShift = (0.045 * (totalMutations || 0)) % 1;
+  applyHue();
+  for (const p of parts) addMutationPart(p);
+}
+
+// Big squash on prestige.
+export function prestigeFlash() {
+  punch = 1.8;
+}
