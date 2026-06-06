@@ -12,6 +12,7 @@ import { BIOMES, BIOME_BY_ID } from "./data/biomes.js";
 import { CHALLENGE_BY_ID } from "./data/challenges.js";
 import { SKIN_BY_ID } from "./data/skins.js";
 import { HELIX_NODES, HELIX_BY_ID, helixLevel as hLvl, helixCost as hCost } from "./data/helix.js";
+import { HYBRID_BY_KEY, spliceKey } from "./data/hybrids.js";
 
 // buy (if needed) + equip a cosmetic skin; returns the skin or null
 export function buySkin(id) {
@@ -98,7 +99,28 @@ export function getModifiers() {
   // Helix meta-tree (3rd prestige) — permanent across every Transcension
   mods.prodMult *= 1 + 0.30 * hLvl(state, "memory");
   mods.clickMult *= 1 + 1.5 * hLvl(state, "touch");
+  // Gene Splicer — each discovered Hybrid is a small permanent production bonus
+  mods.prodMult *= 1 + 0.02 * Object.keys(state.splices || {}).length;
   return mods;
+}
+
+// ---- Gene Splicer minigame ----
+export function spliceCooldownLeft() { return Math.max(0, (state.spliceReadyAt || 0) - Date.now()); }
+export function canSplice() { return spliceCooldownLeft() <= 0; }
+export function splicesFound() { return Object.keys(state.splices || {}).length; }
+export function doSplice(a, b) {
+  if (!a || !b || !canSplice()) return null;
+  const key = spliceKey(a, b);
+  const hy = HYBRID_BY_KEY[key] || { name: "Unstable Hybrid", flavor: "It should not exist… and yet." };
+  state.splices = state.splices || {};
+  const isNew = !state.splices[key];
+  state.splices[key] = true;
+  // temporary "Hybrid Surge" buff, stronger the more of those parts you've grown
+  const counts = partCounts(state.mutations);
+  const power = 1 + Math.min(10, (counts[a] || 0) + (counts[b] || 0)) * 0.6;
+  addTempBuff({ id: "splice", prodMult: power, durationMs: 30000 });
+  state.spliceReadyAt = Date.now() + 40000;
+  return { hybrid: hy, key, isNew, power };
 }
 
 // ---- Transcend (3rd prestige layer): reset Genome/Species -> Helix ----

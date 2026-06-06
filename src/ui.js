@@ -8,8 +8,11 @@ import {
   canSpeciate, genomeForSpeciate, equipSlots, activeBuffs,
   currentWeekly, dailyBestToday, todaySeed,
   canTranscend, transcendGain, helixNodeLevel, helixNodeCost,
+  canSplice, spliceCooldownLeft, splicesFound,
 } from "./economy.js";
 import { HELIX_NODES } from "./data/helix.js";
+import { PART_TYPES, PART_LABEL, HYBRID_LIST } from "./data/hybrids.js";
+import { partCounts } from "./data/synergies.js";
 import { formatNumber } from "./format.js";
 import { getMutation, RARITY, MUTATIONS } from "./data/mutations.js";
 import { GENOME_NODES, nodeCost, nodeLevel } from "./data/genomeNodes.js";
@@ -57,6 +60,7 @@ export function initUI(handlers) {
   el.helixBtn = document.getElementById("helix-btn");
   el.helixValue = document.getElementById("helix-value");
   el.helixModal = document.getElementById("helix-modal");
+  el.spliceModal = document.getElementById("splice-modal");
   el.genomeModal = document.getElementById("genome-modal");
   el.nodeList = document.getElementById("node-list");
   el.speciesList = document.getElementById("species-list");
@@ -82,6 +86,11 @@ export function initUI(handlers) {
   el.transcendBtn.addEventListener("click", handlers.onTranscend);
   el.helixBtn.addEventListener("click", () => openHelix());
   document.getElementById("helix-close").addEventListener("click", () => el.helixModal.classList.add("hidden"));
+  document.getElementById("splice-btn").addEventListener("click", () => openSplicer());
+  document.getElementById("splice-close").addEventListener("click", () => el.spliceModal.classList.add("hidden"));
+  document.getElementById("splice-go").addEventListener("click", () => {
+    if (spliceSelA && spliceSelB) uiHandlers.onSplice(spliceSelA, spliceSelB);
+  });
   document.getElementById("export-btn").addEventListener("click", handlers.onExport);
   document.getElementById("import-btn").addEventListener("click", handlers.onImport);
   document.getElementById("fuse-btn").addEventListener("click", handlers.onFuse);
@@ -129,6 +138,60 @@ export function initUI(handlers) {
 }
 
 let uiHandlers = {};
+
+// ---- Gene Splicer minigame ----
+let spliceSelA = null, spliceSelB = null;
+export function openSplicer() {
+  renderSplicer();
+  el.spliceModal.classList.remove("hidden");
+}
+export function spliceResult(text) {
+  const r = document.getElementById("splice-result");
+  if (r) r.innerHTML = text;
+}
+function pickSplicePart(p) {
+  if (!spliceSelA) spliceSelA = p;
+  else if (!spliceSelB) spliceSelB = p;
+  else { spliceSelA = p; spliceSelB = null; }
+  renderSplicer();
+}
+export function renderSplicer() {
+  document.getElementById("splice-found").textContent = splicesFound();
+  document.getElementById("splice-a").textContent = spliceSelA ? PART_LABEL[spliceSelA] : "Part A";
+  document.getElementById("splice-b").textContent = spliceSelB ? PART_LABEL[spliceSelB] : "Part B";
+  // selectable parts — only those the creature actually has grown
+  const counts = partCounts(state.mutations);
+  const owned = PART_TYPES.filter((p) => (counts[p] || 0) > 0);
+  const wrap = document.getElementById("splice-parts");
+  wrap.innerHTML = owned.length ? "" : `<span class="genome-hint">Draft some mutations first — you need at least 2 body-part types to splice.</span>`;
+  for (const p of owned) {
+    const b = document.createElement("button");
+    b.textContent = `${PART_LABEL[p]} ×${counts[p]}`;
+    if (p === spliceSelA || p === spliceSelB) b.classList.add("active");
+    b.addEventListener("click", () => pickSplicePart(p));
+    wrap.appendChild(b);
+  }
+  refreshSpliceGo();
+  // codex grid
+  const grid = document.getElementById("splice-codex");
+  grid.innerHTML = "";
+  for (const h of HYBRID_LIST) {
+    const found = !!(state.splices || {})[h.key];
+    const cell = document.createElement("div");
+    cell.className = "mut-pill" + (found ? " owned" : "");
+    cell.title = found ? h.flavor : "Undiscovered hybrid";
+    cell.textContent = found ? h.name : "???";
+    grid.appendChild(cell);
+  }
+}
+function refreshSpliceGo() {
+  const go = document.getElementById("splice-go");
+  if (!go) return;
+  const cd = spliceCooldownLeft();
+  const ready = cd <= 0 && spliceSelA && spliceSelB;
+  go.disabled = !ready;
+  go.textContent = cd > 0 ? `⏳ ${Math.ceil(cd / 1000)}s` : "🧬 SPLICE";
+}
 
 export function openHelix() {
   renderHelix();
@@ -513,6 +576,8 @@ export function renderUI(rate, dt = 0.016) {
   const showHelix = everTr || (state.helix || 0) > 0;
   el.helixBtn.classList.toggle("hidden", !showHelix);
   if (showHelix) el.helixValue.textContent = formatNumber(state.helix || 0);
+  // live Gene Splicer cooldown while its modal is open
+  if (el.spliceModal && !el.spliceModal.classList.contains("hidden")) refreshSpliceGo();
 
   // auto-buy toggle (only shown once the Mitosis Engine node is owned)
   if (nodeLevel(state, "auto_gen") > 0) {

@@ -96,6 +96,7 @@
         <button id="help-btn" class="ghost" title="How to play">❓</button>
         <button id="codex-btn" class="ghost" title="Codex">📖</button>
         <button id="chal-btn" class="ghost" title="Challenges">⚔️</button>
+        <button id="splice-btn" class="ghost" title="Gene Splicer">🧪</button>
         <button id="stats-btn" class="ghost">📊</button>
         <button id="settings-btn" class="ghost" title="Settings">⚙️</button>
         <button id="photo-btn" class="ghost" title="Photo mode">📸</button>
@@ -255,6 +256,27 @@
         <button id="viewdna-btn" class="ghost">🧬 View shared DNA</button>
         <span id="genome-status"></span>
       </div>
+    </div>
+  </div>
+
+  <!-- Gene Splicer minigame modal -->
+  <div id="splice-modal" class="hidden">
+    <div class="genome-inner codex-inner">
+      <div class="genome-head">
+        <h2>🧪 GENE SPLICER</h2>
+        <button id="splice-close" class="ghost">✕ Close</button>
+      </div>
+      <p class="genome-hint" style="margin-top:10px">Combine two body parts to discover a <b>Hybrid</b>. Each discovery is a permanent +2% production; every splice fires a temporary <b>Hybrid Surge</b>. <span id="splice-found">0</span>/15 found.</p>
+      <div class="splice-pick">
+        <div id="splice-a" class="splice-slot">Part A</div>
+        <span class="splice-plus">+</span>
+        <div id="splice-b" class="splice-slot">Part B</div>
+        <button id="splice-go" class="speciate" style="margin:0 0 0 12px;width:auto;animation:none">🧬 SPLICE</button>
+      </div>
+      <div id="splice-parts" class="seg" style="justify-content:flex-start;margin-top:10px"></div>
+      <div id="splice-result" class="splice-result"></div>
+      <h3 style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:16px 0 8px">Hybrid Codex</h3>
+      <div id="splice-codex" class="mut-grid"></div>
     </div>
   </div>
 

@@ -379,6 +379,18 @@ html, body {
 .switch input:checked + .track::before { transform: translateX(20px); background: var(--accent); }
 .genome-hint { font-size: 11.5px; color: var(--muted); line-height: 1.45; margin: 0 0 10px; opacity: .85; }
 
+/* gene splicer */
+.splice-pick { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.splice-slot {
+  flex: 1; min-height: 44px; display: flex; align-items: center; justify-content: center;
+  background: var(--bg2); border: 1px dashed var(--accent2); border-radius: 12px;
+  font-weight: 700; color: var(--ink); font-size: 14px;
+}
+.splice-plus { font-size: 22px; color: var(--muted); font-weight: 800; }
+#splice-go:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); }
+.splice-result { min-height: 22px; margin-top: 12px; text-align: center; font-size: 14px; color: var(--accent); }
+.splice-result b { color: #39d0c6; }
+
 /* stats & collection */
 .stats-body { margin-top: 16px; overflow-y: auto; }
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 18px; }

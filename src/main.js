@@ -14,6 +14,7 @@ import {
   pressureLevel,
   doSpeciate,
   canSpeciate,
+  doSplice,
   doTranscend,
   canTranscend,
   buyHelixNode,
@@ -74,7 +75,7 @@ import {
 import { creatureName } from "./data/names.js";
 import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
          renderGenomeLab, genomeStatus, openHelp, showChoice, renderChallenges,
-         renderHelix } from "./ui.js";
+         renderHelix, renderSplicer, spliceResult } from "./ui.js";
 import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
@@ -198,6 +199,17 @@ initUI({
     playCinematic("✦ TRANSCENDENCE ✦", `+${formatNumber(res.gain)} Helix · everything reborn`, "#c8a0ff");
     flashStatus(`✦ TRANSCENDED — +${formatNumber(res.gain)} Helix. The Helix Tree awaits.`);
     startNewRun();
+    save();
+  },
+  onSplice: (a, b) => {
+    const res = doSplice(a, b);
+    if (!res) { flashStatus("splicer is recharging…"); return; }
+    audio.playMutation(res.isNew ? "legendary" : "rare");
+    const c = stageCenter();
+    burst(c.x, c.y, { count: res.isNew ? 60 : 36, color: "#39d0c6", spread: 200, life: 900 });
+    if (res.isNew) { cinematicPulse(); playCinematic("🧬 " + res.hybrid.name, res.hybrid.flavor, "#39d0c6"); }
+    spliceResult(`${res.isNew ? "✨ DISCOVERED " : "spliced "}<b>${res.hybrid.name}</b> — Hybrid Surge ×${res.power.toFixed(1)} for 30s!`);
+    renderSplicer();
     save();
   },
   onBuyHelix: (id) => {
