@@ -851,18 +851,21 @@ export function cinematicPulse() { punch = 2.4; cineZoom = 1.7; }
 // build-dependent aura — the glow light colour + a cloud of orbiting particles
 // tell you the build at a glance (recognize a build from a screenshot)
 let glowLight, rimMesh, rimMat;
-let auraGroup, auraPts, auraN = 0, auraColor = 0x66ffcc;
+let auraGroup, auraPts, auraTrail = [], auraN = 0, auraColor = 0x66ffcc;
 let auraAng, auraRad, auraYB, auraSpd, auraPhase;
 export function setAura(hex, intensity = 0.8) {
   if (glowLight) { glowLight.color.setHex(hex); glowLight.intensity = intensity; }
   if (rimMat) rimMat.uniforms.uColor.value.setHex(hex);
   auraColor = hex;
   if (auraPts) auraPts.material.color.setHex(hex);
+  for (const t of auraTrail) t.material.color.setHex(hex);
 }
 function buildAuraParticles(n) {
   if (!scene) return;
   if (!auraGroup) { auraGroup = new THREE.Group(); scene.add(auraGroup); }
   if (auraPts) { auraGroup.remove(auraPts); auraPts.geometry.dispose(); auraPts.material.dispose(); auraPts = null; }
+  for (const t of auraTrail) { auraGroup.remove(t); t.geometry.dispose(); t.material.dispose(); }
+  auraTrail = [];
   auraN = n;
   if (n <= 0) return;
   auraAng = new Float32Array(n); auraRad = new Float32Array(n);
@@ -881,18 +884,36 @@ function buildAuraParticles(n) {
     color: auraColor, size: 0.08, sizeAttenuation: true,
     transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending }));
   auraGroup.add(auraPts);
+  // comet trails — lagging ghost layers (only at High, where n is large)
+  if (n >= 50) {
+    for (let k = 0; k < 3; k++) {
+      const tg = new THREE.BufferGeometry();
+      tg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+      const tp = new THREE.Points(tg, new THREE.PointsMaterial({
+        color: auraColor, size: 0.07 - k * 0.012, sizeAttenuation: true,
+        transparent: true, opacity: 0.4 - k * 0.11, depthWrite: false, blending: THREE.AdditiveBlending }));
+      tp.userData.lag = (k + 1) * 0.09;
+      auraGroup.add(tp); auraTrail.push(tp);
+    }
+  }
 }
-function updateAuraParticles(elapsed) {
-  if (!auraPts || auraN <= 0) return;
-  const arr = auraPts.geometry.attributes.position.array;
-  const sc = currentScale * 1.15;
+function auraFill(arr, elapsed, sc) {
   for (let i = 0; i < auraN; i++) {
     const a = auraAng[i] + elapsed * auraSpd[i];
     arr[i * 3] = Math.cos(a) * auraRad[i] * sc;
     arr[i * 3 + 1] = (auraYB[i] + Math.sin(elapsed * 1.5 + auraPhase[i]) * 0.3) * sc;
     arr[i * 3 + 2] = Math.sin(a) * auraRad[i] * sc;
   }
+}
+function updateAuraParticles(elapsed) {
+  if (!auraPts || auraN <= 0) return;
+  const sc = currentScale * 1.15;
+  auraFill(auraPts.geometry.attributes.position.array, elapsed, sc);
   auraPts.geometry.attributes.position.needsUpdate = true;
+  for (const t of auraTrail) {
+    auraFill(t.geometry.attributes.position.array, elapsed - t.userData.lag, sc); // ghost lags behind = trail
+    t.geometry.attributes.position.needsUpdate = true;
+  }
 }
 
 // ---- Graphics quality: trade premium effects for framerate ----
