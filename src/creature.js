@@ -430,7 +430,7 @@ export function resize() {
 // Map biomass -> a gentle size so growth is visible but never fills the screen.
 export function setGrowthFromBiomass(biomass) {
   const t = Math.log10(Math.max(1, biomass + 1));
-  targetScale = 0.8 + Math.min(t * 0.12, 1.4); // ~0.8 .. 2.2
+  targetScale = 0.8 + Math.min(t * 0.10, 1.0); // ~0.8 .. 1.8 (gentler; framing handles the rest)
 }
 
 // Called every frame.
@@ -443,7 +443,12 @@ export function renderCreature(dt, elapsed) {
   // dolly the camera back as the organism grows so it stays framed — extra
   // pullback so parts sticking out (spikes/tentacles) never clip the top edge
   cineZoom += (0 - cineZoom) * Math.min(1, dt * 1.6); // cinematic push-in decay
-  const targetZ = 4.6 + (currentScale - 1) * 4.2 - cineZoom;
+  // frame on the creature's ACTUAL visual reach: growth scale × the body's
+  // longest silhouette axis × a margin for bumps/spikes/parts — so tall, lobed
+  // or spiky shapes pull the camera back enough to never overflow the screen.
+  const maxAxis = Math.max(bodyScale.x, bodyScale.y, bodyScale.z);
+  const reach = currentScale * maxAxis * 1.45;
+  const targetZ = 5.2 + (reach - 1) * 5.4 - cineZoom;
   camera.position.z += (targetZ - camera.position.z) * Math.min(1, dt * 2.5);
   camera.lookAt(0, 0, 0);
 
