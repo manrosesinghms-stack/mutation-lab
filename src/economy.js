@@ -41,6 +41,7 @@ export function getModifiers() {
   // synergies (combo traits) + completed set bonuses
   for (const syn of activeSynergies(state.mutations)) if (syn.effect) syn.effect(mods);
   for (const set of completedSets(state.mutations)) if (set.bonus) set.bonus(mods);
+  mods.prodMult *= variantBonus(); // rare Golden/Crystal/Void runs
   // equipped Species contribute their frozen build at reduced (sqrt) weight
   for (const sid of state.equippedSpecies || []) {
     const sp = (state.species || []).find((s) => s.id === sid);
@@ -318,6 +319,20 @@ export function toggleEquip(sid) {
 
 export function hasNode(id) {
   return nodeLevel(state, id) > 0;
+}
+
+// ---- rare run variants (Golden / Crystal / Void) ----
+const VARIANT_BONUS = { golden: 2, crystal: 1.5, void: 3 };
+export function variantBonus() { return VARIANT_BONUS[state.variant] || 1; }
+export function rollVariant() {
+  const r = Math.random();
+  let v = null;
+  if (r < 0.002) v = "void";
+  else if (r < 0.008) v = "crystal";
+  else if (r < 0.022) v = "golden";
+  state.variant = v;
+  if (v) { state.variantsSeen = state.variantsSeen || {}; state.variantsSeen[v] = true; }
+  return v;
 }
 
 // Mitosis Engine node: greedily buy the best-value affordable organelles.

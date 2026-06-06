@@ -23,6 +23,7 @@ import {
   addTempBuff,
   checkAchievements,
   checkTraits,
+  rollVariant,
 } from "./economy.js";
 import {
   initCreature,
@@ -36,6 +37,7 @@ import {
   resetParts,
   setEquippedGhosts,
   setReduceMotion,
+  setVariant,
   setBloomCallback,
   spawnBloom,
   hasBloom,
@@ -92,6 +94,7 @@ initUI({
     burst(c.x, c.y, { count: 60, color: "#b88cff", spread: 200, up: 0, life: 900 });
     flashStatus(`evolved! +${formatNumber(gained)} EP`);
     showDraft(rollDraft(draftSize()), pickMutation);
+    rollAndApplyVariant();
     save();
   },
   onMute: () => {
@@ -117,6 +120,7 @@ initUI({
     const c = stageCenter();
     burst(c.x, c.y, { count: 80, color: "#ffd76b", spread: 240, up: 0, life: 1000 });
     flashStatus(`SPECIATED: ${res.card.name} · +${formatNumber(res.gain)} Genome`);
+    rollAndApplyVariant();
     save();
   },
   onBuyNode: (id) => {
@@ -220,6 +224,21 @@ applyShakeSetting(state.shake || "subtle");
 setReduceMotion(!!state.reduceMotion);
 if (!hasBackground(state.background)) state.background = "aurora";
 setBackground(state.background);
+setVariant(state.variant); // apply any rare run variant
+
+function rollAndApplyVariant() {
+  const v = rollVariant();
+  setVariant(state.variant);
+  if (!v) return;
+  const col = v === "golden" ? "#ffd76b" : v === "crystal" ? "#9fe8ff" : "#7a2aff";
+  flash(v === "golden" ? "rgba(255,215,107,.5)" : v === "crystal" ? "rgba(159,232,255,.5)" : "rgba(122,42,255,.55)");
+  shake(16);
+  const c = stageCenter();
+  burst(c.x, c.y, { count: 80, color: col, spread: 250, up: 0, life: 1200 });
+  audio.playMilestone();
+  const mult = v === "void" ? 3 : v === "crystal" ? 1.5 : 2;
+  flashStatus(`✨ ${v.toUpperCase()} ORGANISM! ×${mult} production this run`);
+}
 
 // first-ever launch: pop the How-to-Play so players aren't lost
 if (!state.seenHelp) {
@@ -285,6 +304,72 @@ document.getElementById("digest-btn").addEventListener("click", () => {
   flashStatus(`digested → ×${res.mult.toFixed(1)} production for 15s`);
   save();
 });
+
+// --- Boss Organisms: a rival cell appears; click to destroy it for Genome + a free draft ---
+const bossEl = document.getElementById("boss");
+const bossNameEl = document.getElementById("boss-name");
+const bossTimerEl = document.getElementById("boss-timer");
+const bossHpFill = document.getElementById("boss-hp-fill");
+const BOSS_NAMES = ["Viral Queen", "Ancient Amoeba", "Genome Eater", "Titan Cell", "Parasite Prime", "Rogue Mitochondrion"];
+let boss = null;
+
+function spawnBoss() {
+  if (boss) return;
+  const stage = document.getElementById("stage");
+  const w = stage.clientWidth, h = stage.clientHeight;
+  if (w < 80) return;
+  const maxHp = 12 + Math.min((state.prestiges || 0) * 2 + (state.speciations || 0) * 6, 40);
+  boss = { hp: maxHp, maxHp, name: BOSS_NAMES[(Math.random() * BOSS_NAMES.length) | 0], timeLeft: 16,
+    x: w * 0.3 + Math.random() * w * 0.4, y: h * 0.25 + Math.random() * h * 0.4,
+    vx: (Math.random() - 0.5) * 60, vy: (Math.random() - 0.5) * 60 };
+  bossNameEl.textContent = boss.name;
+  bossEl.classList.remove("hidden");
+  flashStatus(`⚠ ${boss.name} appeared — click it to destroy it!`);
+  audio.playMutation("rare");
+}
+
+document.getElementById("boss-cell").addEventListener("pointerdown", (e) => {
+  if (!boss) return;
+  boss.hp -= 1;
+  burst(e.clientX, e.clientY, { count: 8, color: "#ff6b6b", spread: 60, life: 500 });
+  audio.playClick(0);
+  if (boss.hp <= 0) {
+    const reward = 4 + (state.prestiges || 0) + (state.speciations || 0) * 3;
+    state.genome = (state.genome || 0) + reward;
+    const c = stageCenter();
+    flash("rgba(86,227,159,.45)"); shake(14);
+    burst(c.x, c.y, { count: 60, color: "#56e39f", spread: 200, up: 0, life: 1000 });
+    audio.playMilestone();
+    flashStatus(`💥 ${boss.name} destroyed! +${reward} Genome + a free mutation`);
+    boss = null;
+    bossEl.classList.add("hidden");
+    showDraft(rollDraft(draftSize()), pickMutation);
+    save();
+  }
+});
+
+setInterval(() => {
+  if (!boss) return;
+  const stage = document.getElementById("stage");
+  const w = stage.clientWidth, h = stage.clientHeight;
+  boss.timeLeft -= 0.1;
+  if (boss.timeLeft <= 0) { flashStatus(`${boss.name} escaped...`); boss = null; bossEl.classList.add("hidden"); return; }
+  boss.x += boss.vx * 0.1; boss.y += boss.vy * 0.1;
+  if (boss.x < 70 || boss.x > w - 70) boss.vx *= -1;
+  if (boss.y < 70 || boss.y > h - 130) boss.vy *= -1;
+  boss.x = Math.max(70, Math.min(w - 70, boss.x));
+  boss.y = Math.max(70, Math.min(h - 130, boss.y));
+  bossEl.style.left = (boss.x - 65) + "px";
+  bossEl.style.top = (boss.y - 60) + "px";
+  bossTimerEl.textContent = Math.ceil(boss.timeLeft);
+  bossHpFill.style.width = (boss.hp / boss.maxHp * 100) + "%";
+}, 100);
+
+// spawn a boss every ~75s once you've evolved at least once
+setInterval(() => {
+  if (!boss && (state.prestiges || 0) >= 1 && Math.random() < 0.4) spawnBoss();
+}, 30000);
+window.__spawnBoss = spawnBoss; // for testing
 
 // ---- offline progress welcome ----
 const offline = applyOfflineProgress();

@@ -34,6 +34,15 @@ export function setStress(t) { stressTarget = Math.max(0, Math.min(1, t || 0)); 
 let reduceMotion = false;
 export function setReduceMotion(v) { reduceMotion = !!v; }
 
+// rare run variants (Golden / Crystal / Void) — full creature reskins
+let variant = null;
+const VARIANTS = {
+  golden: { color: 0xffd76b, emissive: 0x4a3500, ei: 0.6, metal: 0.9, rough: 0.25 },
+  crystal: { color: 0x9fe8ff, emissive: 0x123048, ei: 0.55, metal: 0.6, rough: 0.12 },
+  void: { color: 0x161028, emissive: 0x7a2aff, ei: 1.2, metal: 0.3, rough: 0.4 },
+};
+export function setVariant(v) { variant = VARIANTS[v] ? v : null; }
+
 export function setBloomCallback(cb) { onBloomCb = cb; }
 export function hasBloom() { return !!activeBloom; }
 export function engorgePop() { engorge = 1; }
@@ -251,9 +260,19 @@ export function renderCreature(dt, elapsed) {
   // metabolic stress: desaturate, tremble, and over-glow as the wall approaches
   stress += (stressTarget - stress) * Math.min(1, dt * 4);
   {
-    const h = (BASE_HSL.h + hueShift) % 1;
-    organism.material.color.setHSL(h, BASE_HSL.s * (1 - 0.7 * stress), BASE_HSL.l + 0.05 * stress);
-    organism.material.emissiveIntensity = 0.55 + stress * 1.3;
+    if (variant && VARIANTS[variant]) {
+      const V = VARIANTS[variant];
+      organism.material.color.setHex(V.color);
+      organism.material.emissive.setHex(V.emissive);
+      organism.material.emissiveIntensity = V.ei + stress * 0.5;
+      organism.material.metalness = V.metal;
+      organism.material.roughness = V.rough;
+    } else {
+      const h = (BASE_HSL.h + hueShift) % 1;
+      organism.material.color.setHSL(h, BASE_HSL.s * (1 - 0.7 * stress), BASE_HSL.l + 0.05 * stress);
+      organism.material.emissiveIntensity = 0.55 + stress * 1.3;
+      organism.material.metalness = 0.1;
+    }
     // gentler tremble; fully off under reduce-motion (colour/glow still convey stress)
     const tr = reduceMotion ? 0 : stress * 0.016;
     organism.position.set(

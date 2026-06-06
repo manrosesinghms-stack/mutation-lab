@@ -30,6 +30,8 @@ function freshState() {
     musicVolume: 0.5,      // 0..1 ambient music volume
     musicTrack: "lofi",    // selected music theme
     background: "aurora",  // selected animated background
+    variant: null,         // rare run variant: golden | crystal | void
+    variantsSeen: {},      // which rare variants you've ever rolled
     shake: "subtle",       // screen shake: off | subtle | full
     reduceMotion: false,   // disable creature tremble + extra motion
     namingStyle: "scientific", // creature name style: scientific | cute | eldritch
