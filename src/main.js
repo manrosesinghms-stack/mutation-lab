@@ -59,6 +59,7 @@ import {
   setSpeciesTier,
   setBodyShape,
   setQuality,
+  setEyeTracking,
   setBloomCallback,
   spawnBloom,
   hasBloom,
@@ -135,6 +136,7 @@ initUI({
   onSetTheme: (id) => { state.musicTrack = id; setMusicTheme(id); startMusic(); save(); },
   onSetShake: (v) => { state.shake = v; applyShakeSetting(v); save(); },
   onSetReduce: (b) => { state.reduceMotion = b; setReduceMotion(b); setJuiceReduceMotion(b); setBackgroundReduceMotion(b); save(); },
+  onSetEyeTrack: (b) => { state.eyeTrack = b; setEyeTracking(b); save(); },
   onSetGraphics: (v) => {
     state.graphics = v;
     setQuality(v);
@@ -442,6 +444,7 @@ applyShakeSetting(state.shake || "subtle");
 setReduceMotion(!!state.reduceMotion);
 setJuiceReduceMotion(!!state.reduceMotion);
 setBackgroundReduceMotion(!!state.reduceMotion);
+setEyeTracking(!!state.eyeTrack);
 if (!hasBackground(state.background)) state.background = "aurora";
 setBackground(state.background);
 setHabitat(state.biome); // theme the 3D habitat to the run's biome

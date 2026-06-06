@@ -372,7 +372,15 @@ function onPointerDown(e) {
   dragY = e.clientY;
 }
 
+let eyeTrack = false, gazePX = 0, gazePY = 0;
+export function setEyeTracking(v) { eyeTrack = !!v; }
 function onPointerMove(e) {
+  // capture normalised cursor (-1..1 from stage centre) for the eye-tracking toggle
+  if (eyeTrack && canvas) {
+    const r = canvas.getBoundingClientRect();
+    gazePX = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (r.width / 2)));
+    gazePY = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / (r.height / 2)));
+  }
   if (!dragging) return;
   const dx = e.clientX - dragX, dy = e.clientY - dragY;
   if (Math.abs(dx) + Math.abs(dy) > 4) dragMoved = true; // it's an orbit, not a tap
@@ -491,8 +499,8 @@ export function renderCreature(dt, elapsed) {
   }
 
   // shared gaze + chomp phases so all eyes/maws move together (reads as one mind)
-  const gazeX = Math.sin(elapsed * 0.6) * 0.28;
-  const gazeZ = Math.cos(elapsed * 0.45) * 0.28;
+  const gazeX = eyeTrack ? gazePY * 0.5 : Math.sin(elapsed * 0.6) * 0.28;
+  const gazeZ = eyeTrack ? -gazePX * 0.5 : Math.cos(elapsed * 0.45) * 0.28;
   // periodic blink — every ~4.3s the eyes snap shut for a beat (alive, not static)
   let blinkAmt = 0;
   if (!reduceMotion) {

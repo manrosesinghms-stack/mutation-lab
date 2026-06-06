@@ -294,20 +294,24 @@ html, body {
   padding: 10px 12px; color: #ffe9b8 !important; font-size: 12.5px; }
 
 /* settings */
-.settings-inner { width: min(520px, 94vw); }
-.settings-body { margin-top: 16px; display: flex; flex-direction: column; gap: 14px; }
-.set-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
-.set-row > label { font-size: 13px; font-weight: 600; color: var(--ink); }
-#set-volume { width: 160px; accent-color: var(--accent); cursor: pointer; }
-.seg { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.settings-inner { width: min(600px, 95vw); }
+.settings-body { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.set-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 12px 14px; border-radius: 12px;
+  background: rgba(255,255,255,.025); border: 1px solid rgba(255,255,255,.06);
+}
+.set-row > label { font-size: 13.5px; font-weight: 700; color: var(--ink); letter-spacing: .01em; }
+#set-volume { width: 180px; height: 6px; accent-color: var(--accent); cursor: pointer; }
+.seg { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .seg button {
   background: var(--bg2); color: var(--muted);
-  border: 1px solid var(--line); border-radius: 8px;
-  padding: 6px 11px; font-size: 12px; font-weight: 700; cursor: pointer;
-  transition: all .12s ease;
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 9px 15px; font-size: 13px; font-weight: 700; cursor: pointer;
+  min-width: 58px; text-align: center; transition: all .12s ease;
 }
-.seg button:hover { color: var(--ink); border-color: var(--accent2); }
-.seg button.active { color: #08110d; background: var(--accent); border-color: var(--accent); }
+.seg button:hover { color: var(--ink); border-color: var(--accent2); transform: translateY(-1px); }
+.seg button.active { color: #08110d; background: var(--accent); border-color: var(--accent); box-shadow: 0 4px 14px -4px var(--accent); }
 .switch { position: relative; display: inline-block; width: 42px; height: 22px; cursor: pointer; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .switch .track {

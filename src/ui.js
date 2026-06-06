@@ -86,6 +86,7 @@ export function initUI(handlers) {
   el.setShake = document.getElementById("set-shake");
   el.setGraphics = document.getElementById("set-graphics");
   el.setReduce = document.getElementById("set-reduce");
+  el.setEyeTrack = document.getElementById("set-eyetrack");
   el.setMute = document.getElementById("set-mute");
   el.setBg = document.getElementById("set-bg");
   document.getElementById("settings-btn").addEventListener("click", () => openSettings());
@@ -108,6 +109,7 @@ export function initUI(handlers) {
   el.setShake.addEventListener("click", (e) => { const v = e.target.dataset.v; if (v) { handlers.onSetShake(v); renderSettings(); } });
   el.setGraphics.addEventListener("click", (e) => { const v = e.target.dataset.v; if (v) { handlers.onSetGraphics(v); renderSettings(); } });
   el.setReduce.addEventListener("change", () => { handlers.onSetReduce(el.setReduce.checked); renderSettings(); });
+  el.setEyeTrack.addEventListener("change", () => { handlers.onSetEyeTrack(el.setEyeTrack.checked); });
   el.setMute.addEventListener("click", () => { handlers.onMute(); renderSettings(); });
   el.setNaming.addEventListener("click", (e) => { const v = e.target.dataset.v; if (v) { handlers.onSetNaming(v); renderSettings(); el._mutSig = null; } });
   el.setBg.addEventListener("click", (e) => { const v = e.target.dataset.v; if (v) { handlers.onSetBackground(v); renderSettings(); } });
@@ -260,6 +262,7 @@ function renderSettings() {
     b.classList.toggle("active", b.dataset.v === (state.namingStyle || "scientific"));
   }
   el.setReduce.checked = !!state.reduceMotion;
+  if (el.setEyeTrack) el.setEyeTrack.checked = !!state.eyeTrack;
   el.setMute.textContent = state.muted ? "🔇 Off" : "🔊 On";
 }
 
