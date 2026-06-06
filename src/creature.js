@@ -215,7 +215,7 @@ function updateTierCrown(dt, elapsed) {
 // floor platform + atmospheric depth fog + drifting biome motes (bubbles, embers,
 // spores, plankton…). Lives in the scene (not on the organism) so it stays put
 // while the creature spins, giving real parallax + a sense of place.
-let habitatGroup, floorMesh, motes, moteSpeeds, moteCount = 64;
+let habitatGroup, floorMesh, motes, moteSpeeds, moteCount = 30;
 const HABITATS = {
   ocean:    { fog: 0x0a2236, floor: 0x0d2f47, mote: 0x6fd6ff },
   volcanic: { fog: 0x1f0a06, floor: 0x301008, mote: 0xff8a3d },
@@ -296,25 +296,12 @@ export function initCreature(canvasEl, onClick) {
   onClickCb = onClick;
 
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // cap render resolution: at 2x DPR we'd shade ~4x the pixels, which crushes
+  // weak GPUs on a screen-filling, overdraw-heavy creature. 1.25 is the sweet
+  // spot — still crisp, far cheaper.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
 
   scene = new THREE.Scene();
-
-  // environment map so metallic skins (Chrome, Gold) actually reflect/gleam
-  // instead of rendering near-black. A cheap procedural sky-gradient, PMREM'd.
-  try {
-    const ec = document.createElement("canvas");
-    ec.width = 16; ec.height = 64;
-    const ex = ec.getContext("2d");
-    const eg = ex.createLinearGradient(0, 0, 0, 64);
-    eg.addColorStop(0, "#a9c3e6"); eg.addColorStop(0.5, "#41566f"); eg.addColorStop(1, "#0a0f16");
-    ex.fillStyle = eg; ex.fillRect(0, 0, 16, 64);
-    const etex = new THREE.CanvasTexture(ec);
-    etex.mapping = THREE.EquirectangularReflectionMapping;
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromEquirectangular(etex).texture;
-    etex.dispose(); pmrem.dispose();
-  } catch (e) { /* env map is a nicety; ignore if unsupported */ }
 
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
   camera.position.set(0, 0, 4.2);
@@ -346,29 +333,6 @@ export function initCreature(canvasEl, onClick) {
   });
   organism = new THREE.Mesh(geo, mat);
   scene.add(organism);
-
-  // organic subsurface-glow rim — a fresnel shell sharing the body geometry.
-  // Light wraps the silhouette like a wet, living membrane (approximated SSS).
-  rimMat = new THREE.ShaderMaterial({
-    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
-    uniforms: {
-      uColor: { value: new THREE.Color(0x66ffcc) },
-      uPower: { value: 2.6 },
-      uIntensity: { value: 0.6 },
-    },
-    vertexShader: `
-      varying vec3 vN; varying vec3 vView;
-      void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0);
-        vView = normalize(-mv.xyz); vN = normalize(normalMatrix * normal);
-        gl_Position = projectionMatrix * mv; }`,
-    fragmentShader: `
-      uniform vec3 uColor; uniform float uPower; uniform float uIntensity;
-      varying vec3 vN; varying vec3 vView;
-      void main(){ float f = pow(1.0 - max(dot(normalize(vN), normalize(vView)), 0.0), uPower);
-        gl_FragColor = vec4(uColor * f * uIntensity, f * uIntensity); }`,
-  });
-  rimMesh = new THREE.Mesh(geo, rimMat);
-  organism.add(rimMesh);
 
   buildHabitat();
 
@@ -590,7 +554,7 @@ const IRIS_PALETTE = [0x39d0c6, 0xffb13d, 0xb86bff, 0x4aa3ff, 0x5be36b, 0xff6b9d
 function buildEye() {
   const g = new THREE.Group();
   // big, expressive, bulging eyeball — the most shareable feature
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.24, 22, 22), glossy(0xf7f8fc));
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 12), glossy(0xf7f8fc));
   ball.scale.set(1, 0.92, 1);
   g.add(ball);
   // a moving "look" group (iris + pupil + glints) so the eye can gaze around
@@ -756,8 +720,11 @@ function buildPart(type) {
 }
 
 // Attach one part at the next anchor on the actual body surface; it animates in.
+const MAX_PARTS = 18; // hard cap — beyond this the body is already busy, and more
+                      // multi-mesh parts just tank the framerate for no visual gain
 export function addMutationPart(type) {
   if (!partsGroup || !type) return;
+  if (partIndex >= MAX_PARTS) { partIndex++; return; } // count it, but don't render more meshes
   const dir = anchorDir(partIndex);
   const part = buildPart(type);
   // align the part's +Y to point outward from the body
