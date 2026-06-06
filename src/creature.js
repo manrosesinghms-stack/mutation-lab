@@ -92,6 +92,11 @@ const TIER_SHAPE = [
   { scale: [1.18, 0.92, 1.12], detail: 3, profile: { a1: 0.16, f1: 3.4, a2: 0.10, f2: 5.0, a3: 0.07, f3: 7.0, lobe: 0.28, lobeF: 1.7, spike: 0 } },     // Aurean — multi-lobed cluster
   { scale: [1.0, 1.06, 1.0],   detail: 2, profile: { a1: 0.14, f1: 4.0, a2: 0.10, f2: 6.0, a3: 0.07, f3: 8.0, lobe: 0.1,  lobeF: 2.0, spike: 0.34 } },   // Voidborn — spiky core
   { scale: [1.12, 1.12, 1.12], detail: 2, profile: { a1: 0.12, f1: 3.6, a2: 0.10, f2: 5.4, a3: 0.07, f3: 7.4, lobe: 0.22, lobeF: 2.2, spike: 0.3 } },    // Celestial — radiant star-form
+  { scale: [1.3, 0.86, 1.0],   detail: 3, profile: { a1: 0.2,  f1: 2.6, a2: 0.12, f2: 4.4, a3: 0.08, f3: 6.4, lobe: 0.34, lobeF: 1.5, spike: 0 } },      // wide bulbous
+  { scale: [0.78, 1.4, 0.78],  detail: 2, profile: { a1: 0.1,  f1: 3.0, a2: 0.08, f2: 5.0, a3: 0.06, f3: 7.0, lobe: 0.12, lobeF: 2.6, spike: 0.5 } },    // tall spired
+  { scale: [1.06, 1.0, 1.06],  detail: 1, profile: { a1: 0.06, f1: 2.4, a2: 0.05, f2: 3.6, a3: 0.04, f3: 5.2, lobe: 0,    lobeF: 1.4, spike: 0.14 } },   // sharp gem
+  { scale: [1.0, 1.0, 1.0],    detail: 3, profile: { a1: 0.24, f1: 5.0, a2: 0.16, f2: 7.0, a3: 0.1,  f3: 9.0, lobe: 0.4,  lobeF: 2.4, spike: 0.2 } },    // writhing knot
+  { scale: [1.22, 1.1, 0.9],   detail: 2, profile: { a1: 0.14, f1: 3.2, a2: 0.1,  f2: 5.6, a3: 0.08, f3: 8.0, lobe: 0.18, lobeF: 1.9, spike: 0.45 } },   // asymmetric crown
 ];
 
 function bumpAt(n) {
@@ -124,7 +129,9 @@ function rebuildBody() {
 // Set the body silhouette from the species tier + a per-run seed. Returns true
 // if the caller should re-seat existing parts (rebuildVisuals) onto the new body.
 export function setBodyShape(tier, seed) {
-  const T = TIER_SHAPE[Math.min(Math.max(0, tier | 0), TIER_SHAPE.length - 1)];
+  // cycle through silhouettes for high tiers (combined with per-run seed jitter,
+  // each still looks fresh) so the body never stops changing as you ascend
+  const T = TIER_SHAPE[Math.max(0, tier | 0) % TIER_SHAPE.length];
   shapeProfile = { ...T.profile };
   shapeSeed = (seed || 0) * 0.137;
   bodyDetail = T.detail;
