@@ -299,6 +299,16 @@ function updateCorruption(elapsed) {
   }
 }
 
+// biomass "tank" fill: progress through the current order of magnitude (log10 %1),
+// so the liquid rises then resets each x10 — visible physical growth.
+const biomassFillEl = document.getElementById("biomass-fill");
+function updateBiomassTank() {
+  if (!biomassFillEl) return;
+  const b = state.biomass || 0;
+  const frac = b < 10 ? b / 10 : (Math.log10(b) % 1);
+  biomassFillEl.style.height = (Math.max(0, Math.min(1, frac)) * 100).toFixed(1) + "%";
+}
+
 const pVig = document.getElementById("pressure-vignette");
 function updatePressureVignette(pressure) {
   if (!pVig) return;
@@ -747,6 +757,7 @@ function update() {
   const pressure = pressureLevel();
   setStress((pressure - 0.6) / 0.6);
   updatePressureVignette(pressure);
+  updateBiomassTank();
   updateCorruption(elapsed);
   if (pressure >= 1) state.hitWall = true;
   // achievement unlocks
