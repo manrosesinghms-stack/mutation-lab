@@ -81,6 +81,13 @@ export function playMilestone() {
     voice({ freq: f, type: "square", dur: 0.18, gain: 0.09, delay: i * 0.07 }));
 }
 
+// Creature roar — for cinematic moments (legendary evolution, speciation, bosses).
+export function playRoar() {
+  voice({ freq: 240, slideTo: 55, type: "sawtooth", dur: 0.7, gain: 0.2, release: 0.35 });
+  voice({ freq: 95, slideTo: 38, type: "square", dur: 0.85, gain: 0.16, release: 0.35 });
+  voice({ freq: 400, slideTo: 120, type: "triangle", dur: 0.5, gain: 0.08, release: 0.25, delay: 0.05 });
+}
+
 export function setMuted(v) { muted = !!v; }
 export function isMuted() { return muted; }
 export function toggleMuted() { muted = !muted; return muted; }

@@ -45,6 +45,7 @@ import {
   resize as resizeCreature,
   onMutationGained,
   prestigeFlash,
+  cinematicPulse,
   rebuildVisuals,
   setStress,
   resetParts,
@@ -52,6 +53,7 @@ import {
   setReduceMotion,
   setVariant,
   setSkin,
+  setAura,
   setBloomCallback,
   spawnBloom,
   hasBloom,
@@ -65,7 +67,8 @@ import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
 import * as audio from "./audio.js";
-import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme, hasTheme } from "./music.js";
+import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme, hasTheme, setMusicStress, setMusicDanger } from "./music.js";
+import { initCinematic, playCinematic } from "./cinematic.js";
 import { initJuice, burst, shake, updateJuice, flash, setShakeScale } from "./juice.js";
 import { initBackground, renderBackground, setBackground, hasBackground, resizeBackground } from "./background.js";
 
@@ -139,6 +142,9 @@ initUI({
     shake(22);
     const c = stageCenter();
     burst(c.x, c.y, { count: 80, color: "#ffd76b", spread: 240, up: 0, life: 1000 });
+    audio.playRoar();
+    cinematicPulse();
+    playCinematic("SPECIATION", res.card.name, "#ffd76b");
     flashStatus(`SPECIATED: ${res.card.name} · +${formatNumber(res.gain)} Genome`);
     grantReroll(1);
     startNewRun();
@@ -236,6 +242,15 @@ function openDraft() {
   });
 }
 
+// build-dependent aura: colour the creature's glow by its dominant body part
+const AURA = { eye: 0x4aa3ff, spike: 0xff5a4a, tentacle: 0xb88cff, jaw: 0xff3355, frond: 0x5be36b, body: 0x39d0c6, cilia: 0x66ffcc };
+function updateAura() {
+  const counts = {};
+  for (const id of state.mutations) { const d = getMutation(id); if (d && d.part) counts[d.part] = (counts[d.part] || 0) + 1; }
+  const top = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+  setAura(AURA[top] || 0x66ffcc, top ? 1.1 : 0.6);
+}
+
 function refreshGhosts() {
   setEquippedGhosts((state.equippedSpecies || [])
     .map((id) => (state.species || []).find((s) => s.id === id))
@@ -271,6 +286,8 @@ function pickMutation(id) {
   const c = stageCenter();
   if (rarity === "legendary") {
     audio.playMilestone();
+    audio.playRoar();
+    cinematicPulse();
     flash("rgba(255,177,61,0.5)");
     shake(14);
     burst(c.x, c.y, { count: 70, color: "#ffb13d", spread: 220, up: 0, life: 1000 });
@@ -329,6 +346,7 @@ initCreature(canvas, (sx, sy) => {
 
 initJuice();
 initBackground(document.getElementById("bg-canvas"));
+initCinematic();
 
 // restore creature parts from a saved game (visual mutations only)
 const savedParts = state.mutations
@@ -483,6 +501,8 @@ document.getElementById("boss-cell").addEventListener("pointerdown", (e) => {
     flash("rgba(86,227,159,.45)"); shake(14);
     burst(c.x, c.y, { count: 60, color: "#56e39f", spread: 200, up: 0, life: 1000 });
     audio.playMilestone();
+    cinematicPulse();
+    playCinematic(boss.name + " SLAIN", `+${reward} Genome`, "#56e39f");
     grantReroll(1);
     const fossil = Math.random() < 0.4 ? grantFossil() : null;
     flashStatus(`💥 ${boss.name} destroyed! +${reward} Genome${fossil ? ` + 🦴 ${fossil}` : ""} + a free mutation`);
@@ -583,18 +603,22 @@ function update() {
     burst(c.x, c.y, { count: 70, color: "#56e39f", spread: 220, up: 0, life: 1100 });
     flashStatus(`🏆 CHALLENGE COMPLETE — ${cc.name}! +${cc.reward} 🎲 rerolls`);
   }
-  // species-trait / synergy discoveries — the big dopamine beat
+  // species-trait / synergy discoveries — the big cinematic beat
   for (const tr of checkTraits()) {
     audio.playMutation("legendary");
-    prestigeFlash();
+    audio.playRoar();
+    cinematicPulse();
+    playCinematic(tr.name, tr.flavor || "NEW SPECIES TRAIT", "#b88cff");
     flash("rgba(184,140,255,0.55)");
     shake(12);
     const c = stageCenter();
     burst(c.x, c.y, { count: 70, color: "#b88cff", spread: 220, up: 0, life: 1100 });
-    flashStatus(`⭐ NEW SPECIES TRAIT — ${tr.name}: ${tr.flavor}`);
   }
-  // music intensity grows with total progress
+  // music intensity grows with total progress; stress = wall heartbeat; danger = boss
   setMusicIntensity(Math.min(1, Math.log10((state.lifetimeBiomass || 0) + 10) / 16));
+  setMusicStress((pressure - 0.6) / 0.5);
+  setMusicDanger(!!boss);
+  if (state._auraN !== state.mutations.length) { state._auraN = state.mutations.length; updateAura(); }
   renderCreature(visualDt, elapsed);
   updateJuice(visualDt);
   renderUI(rate, visualDt);

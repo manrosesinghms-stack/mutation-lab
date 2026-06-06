@@ -131,9 +131,9 @@ export function initCreature(canvasEl, onClick) {
   const rim = new THREE.DirectionalLight(0xb88cff, 1.0);
   rim.position.set(-4, -2, -3);
   scene.add(rim);
-  const glow = new THREE.PointLight(0x66ffcc, 0.5, 12);
-  glow.position.set(0, 0, 3);
-  scene.add(glow);
+  glowLight = new THREE.PointLight(0x66ffcc, 0.6, 14);
+  glowLight.position.set(0, 0, 3);
+  scene.add(glowLight);
 
   // the organism
   const geo = makeOrganismGeometry(3, 1);
@@ -234,7 +234,8 @@ export function renderCreature(dt, elapsed) {
 
   // dolly the camera back as the organism grows so it stays framed — extra
   // pullback so parts sticking out (spikes/tentacles) never clip the top edge
-  const targetZ = 4.6 + (currentScale - 1) * 4.2;
+  cineZoom += (0 - cineZoom) * Math.min(1, dt * 1.6); // cinematic push-in decay
+  const targetZ = 4.6 + (currentScale - 1) * 4.2 - cineZoom;
   camera.position.z += (targetZ - camera.position.z) * Math.min(1, dt * 2.5);
   camera.lookAt(0, 0, 0);
 
@@ -549,6 +550,16 @@ export function rebuildVisuals(parts, totalMutations) {
 // Big squash on prestige.
 export function prestigeFlash() {
   punch = 1.8;
+}
+
+// Cinematic beat: a hard squash + a quick camera push-in (decays in renderCreature).
+let cineZoom = 0;
+export function cinematicPulse() { punch = 2.4; cineZoom = 1.7; }
+
+// build-dependent aura — the glow light colour tells you the build at a glance
+let glowLight;
+export function setAura(hex, intensity = 0.8) {
+  if (glowLight) { glowLight.color.setHex(hex); glowLight.intensity = intensity; }
 }
 
 // Render a shareable PNG: the creature + a caption bar (name + mutation count).

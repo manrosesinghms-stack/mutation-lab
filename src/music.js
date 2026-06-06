@@ -61,6 +61,9 @@ export function getMusicTheme() { return Object.keys(THEMES).find((k) => THEMES[
 export function hasTheme(id) { return !!THEMES[id]; }
 
 export function setMusicIntensity(t) { intensity = Math.max(0, Math.min(1, t || 0)); }
+let musicStress = 0, musicDanger = false;
+export function setMusicStress(v) { musicStress = Math.max(0, Math.min(1, v || 0)); } // metabolic-wall heartbeat
+export function setMusicDanger(b) { musicDanger = !!b; }                                // boss danger layer
 export function setMusicVolume(v) {
   volume = Math.max(0, Math.min(1, v));
   if (musicGain) musicGain.gain.value = volume * 0.22;
@@ -142,8 +145,20 @@ function scheduler() {
 }
 
 function playStep(s, t) {
-  if (isMuted() || !theme || theme.off) return;
+  if (isMuted()) return;
   const SI = s % 16;
+  // tension cues play regardless of music theme:
+  // metabolic-wall heartbeat — the player FEELS they should Speciate
+  if (musicStress > 0.25) {
+    tone(t, 58, "sine", 0.13 * musicStress, 0.18, 0.004, 0.1);
+    if (SI % 4 === 0 && musicStress > 0.55) tone(t + 0.15, 52, "sine", 0.10 * musicStress, 0.16, 0.004, 0.1);
+  }
+  // boss danger layer (drone + alarm tick)
+  if (musicDanger) {
+    if (SI % 8 === 0) tone(t, 110, "sawtooth", 0.05, 0.7, 0.02, 0.3);
+    if (SI % 4 === 2) tone(t, 740, "square", 0.035, 0.08, 0.002, 0.04);
+  }
+  if (!theme || theme.off) return; // ---- musical bed below ----
   const bar = Math.floor(s / 16) % theme.prog.length;
   const rootSemi = theme.prog[bar];
   const root = theme.root;
