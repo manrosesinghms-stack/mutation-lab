@@ -94,6 +94,7 @@ import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabe
          renderHelix, renderSplicer, spliceResult, renderUpgrades, renderMarket,
          renderMutagen, renderReactor, renderPantheon, renderSymbiote, renderGarden } from "./ui.js";
 import { SPELLS } from "./data/spells.js";
+import { SEASON_BY_ID } from "./data/seasons.js";
 import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
@@ -209,6 +210,18 @@ initUI({
   onSetShake: (v) => { state.shake = v; applyShakeSetting(v); save(); },
   onSetReduce: (b) => { state.reduceMotion = b; setReduceMotion(b); setJuiceReduceMotion(b); setBackgroundReduceMotion(b); save(); },
   onSetEyeTrack: (b) => { state.eyeTrack = b; setEyeTracking(b); save(); },
+  onSetSeason: (id) => {
+    state.season = id;
+    const se = SEASON_BY_ID[id];
+    if (se && se.bg && hasBackground(se.bg)) { state.background = se.bg; setBackground(se.bg); }
+    flashStatus(se && id !== "none" ? `${se.name} season active — +${Math.round(se.prod * 100)}% production` : "season ended");
+    save();
+  },
+  onSetAberration: (b) => {
+    state.aberration = b;
+    flashStatus(b ? "☣️ ABERRATION — reality strains, but power surges (×2.5)" : "aberration calmed");
+    save();
+  },
   onSetGraphics: (v) => {
     state.graphics = v;
     setQuality(v);
@@ -747,8 +760,9 @@ function drainLeeches(rate, dt) {
   }
 }
 setInterval(() => {
-  if (((state.prestiges || 0) >= 1 || (state.speciations || 0) >= 1) && leeches.length < 3 && Math.random() < 0.5) spawnLeech();
-}, 45000);
+  const chance = state.aberration ? 0.95 : 0.5; // Aberration mode = far more leeches
+  if (((state.prestiges || 0) >= 1 || (state.speciations || 0) >= 1) && leeches.length < 3 && Math.random() < chance) spawnLeech();
+}, state.aberration ? 18000 : 45000);
 
 // ~one bloom per minute when none is active; explain it the first time
 setInterval(() => {

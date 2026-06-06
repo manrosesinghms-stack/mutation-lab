@@ -16,6 +16,7 @@ import { HYBRID_BY_KEY, spliceKey } from "./data/hybrids.js";
 import { UPGRADES, UPG_BY_ID } from "./data/upgrades.js";
 import { GENE_BY_ID, PANTHEON_SLOTS, SYMBIOTE_THRESH, AURA_BY_ID } from "./data/genes.js";
 import { SEED_BY_ID } from "./data/garden.js";
+import { SEASON_BY_ID } from "./data/seasons.js";
 
 // buy (if needed) + equip a cosmetic skin; returns the skin or null
 export function buySkin(id) {
@@ -121,6 +122,11 @@ export function getModifiers() {
     const a = AURA_BY_ID[state.symbiote.aura];
     if (a) { mods.prodMult *= 1 + a.prod; mods.clickMult *= 1 + a.click; }
   }
+  // Seasonal event bonus
+  const se = SEASON_BY_ID[state.season];
+  if (se && se.prod) mods.prodMult *= 1 + se.prod;
+  // Aberration mode (grandmapocalypse) — big risk/reward production boost
+  if (state.aberration) { mods.prodMult *= 2.5; mods.clickMult *= 2.5; }
   // Petri Garden — mature plots give passive buffs
   if (state.garden && state.garden.plots) {
     const now = Date.now();

@@ -15,6 +15,8 @@ const GEN_TIERS = [
   { n: 50, c: 30000 },
   { n: 100, c: 900000 },
   { n: 175, c: 3.5e7 },
+  { n: 300, c: 2e9 },
+  { n: 500, c: 1.5e11 },
 ];
 
 export const UPGRADES = [];
@@ -40,6 +42,11 @@ UPGRADES.push(
   { id: "prod_a", name: "Mitotic Tuning", desc: "ALL production ×2.", cond: "100K lifetime biomass", cost: 5e4, unlock: { lifetime: 1e5 }, prod: 2 },
   { id: "prod_b", name: "Metabolic Overdrive", desc: "ALL production ×2.", cond: "100M lifetime biomass", cost: 5e7, unlock: { lifetime: 1e8 }, prod: 2 },
   { id: "prod_c", name: "Hypermetabolism", desc: "ALL production ×3.", cond: "10B lifetime biomass", cost: 5e9, unlock: { lifetime: 1e10 }, prod: 3 },
+  { id: "prod_d", name: "Cellular Singularity", desc: "ALL production ×3.", cond: "1e13 lifetime biomass", cost: 5e12, unlock: { lifetime: 1e13 }, prod: 3 },
+  { id: "prod_e", name: "Apex Metabolism", desc: "ALL production ×4.", cond: "1e16 lifetime biomass", cost: 5e15, unlock: { lifetime: 1e16 }, prod: 4 },
+  { id: "prod_f", name: "Cosmic Metabolism", desc: "ALL production ×5.", cond: "1e20 lifetime biomass", cost: 5e19, unlock: { lifetime: 1e20 }, prod: 5 },
+  { id: "click_d", name: "Annihilating Touch", desc: "Click power ×5.", cond: "1e12 lifetime biomass", cost: 5e11, unlock: { lifetime: 1e12 }, click: 5 },
+  { id: "click_e", name: "Godhand", desc: "Click power ×6.", cond: "1e16 lifetime biomass", cost: 5e15, unlock: { lifetime: 1e16 }, click: 6 },
 );
 
 export const UPG_BY_ID = Object.fromEntries(UPGRADES.map((u) => [u.id, u]));

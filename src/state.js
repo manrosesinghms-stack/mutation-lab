@@ -35,7 +35,8 @@ function freshState() {
     catalystAt: 0,         // ms timestamp basis for catalyst regen
     pantheon: {},          // { slot: geneId } slotted ancestral genes
     symbiote: { fed: 0, aura: null }, // companion: total fed + chosen aura
-    season: null,          // active seasonal event id (null = none)
+    season: "none",        // active seasonal event id
+    aberration: false,     // Aberration mode (grandmapocalypse) — risk/reward toggle
     garden: { plots: [null, null, null, null, null, null, null, null, null] }, // Petri Garden
     gardenStrains: {},     // discovered rare garden strains (collection)
     mutagen: 0,            // slow-growing rare currency (Sugar-Lump analog)
