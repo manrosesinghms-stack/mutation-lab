@@ -24,9 +24,13 @@ Every resource, threat, and reward should have a **physical, animated, audible**
 | 12 | **Organic material shader** (fresnel subsurface-glow membrane shell; over-glows with metabolic stress; aura-tinted) | `creature.js` material | L | ✅ batch 4 |
 | 13 | **Endgame reality corruption** (35+ mutations: chromatic/scanline overlay, RGB title fracture, periodic frame tears — scales to full at 60) | global CSS/JS | M | ✅ batch 4 |
 | 14 | **Resource physicality** (biomass tank fills, Genome = DNA strands, pressure = glowing veins, EP = neural nodes) | `ui.js` | M | later |
-| 15 | **Mutation evolution stages** (Eye L1→L2→Compound→Cosmic — one mutation visually levels up) | data + `creature.js` | L | batch 5 |
-| 16 | **AAA UI re-skin** (glass-lab/holographic theme — Subnautica/Control vibe) | `style.css` | L | batch 5 |
-| 17 | **"OMG screenshot" tools** (scale slider: mouse→human→mountain · museum specimen showcase) | Photo Mode | M | batch 5 |
+| 15 | **Mutation evolution stages** (Eye L1→L2→Compound→Cosmic — one mutation visually levels up) | data + `creature.js` | L | later |
+| 16 | **AAA UI re-skin** (glass-lab/holographic theme — Subnautica/Control vibe) | `style.css` | L | later |
+| 17 | **"OMG screenshot" tools** (scale-class badge: microbe→mouse→human→tower→mountain→planet→galaxy, burned into the saved PNG) | Photo Mode | M | ✅ batch 5 |
+
+## Status: 11 of 17 shipped (batches 1–5)
+Done: adaptive music, cinematic moments, build auras, living creature, pressure spectacle, **Creature Habitat**, living backgrounds (via habitat), draft presentation, premium juice, mutation-family SFX, organic fresnel membrane, endgame reality corruption, scale screenshot tool.
+Deferred (heavier, lower marginal impact): #11 full skin transformations, #14 resource physicality, #15 mutation evolution stages, #16 AAA UI re-skin. These are larger and riskier to layout; revisit if the visual bar still needs raising after playtesting.
 
 ## ChatGPT's top-7 (the priority spine) → maps to: 2, 6, 8, cinematics(2), 12, 1, 6.
 The single biggest: **#6 Creature Habitat** — the mutant in a believable environment instead of floating in a void is what instantly reads as "real commercial game."

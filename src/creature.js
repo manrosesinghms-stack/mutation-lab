@@ -681,7 +681,7 @@ export function setAura(hex, intensity = 0.8) {
 
 // Render a shareable PNG: the creature + a caption bar (name + mutation count).
 // Returns a data URL.
-export function exportPhoto(name, subtitle) {
+export function exportPhoto(name, subtitle, scaleRef) {
   if (!renderer) return null;
   renderer.render(scene, camera); // ensure the buffer is current
   const src = renderer.domElement;
@@ -694,6 +694,21 @@ export function exportPhoto(name, subtitle) {
   grad.addColorStop(0, "#16202c"); grad.addColorStop(1, "#0b0f14");
   ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
   ctx.drawImage(src, 0, 0, W, H);
+  // scale-reference badge (the viral "look how big it is" comparison)
+  if (scaleRef) {
+    const pad = Math.round(W * 0.025);
+    const eS = Math.round(W * 0.06);
+    ctx.textAlign = "left";
+    ctx.shadowColor = "rgba(0,0,0,.85)"; ctx.shadowBlur = 10;
+    ctx.font = `${eS}px Segoe UI Emoji, sans-serif`;
+    ctx.fillText(scaleRef.e, pad, H - pad - Math.round(H * 0.06));
+    ctx.fillStyle = "#e8f0f7";
+    ctx.font = `bold ${Math.round(W * 0.024)}px Segoe UI, system-ui, sans-serif`;
+    ctx.fillText(scaleRef.b, pad + eS + Math.round(W * 0.012), H - pad - Math.round(H * 0.075));
+    ctx.fillStyle = "#7e93a8";
+    ctx.font = `${Math.round(W * 0.017)}px Segoe UI, system-ui, sans-serif`;
+    ctx.fillText(`specimen size · ${scaleRef.s}`, pad + eS + Math.round(W * 0.012), H - pad - Math.round(H * 0.05));
+  }
   // caption
   ctx.textAlign = "center";
   ctx.fillStyle = "#e8f0f7";

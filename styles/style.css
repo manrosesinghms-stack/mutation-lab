@@ -493,6 +493,19 @@ html, body {
   transition: transform .55s cubic-bezier(.5, 0, .35, 1), opacity .55s ease;
 }
 
+#scale-badge {
+  position: absolute; left: 22px; bottom: 22px; z-index: 40; pointer-events: none;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px 10px 12px; border-radius: 14px;
+  background: rgba(8, 14, 20, .62); border: 1px solid rgba(123, 227, 176, .35);
+  backdrop-filter: blur(6px); box-shadow: 0 8px 30px rgba(0,0,0,.4);
+}
+#scale-badge.hidden { display: none; }
+#scale-badge .se { font-size: 38px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+#scale-badge .st { display: flex; flex-direction: column; gap: 2px; }
+#scale-badge .st b { font-size: 15px; color: #e8f0f7; letter-spacing: .03em; }
+#scale-badge .st span { font-size: 11px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+
 #corruption {
   position: fixed; inset: 0; z-index: 58; pointer-events: none; opacity: 0;
   mix-blend-mode: screen; transition: opacity 1s ease;

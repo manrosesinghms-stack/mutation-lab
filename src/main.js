@@ -477,20 +477,54 @@ setInterval(() => {
 const appEl = document.getElementById("app");
 const photoBar = document.getElementById("photo-bar");
 const relayout = () => { resizeCreature(); resizeBackground(); };
+// "OMG screenshot" scale tool: cycle a size-class reference for that viral
+// "look how big my creature got" comparison. off → mouse → … → galaxy.
+const SCALE_REFS = [
+  null,
+  { e: "🦠", b: "Microbe-class", s: "~10 µm" },
+  { e: "🐁", b: "Mouse-class", s: "~7 cm" },
+  { e: "🧍", b: "Human-class", s: "~1.8 m" },
+  { e: "🏠", b: "House-class", s: "~8 m" },
+  { e: "🐋", b: "Whale-class", s: "~30 m" },
+  { e: "🗼", b: "Tower-class", s: "~300 m" },
+  { e: "🏔️", b: "Mountain-class", s: "~4 km" },
+  { e: "🌍", b: "Planet-class", s: "~12,700 km" },
+  { e: "🌌", b: "Galaxy-class", s: "~100,000 ly" },
+];
+let scaleIdx = 0;
+const scaleBadge = document.getElementById("scale-badge");
+function renderScaleBadge() {
+  const r = SCALE_REFS[scaleIdx];
+  const btn = document.getElementById("photo-scale");
+  if (!r) {
+    scaleBadge.classList.add("hidden");
+    if (btn) btn.textContent = "📏 Scale: off";
+    return;
+  }
+  scaleBadge.classList.remove("hidden");
+  scaleBadge.innerHTML = `<span class="se">${r.e}</span><span class="st"><b>${r.b}</b><span>specimen size · ${r.s}</span></span>`;
+  if (btn) btn.textContent = `📏 Scale: ${r.b}`;
+}
+document.getElementById("photo-scale").addEventListener("click", () => {
+  scaleIdx = (scaleIdx + 1) % SCALE_REFS.length;
+  renderScaleBadge();
+});
 document.getElementById("photo-btn").addEventListener("click", () => {
   appEl.classList.add("photo-mode");
   photoBar.classList.remove("hidden");
+  renderScaleBadge();
   setTimeout(relayout, 60);
 });
 document.getElementById("photo-exit").addEventListener("click", () => {
   appEl.classList.remove("photo-mode");
   photoBar.classList.add("hidden");
+  scaleBadge.classList.add("hidden");
   setTimeout(relayout, 60);
 });
 document.getElementById("photo-shot").addEventListener("click", () => {
   const name = creatureName(state.mutations, state.namingStyle || "scientific");
   const sub = `${state.mutations.length} mutations · evolution ${state.prestiges || 0} · Mutation Lab`;
-  const url = exportPhoto(name, sub);
+  const url = exportPhoto(name, sub, SCALE_REFS[scaleIdx]);
   if (!url) { flashStatus("screenshot failed"); return; }
   const a = document.createElement("a");
   a.href = url;
