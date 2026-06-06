@@ -123,6 +123,7 @@ function rebuildBody() {
   const old = organism.geometry;
   organism.geometry = geo;
   if (rimMesh) rimMesh.geometry = geo;
+  if (skinShell) skinShell.geometry = geo;
   if (old) old.dispose();
 }
 
@@ -573,6 +574,7 @@ export function renderCreature(dt, elapsed) {
   updateTierCrown(dt, elapsed);
   updateAuraParticles(elapsed);
   updateVeins(elapsed);
+  if (skinShellMat) skinShellMat.uniforms.uTime.value = elapsed;
 
   renderer.render(scene, camera);
 }
@@ -908,6 +910,52 @@ export function setQuality(level) {
   if (habitatGroup) rebuildMotes(QUALITY.motes);
   buildAuraParticles(QUALITY.aura);
   applyVeins(QUALITY.veins);
+}
+
+// Premium GLSL skin transformations — a shader shell over the body (proven-safe
+// ShaderMaterial pattern, like the rim). Crystal = fresnel refraction sparkle;
+// Galaxy = twinkling starfield on the flesh. Only built when such a skin is worn.
+let skinShell, skinShellMat;
+export function setSkinShader(mode, hex) {
+  if (!organism) return;
+  if (!mode) {
+    if (skinShell) { organism.remove(skinShell); if (skinShellMat) skinShellMat.dispose(); skinShell = null; skinShellMat = null; }
+    return;
+  }
+  if (skinShell) {
+    skinShellMat.uniforms.uColor.value.setHex(hex);
+    skinShellMat.uniforms.uMode.value = mode === "galaxy" ? 2 : 1;
+    return;
+  }
+  try {
+    skinShellMat = new THREE.ShaderMaterial({
+      transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+      uniforms: { uColor: { value: new THREE.Color(hex || 0x9fe8ff) }, uTime: { value: 0 }, uMode: { value: mode === "galaxy" ? 2 : 1 } },
+      vertexShader: `varying vec3 vN; varying vec3 vView; varying vec3 vPos;
+        void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); vView = normalize(-mv.xyz);
+        vN = normalize(normalMatrix * normal); vPos = position; gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform vec3 uColor; uniform float uTime; uniform int uMode;
+        varying vec3 vN; varying vec3 vView; varying vec3 vPos;
+        float hash(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,37.719))) * 43758.5453); }
+        void main(){
+          float fres = pow(1.0 - max(dot(normalize(vN), normalize(vView)), 0.0), 2.0);
+          vec3 col = uColor; float a = fres * 0.55;
+          if (uMode == 2) {
+            vec3 cell = floor(vPos * 9.0);
+            float star = step(0.97, hash(cell));
+            float tw = 0.5 + 0.5 * sin(uTime * 3.0 + hash(cell) * 30.0);
+            a += star * tw * 0.9;
+            col = mix(uColor, vec3(1.0), star * 0.7);
+          } else {
+            float spark = pow(max(0.0, sin(vPos.x * 18.0 + uTime) * sin(vPos.y * 18.0) * sin(vPos.z * 18.0)), 8.0);
+            a += pow(fres, 4.0) * 0.7 + spark * 0.5;
+          }
+          gl_FragColor = vec4(col * a, a);
+        }`,
+    });
+    skinShell = new THREE.Mesh(organism.geometry, skinShellMat);
+    organism.add(skinShell);
+  } catch (e) { skinShell = null; skinShellMat = null; }
 }
 
 // Vein network — faint glowing strands across the body that flush RED as the

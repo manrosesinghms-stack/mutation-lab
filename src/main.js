@@ -67,6 +67,7 @@ import {
   setBodyShape,
   setQuality,
   setEyeTracking,
+  setSkinShader,
   setBloomCallback,
   spawnBloom,
   hasBloom,
@@ -376,6 +377,15 @@ function applyCreatureSkin() {
   const id = state.skin || "default";
   const cosmetic = id !== "default" ? SKIN_BY_ID[id] : null;
   setSkin(cosmetic || speciesTier(state.speciations || 0).skin);
+  // premium GLSL shader transformation (Crystal refraction / Galaxy starfield)
+  setSkinShader(cosmetic && cosmetic.shader ? cosmetic.shader : null, cosmetic ? hslHex(cosmetic.h, cosmetic.s, cosmetic.l) : 0xffffff);
+}
+// small HSL→hex for shader tint (matches the skin's palette)
+function hslHex(h, s, l) {
+  const a = s * Math.min(l, 1 - l);
+  const f = (k) => { const x = (k + h * 12) % 12; return l - a * Math.max(-1, Math.min(x - 3, Math.min(9 - x, 1))); };
+  const to = (v) => Math.max(0, Math.min(255, Math.round(v * 255)));
+  return (to(f(0)) << 16) | (to(f(8)) << 8) | to(f(4));
 }
 
 function refreshGhosts() {
