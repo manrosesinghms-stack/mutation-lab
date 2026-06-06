@@ -164,7 +164,7 @@ initUI({
   },
   onToggleEquip: (sid) => {
     if (toggleEquip(sid)) { refreshGhosts(); renderGenomeLab(); audio.playMutation("common"); save(); }
-    else genomeStatus("all equip slots full (buy Lineage Slots)");
+    else genomeStatus("Equip slots are full — unequip one, or upgrade “Lineage Slots” in Nodes for more.");
   },
   onExport: () => exportSave(),
   onImport: () => importSave(),
@@ -247,7 +247,7 @@ function openDraft() {
   showDraft(rollDraft(draftSize()), pickMutation, () => {
     if (useReroll()) openDraft();
     else flashStatus("no reroll tokens");
-  });
+  }, () => flashStatus("skipped — no mutation taken"));
 }
 
 // build-dependent aura: colour the creature's glow by its dominant body part

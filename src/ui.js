@@ -503,7 +503,7 @@ function renderMutationChips() {
 }
 
 // Show the mutation draft. onPick(id) when chosen; onReroll() if a reroll token is spent.
-export function showDraft(ids, onPick, onReroll) {
+export function showDraft(ids, onPick, onReroll, onSkip) {
   el.draftCards.innerHTML = "";
   let di = 0;
   for (const id of ids) {
@@ -538,6 +538,16 @@ export function showDraft(ids, onPick, onReroll) {
   } else {
     rr.style.display = "none";
   }
+  // skip button — you don't have to take a mutation
+  let sk = document.getElementById("draft-skip");
+  if (!sk) {
+    sk = document.createElement("button");
+    sk.id = "draft-skip";
+    sk.className = "ghost";
+    document.querySelector(".draft-inner").appendChild(sk);
+  }
+  sk.textContent = "Skip — keep my current form";
+  sk.onclick = () => { el.draftModal.classList.add("hidden"); if (onSkip) onSkip(); };
   el.draftModal.classList.remove("hidden");
 }
 
