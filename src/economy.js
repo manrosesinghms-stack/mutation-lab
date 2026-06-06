@@ -6,8 +6,9 @@ import { MUTATIONS, MUT_BY_ID } from "./data/mutations.js";
 import { TUN, softknee } from "./data/tunables.js";
 import { NODE_BY_ID, nodeLevel, nodeCost } from "./data/genomeNodes.js";
 import { ACHIEVEMENTS } from "./data/achievements.js";
-import { activeSynergies } from "./data/synergies.js";
+import { activeSynergies, partCounts } from "./data/synergies.js";
 import { completedSets } from "./data/sets.js";
+import { BIOMES, BIOME_BY_ID } from "./data/biomes.js";
 
 // EP payoff with a softcap: linear +10%/EP early, sqrt tail late (anti-runaway).
 function epPayoffMult(ep) {
@@ -42,6 +43,9 @@ export function getModifiers() {
   for (const syn of activeSynergies(state.mutations)) if (syn.effect) syn.effect(mods);
   for (const set of completedSets(state.mutations)) if (set.bonus) set.bonus(mods);
   mods.prodMult *= variantBonus(); // rare Golden/Crystal/Void runs
+  const biome = BIOME_BY_ID[state.biome]; // per-run world buff
+  if (biome) biome.buff(mods, partCounts(state.mutations));
+  mods.prodMult *= state.stabilizeBonus || 1; // genetic-instability stabilize choice
   // equipped Species contribute their frozen build at reduced (sqrt) weight
   for (const sid of state.equippedSpecies || []) {
     const sp = (state.species || []).find((s) => s.id === sid);
@@ -232,6 +236,7 @@ export function doPrestige() {
   state.biomass = startBoostBiomass();
   state.runBiomass = state.biomass;
   for (const g of GENERATORS) state.owned[g.id] = 0;
+  state.instabilityResolved = false; state.embraceChaos = false; state.stabilizeBonus = 1;
   return gain;
 }
 
@@ -293,6 +298,7 @@ export function doSpeciate() {
   state.biomass = startBoostBiomass();
   state.runBiomass = state.biomass;
   for (const g of GENERATORS) state.owned[g.id] = 0;
+  state.instabilityResolved = false; state.embraceChaos = false; state.stabilizeBonus = 1;
   return { card, gain };
 }
 
@@ -320,6 +326,17 @@ export function toggleEquip(sid) {
 export function hasNode(id) {
   return nodeLevel(state, id) > 0;
 }
+
+// ---- biomes (per-run world) ----
+export function rollBiome() {
+  const total = BIOMES.reduce((s, b) => s + b.weight, 0);
+  let r = Math.random() * total;
+  let chosen = BIOMES[0];
+  for (const b of BIOMES) { r -= b.weight; if (r <= 0) { chosen = b; break; } }
+  state.biome = chosen.id;
+  return chosen;
+}
+export function currentBiome() { return BIOME_BY_ID[state.biome] || null; }
 
 // ---- rare run variants (Golden / Crystal / Void) ----
 const VARIANT_BONUS = { golden: 2, crystal: 1.5, void: 3 };
@@ -354,7 +371,7 @@ export function autoBuyGenerators(maxBuys = 60) {
 // Roll N distinct mutations, weighted by rarity.
 export function rollDraft(n = 3) {
   const weights = { common: 60, rare: 30, legendary: 10 };
-  const pool = [...MUTATIONS];
+  const pool = MUTATIONS.filter((m) => !m.alien); // aliens are injected separately
   const picks = [];
   while (picks.length < n && pool.length > 0) {
     const total = pool.reduce((s, m) => s + weights[m.rarity], 0);
@@ -366,6 +383,12 @@ export function rollDraft(n = 3) {
     }
     picks.push(pool[idx].id);
     pool.splice(idx, 1);
+  }
+  // ~7% chance an Alien DNA card crashes the draft
+  if (Math.random() < 0.07 && picks.length) {
+    const aliens = MUTATIONS.filter((m) => m.alien);
+    const a = aliens[(Math.random() * aliens.length) | 0];
+    if (a) picks[(Math.random() * picks.length) | 0] = a.id;
   }
   return picks;
 }

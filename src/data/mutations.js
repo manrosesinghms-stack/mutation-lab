@@ -177,6 +177,16 @@ export const MUTATIONS = [
   { id: "tumor", name: "Runaway Tumor", rarity: "legendary", defect: true, part: "body",
     desc: "+20% production per mutation owned, but ×0.3 click",
     effect: (m, i) => { m.prodMult *= 1 + 0.20 * i.totalMutations; m.clickMult *= 0.3; } },
+
+  // ---- ALIEN DNA (rare otherworldly mutations; only appear ~7% of drafts) ----
+  { id: "alien_eye", name: "Floating Ocular", rarity: "legendary", alien: true, part: "eye",
+    desc: "×6 production & ×2 click", effect: (m) => { m.prodMult *= 6; m.clickMult *= 2; } },
+  { id: "alien_core", name: "Gravity Organ", rarity: "legendary", alien: true,
+    desc: "×8 production", effect: (m) => { m.prodMult *= 8; } },
+  { id: "alien_lattice", name: "Crystal Lattice", rarity: "legendary", alien: true, part: "spike",
+    desc: "×5 production & ×5 click", effect: (m) => { m.prodMult *= 5; m.clickMult *= 5; } },
+  { id: "alien_swarm", name: "Energy Limbs", rarity: "legendary", alien: true, part: "tentacle",
+    desc: "+25% production per organelle owned", effect: (m, i) => { m.prodMult *= 1 + 0.25 * i.totalGenerators; } },
 ];
 
 export const MUT_BY_ID = Object.fromEntries(MUTATIONS.map((m) => [m.id, m]));

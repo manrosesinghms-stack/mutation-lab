@@ -431,10 +431,10 @@ export function showDraft(ids, onPick, onReroll) {
     if (!def) continue;
     const r = RARITY[def.rarity];
     const card = document.createElement("div");
-    card.className = "draft-card" + (def.defect ? " defect" : "");
-    card.style.setProperty("--rarity", def.defect ? "#ff6b6b" : r.color);
+    card.className = "draft-card" + (def.defect ? " defect" : "") + (def.alien ? " alien" : "");
+    card.style.setProperty("--rarity", def.alien ? "#39d0c6" : def.defect ? "#ff6b6b" : r.color);
     card.innerHTML = `
-      <div class="rarity">${def.defect ? "⚠ CURSED" : r.label}</div>
+      <div class="rarity">${def.alien ? "👽 ALIEN DNA" : def.defect ? "⚠ CURSED" : r.label}</div>
       <div class="mname">${def.name}</div>
       ${def.part ? `<div class="part-tag">＋ grows a ${def.part}</div>` : ""}
       <div class="mdesc">${def.desc}</div>`;
@@ -457,6 +457,24 @@ export function showDraft(ids, onPick, onReroll) {
     rr.style.display = "none";
   }
   el.draftModal.classList.remove("hidden");
+}
+
+// Generic 2+ option choice modal (events). options: [{label, desc, color}].
+export function showChoice(title, sub, options, onPick) {
+  const modal = document.getElementById("choice-modal");
+  document.getElementById("choice-title").textContent = title;
+  document.getElementById("choice-sub").textContent = sub;
+  const cards = document.getElementById("choice-cards");
+  cards.innerHTML = "";
+  options.forEach((o, i) => {
+    const card = document.createElement("div");
+    card.className = "draft-card";
+    card.style.setProperty("--rarity", o.color || "#56e39f");
+    card.innerHTML = `<div class="mname">${o.label}</div><div class="mdesc">${o.desc}</div>`;
+    card.addEventListener("click", () => { modal.classList.add("hidden"); onPick(i); });
+    cards.appendChild(card);
+  });
+  modal.classList.remove("hidden");
 }
 
 // Floating "+N" number at a screen position.

@@ -27,6 +27,7 @@ import {
   grantReroll,
   useReroll,
   fuseMutations,
+  rollBiome,
 } from "./economy.js";
 import {
   initCreature,
@@ -49,7 +50,7 @@ import {
 } from "./creature.js";
 import { creatureName } from "./data/names.js";
 import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
-         renderGenomeLab, genomeStatus, openHelp } from "./ui.js";
+         renderGenomeLab, genomeStatus, openHelp, showChoice } from "./ui.js";
 import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
@@ -97,7 +98,7 @@ initUI({
     burst(c.x, c.y, { count: 60, color: "#b88cff", spread: 200, up: 0, life: 900 });
     flashStatus(`evolved! +${formatNumber(gained)} EP`);
     openDraft();
-    rollAndApplyVariant();
+    startNewRun();
     save();
   },
   onMute: () => {
@@ -124,7 +125,7 @@ initUI({
     burst(c.x, c.y, { count: 80, color: "#ffd76b", spread: 240, up: 0, life: 1000 });
     flashStatus(`SPECIATED: ${res.card.name} · +${formatNumber(res.gain)} Genome`);
     grantReroll(1);
-    rollAndApplyVariant();
+    startNewRun();
     save();
   },
   onBuyNode: (id) => {
@@ -203,7 +204,32 @@ function pickMutation(id) {
     burst(c.x, c.y, { count: isRare ? 44 : 24, color, spread: isRare ? 180 : 130, up: 0, life: isRare ? 900 : 750 });
   }
   flashStatus(`mutation gained: ${def ? def.name : id}`);
+  if (state.mutations.length >= 14 && !state.instabilityResolved) triggerInstability();
   save();
+}
+
+let instabilityOpen = false;
+function triggerInstability() {
+  if (instabilityOpen) return;
+  instabilityOpen = true;
+  showChoice("⚠ GENETIC INSTABILITY", "Your genome is fraying — choose your fate:", [
+    { label: "🧬 Stabilize", desc: "+50% production this run. Safe.", color: "#56e39f" },
+    { label: "☣ Embrace Chaos", desc: "3 random mutations erupt now. Risky & weird.", color: "#b88cff" },
+  ], (choice) => {
+    state.instabilityResolved = true;
+    instabilityOpen = false;
+    if (choice === 0) {
+      state.stabilizeBonus = (state.stabilizeBonus || 1) * 1.5;
+      flash("rgba(86,227,159,.4)");
+      flashStatus("genome stabilized — +50% production this run");
+    } else {
+      state.embraceChaos = true;
+      flash("rgba(184,140,255,.5)"); shake(14);
+      for (let i = 0; i < 3; i++) { const ids = rollDraft(1); pickMutation(ids[0]); }
+      flashStatus("☣ CHAOS EMBRACED — 3 mutations erupted!");
+    }
+    save();
+  });
 }
 
 // ---- wire 3D creature ----
@@ -249,6 +275,15 @@ setReduceMotion(!!state.reduceMotion);
 if (!hasBackground(state.background)) state.background = "aurora";
 setBackground(state.background);
 setVariant(state.variant); // apply any rare run variant
+
+const BIOME_ICON = { ocean: "🌊", volcanic: "🌋", verdant: "🌿", glacial: "❄️", abyssal: "🌌", voidrift: "🕳️" };
+function startNewRun() {
+  // roll a biome → sets the backdrop + a build buff for this run
+  const biome = rollBiome();
+  setBackground(biome.background);
+  flashStatus(`${BIOME_ICON[biome.id] || "🌍"} ${biome.name} — ${biome.desc}`);
+  rollAndApplyVariant();
+}
 
 function rollAndApplyVariant() {
   const v = rollVariant();

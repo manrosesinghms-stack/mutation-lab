@@ -381,14 +381,14 @@ html, body {
 .mut-chip .x { color: var(--muted); margin-left: 3px; }
 
 /* ---------- draft modal ---------- */
-#draft-modal {
+#draft-modal, #choice-modal {
   position: fixed; inset: 0; z-index: 100;
   display: flex; align-items: center; justify-content: center;
   background: rgba(4, 7, 11, .82);
   backdrop-filter: blur(6px);
   animation: fadeIn .25s ease;
 }
-#draft-modal.hidden { display: none; }
+#draft-modal.hidden, #choice-modal.hidden { display: none; }
 @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
 .draft-inner { text-align: center; max-width: 760px; padding: 20px; }
 .draft-inner h2 {

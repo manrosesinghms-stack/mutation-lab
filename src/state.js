@@ -33,6 +33,10 @@ function freshState() {
     background: "aurora",  // selected animated background
     variant: null,         // rare run variant: golden | crystal | void
     variantsSeen: {},      // which rare variants you've ever rolled
+    biome: null,           // per-run biome id
+    instabilityResolved: false, // resolved the genetic-instability event this run
+    embraceChaos: false,   // chose chaos (random mutations keep coming)
+    stabilizeBonus: 1,     // production bonus from stabilizing instability (per run)
     shake: "subtle",       // screen shake: off | subtle | full
     reduceMotion: false,   // disable creature tremble + extra motion
     namingStyle: "scientific", // creature name style: scientific | cute | eldritch
