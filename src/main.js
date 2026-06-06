@@ -74,6 +74,7 @@ import {
   onMutationGained,
   prestigeFlash,
   cinematicPulse,
+  pulse,
   rebuildVisuals,
   setStress,
   resetParts,
@@ -626,15 +627,28 @@ initCreature(canvas, (sx, sy) => {
   const gain = click(crit ? 5 : 1); // crit multiplies the actual payout, not just the sparkle
   state.totalClicks = (state.totalClicks || 0) + 1;
   startMusic(); // first user gesture — kick off ambient music
-  spawnFloatNumber(sx, sy, (crit ? "⚡" : "+") + formatNumber(gain));
+  // escalating combo feedback: the heat ramps from green → gold → orange → magenta
+  // as you chain clicks, so a long streak FEELS like it's building toward something.
+  const tier = Math.min(4, Math.floor(combo / 12)); // 0..4
+  const HEAT = ["#56e39f", "#ffd76b", "#ffae4d", "#ff7ac0", "#b88cff"];
+  const RING = ["#7be3b0", "#ffd76b", "#ffae4d", "#ff7ac0", "#b88cff"];
+  const color = crit ? HEAT[tier] : "#56e39f";
+  const prefix = crit ? (tier >= 3 ? "🔥" : "⚡") : "+";
+  spawnFloatNumber(sx, sy, prefix + formatNumber(gain));
   audio.playClick(combo);
-  // first crit of a streak: a satisfying banner + ding (not every click → no spam)
-  if (combo === 12) { flashStatus("⚡ CRITICAL EXTRACTION! — chained clicks · ×5"); audio.playMilestone(); }
-  ripple(sx, sy, crit ? "#ffd76b" : "#7be3b0");
-  flyToCounter(sx, sy, crit ? "#ffd76b" : "#7be3b0");
-  burst(sx, sy, { count: 4 + Math.min(combo, 8), color: crit ? "#ffd76b" : "#56e39f", spread: 55, life: 600 });
-  // (no per-click screen shake — the creature squash is the feedback; constant
-  //  clicking made the whole screen jitter. Shake is reserved for big events.)
+  // each NEW crit tier (12/24/36/48) gets a bigger flourish + a banner — clear escalation
+  if (combo > 0 && combo % 12 === 0) {
+    const names = ["", "⚡ CRITICAL EXTRACTION ×5", "🔥 SUPERCRIT — combo ×24", "🔥 FRENZIED HARVEST — ×36", "💥 MUTAGENIC OVERLOAD — ×48!"];
+    flashStatus(names[Math.min(4, combo / 12)] || names[4]);
+    audio.playMilestone();
+    flash(color + "33"); // hex8 ~20% alpha tint
+    shake(4 + tier * 3);
+    burst(sx, sy, { count: 18 + tier * 6, color, spread: 120 + tier * 20, life: 800 });
+  }
+  pulse(crit ? 0.6 : 0.4);
+  ripple(sx, sy, RING[tier]);
+  flyToCounter(sx, sy, crit ? color : "#7be3b0");
+  burst(sx, sy, { count: 4 + Math.min(combo, 10), color, spread: 55 + tier * 12, life: 600 });
 });
 
 initJuice();
@@ -999,6 +1013,9 @@ if (offline.earned > 1 && offline.seconds > 5) {
 let last = performance.now();
 let elapsed = 0;
 let sinceSave = 0;
+// drone idle-FX throttle: accumulate auto-click gain, emit one tidy pulse ~2×/sec
+let droneFxAccum = 0;
+let droneFxGain = 0;
 
 function update() {
   const now = performance.now();
@@ -1026,8 +1043,24 @@ function update() {
   // Automation Bay: drones auto-click, factory converts, automators run systems
   const autoEv = tickAutomation(dt);
   if (autoEv) {
-    if (autoEv.surged) { audio.playMilestone(); flashStatus("🔬 Auto-Catalyzer fired a surge! ×3 production"); }
-    if (autoEv.claimed.length) { cinematicPulse(); flashStatus("🗺️ Surveyor claimed new territory"); }
+    if (autoEv.surged) { audio.playMilestone(); flash("rgba(150,120,255,.28)"); const c = stageCenter(); burst(c.x, c.y, { count: 28, color: "#b88cff", spread: 150, life: 800 }); flashStatus("🔬 Auto-Catalyzer fired a surge! ×3 production"); }
+    if (autoEv.claimed.length) { cinematicPulse(); flash("rgba(86,227,159,.3)"); flashStatus("🗺️ Surveyor claimed new territory"); }
+    if (autoEv.harvested > 0) { const c = stageCenter(); burst(c.x, c.y - 40, { count: 10, color: "#9fe87b", spread: 80, up: 30, life: 650 }); }
+    // drone idle FX: show the swarm working without spamming a number per click
+    if (autoEv.drone > 0 && !state.reduceMotion) {
+      droneFxGain += autoEv.drone;
+      droneFxAccum += dt;
+      if (droneFxAccum >= 0.5 && !document.hidden) {
+        const c = stageCenter();
+        const jx = c.x + (Math.random() * 2 - 1) * 90;
+        const jy = c.y + (Math.random() * 2 - 1) * 70;
+        pulse(0.35);
+        ripple(jx, jy, "#7be3b0");
+        spawnFloatNumber(jx, jy, "+" + formatNumber(droneFxGain));
+        burst(jx, jy, { count: 3, color: "#56e39f", spread: 36, life: 520 });
+        droneFxAccum = 0; droneFxGain = 0;
+      }
+    }
   }
   const rm = document.getElementById("reactor-modal");
   if (rm && !rm.classList.contains("hidden")) renderReactor();

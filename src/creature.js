@@ -863,6 +863,11 @@ export function prestigeFlash() {
 let cineZoom = 0;
 export function cinematicPulse() { punch = 2.4; cineZoom = 1.7; }
 
+// Light auto-tap squash for drones (subtle — so idle play looks alive without
+// overpowering a real player click). Adds, doesn't override, so manual clicks
+// still read as bigger.
+export function pulse(amount = 0.5) { punch = Math.min(punch + amount, 1.2); }
+
 // build-dependent aura — the glow light colour + a cloud of orbiting particles
 // tell you the build at a glance (recognize a build from a screenshot)
 let glowLight, rimMesh, rimMat;
