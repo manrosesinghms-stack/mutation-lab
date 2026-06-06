@@ -11,6 +11,7 @@ import {
   canSplice, spliceCooldownLeft, splicesFound,
   availableUpgrades, affordableUpgradeCount,
   REAGENTS, marketState, marketUnitValue, brokerFee, brokerCost, maxBuy,
+  mutagenProgress, genLevel, genLevelCost,
 } from "./economy.js";
 import { HELIX_NODES } from "./data/helix.js";
 import { PART_TYPES, PART_LABEL, HYBRID_LIST } from "./data/hybrids.js";
@@ -68,6 +69,7 @@ export function initUI(handlers) {
   el.upgradesBadge = document.getElementById("upgrades-badge");
   el.upgradesModal = document.getElementById("upgrades-modal");
   el.marketModal = document.getElementById("market-modal");
+  el.mutagenModal = document.getElementById("mutagen-modal");
   el.genomeModal = document.getElementById("genome-modal");
   el.nodeList = document.getElementById("node-list");
   el.speciesList = document.getElementById("species-list");
@@ -105,6 +107,8 @@ export function initUI(handlers) {
   document.getElementById("market-btn").addEventListener("click", () => openMarket());
   document.getElementById("market-close").addEventListener("click", () => el.marketModal.classList.add("hidden"));
   document.getElementById("broker-buy").addEventListener("click", () => uiHandlers.onBuyBroker());
+  document.getElementById("mutagen-btn").addEventListener("click", () => openMutagen());
+  document.getElementById("mutagen-close").addEventListener("click", () => el.mutagenModal.classList.add("hidden"));
   document.getElementById("splice-close").addEventListener("click", () => el.spliceModal.classList.add("hidden"));
   document.getElementById("splice-go").addEventListener("click", () => {
     if (spliceSelA && spliceSelB) uiHandlers.onSplice(spliceSelA, spliceSelB);
@@ -177,6 +181,31 @@ export function renderUpgrades() {
       <div class="node-desc">${u.desc}</div>
       <div class="node-lvl">${u.cond}</div>`;
     if (!broke) row.addEventListener("click", () => uiHandlers.onBuyUpgrade(u.id));
+    list.appendChild(row);
+  }
+}
+
+// ---- Mutagen / organelle levels ----
+export function openMutagen() { renderMutagen(); el.mutagenModal.classList.remove("hidden"); }
+export function renderMutagen() {
+  document.getElementById("mutagen-have").textContent = formatNumber(state.mutagen || 0);
+  const prog = mutagenProgress();
+  document.getElementById("mutagen-fill").style.width = (prog * 100).toFixed(1) + "%";
+  const remSec = Math.ceil((1 - prog) * 20 * 60);
+  document.getElementById("mutagen-next").textContent = remSec > 60 ? `${Math.ceil(remSec / 60)}m` : `${remSec}s`;
+  const list = document.getElementById("mutagen-list");
+  list.innerHTML = "";
+  for (const g of GENERATORS) {
+    const lvl = genLevel(g.id), cost = genLevelCost(g.id);
+    const broke = (state.mutagen || 0) < cost;
+    const row = document.createElement("div");
+    row.className = "node" + (broke ? " broke" : "");
+    row.innerHTML = `
+      <div class="node-top"><span>${g.name}</span>
+        <span class="node-cost">${cost} 🧫</span></div>
+      <div class="node-desc">+5% ${g.name} output per level.</div>
+      <div class="node-lvl">Lv ${lvl} → +${(lvl + 1) * 5}%</div>`;
+    if (!broke) row.addEventListener("click", () => uiHandlers.onLevelOrganelle(g.id));
     list.appendChild(row);
   }
 }

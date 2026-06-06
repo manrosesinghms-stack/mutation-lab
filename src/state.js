@@ -31,6 +31,9 @@ function freshState() {
     helix: 0,              // Helix meta-currency from Transcending
     transcensions: 0,      // how many times Transcended
     helixNodes: {},        // { nodeId: level } purchased Helix meta-tree
+    mutagen: 0,            // slow-growing rare currency (Sugar-Lump analog)
+    mutagenStart: 0,       // ms timestamp the current Mutagen began ripening
+    genLevels: {},         // { genId: level } organelle levels bought with Mutagen
     upgrades: {},          // { upgradeId: true } purchased store upgrades (reset on Speciate)
     splices: {},           // { hybridKey: true } discovered Gene Splicer hybrids
     spliceReadyAt: 0,      // timestamp the Gene Splicer is next usable
@@ -102,6 +105,7 @@ export function load() {
       species: Array.isArray(data.species) ? data.species : [],
       equippedSpecies: Array.isArray(data.equippedSpecies) ? data.equippedSpecies : [],
       genomeNodes: (data.genomeNodes && typeof data.genomeNodes === "object") ? data.genomeNodes : {},
+      genLevels: (data.genLevels && typeof data.genLevels === "object") ? data.genLevels : {},
       helixNodes: (data.helixNodes && typeof data.helixNodes === "object") ? data.helixNodes : {},
       upgrades: (data.upgrades && typeof data.upgrades === "object") ? data.upgrades : {},
       splices: (data.splices && typeof data.splices === "object") ? data.splices : {},

@@ -104,6 +104,10 @@ export function getModifiers() {
   mods.prodMult *= 1 + 0.02 * Object.keys(state.splices || {}).length;
   // Challenge Tower — each cleared challenge is a permanent +8% production
   mods.prodMult *= 1 + 0.08 * Object.keys(state.challengesDone || {}).length;
+  // Mutagen organelle levels — +5% to that organelle per level
+  if (state.genLevels) for (const id in state.genLevels) {
+    mods.genMult[id] = (mods.genMult[id] || 1) * (1 + 0.05 * state.genLevels[id]);
+  }
   // Upgrade Store — purchased upgrades (persist across Evolve, reset on Speciate)
   const up = state.upgrades || {};
   for (const id in up) {
@@ -219,6 +223,31 @@ export function buyBroker() {
   state.biomass -= cost; M.brokers++; return true;
 }
 export function brokerCost() { const M = initMarket(); return marketUnitValue() * 2000 * (M.brokers + 1); }
+
+// ---- Mutagen (slow currency) + organelle levels ----
+const MUTAGEN_GROW_MS = 20 * 60 * 1000; // one ripens every ~20 min (counts offline)
+export function tickMutagen() {
+  const now = nowSeconds() * 1000;
+  if (!state.mutagenStart) { state.mutagenStart = now; return 0; }
+  const ripe = Math.floor((now - state.mutagenStart) / MUTAGEN_GROW_MS);
+  if (ripe > 0) { state.mutagen = (state.mutagen || 0) + ripe; state.mutagenStart += ripe * MUTAGEN_GROW_MS; return ripe; }
+  return 0;
+}
+export function mutagenProgress() {
+  const now = nowSeconds() * 1000;
+  if (!state.mutagenStart) return 0;
+  return Math.max(0, Math.min(1, ((now - state.mutagenStart) % MUTAGEN_GROW_MS) / MUTAGEN_GROW_MS));
+}
+export function genLevel(id) { return (state.genLevels && state.genLevels[id]) || 0; }
+export function genLevelCost(id) { return genLevel(id) + 1; } // Mutagen to reach the next level
+export function levelUpOrganelle(id) {
+  const cost = genLevelCost(id);
+  if ((state.mutagen || 0) < cost) return false;
+  state.mutagen -= cost;
+  state.genLevels = state.genLevels || {};
+  state.genLevels[id] = genLevel(id) + 1;
+  return true;
+}
 
 // ---- Transcend (3rd prestige layer): reset Genome/Species -> Helix ----
 export function helixNodeLevel(id) { return hLvl(state, id); }

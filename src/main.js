@@ -21,6 +21,8 @@ import {
   buyReagent,
   sellReagent,
   buyBroker,
+  tickMutagen,
+  levelUpOrganelle,
   doTranscend,
   canTranscend,
   buyHelixNode,
@@ -82,7 +84,8 @@ import {
 import { creatureName } from "./data/names.js";
 import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
          renderGenomeLab, genomeStatus, openHelp, showChoice, renderChallenges,
-         renderHelix, renderSplicer, spliceResult, renderUpgrades, renderMarket } from "./ui.js";
+         renderHelix, renderSplicer, spliceResult, renderUpgrades, renderMarket,
+         renderMutagen } from "./ui.js";
 import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
@@ -129,6 +132,10 @@ initUI({
   onBuyBroker: () => {
     if (buyBroker()) { audio.playMilestone(); renderMarket(); flashStatus("🤝 broker hired — lower fees"); save(); }
     else flashStatus("can't afford a broker");
+  },
+  onLevelOrganelle: (id) => {
+    if (levelUpOrganelle(id)) { audio.playBuy(2); renderMutagen(); flashStatus("🧫 organelle leveled up!"); save(); }
+    else flashStatus("not enough Mutagen");
   },
   onSave: () => flashStatus(save() ? "saved" : "save failed"),
   onWipe: () => {
@@ -875,6 +882,12 @@ function update() {
 
   // Mitosis Engine node: auto-buy organelles (only when toggled on)
   if (hasNode("auto_gen") && state.autoBuyOn !== false) autoBuyGenerators();
+  const ripened = tickMutagen();
+  if (ripened > 0) {
+    flashStatus(`🧫 Mutagen ripened! +${ripened} — spend it to level organelles`);
+    const mm = document.getElementById("mutagen-modal");
+    if (mm && !mm.classList.contains("hidden")) renderMutagen();
+  }
   autoTick(dt); // Helix auto-evolve / auto-speciate
   pruneTempBuffs(); // drop expired blooms/Digest buffs
 
