@@ -526,11 +526,9 @@ body.corrupted #panel-head h1 {
 
 #pressure-vignette {
   position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: 0;
-  box-shadow: inset 0 0 120px 24px rgba(255, 40, 48, .55), inset 0 0 320px 80px rgba(180, 12, 30, .35);
-  transition: opacity .4s ease;
+  box-shadow: inset 0 0 80px 6px rgba(255, 60, 66, .45);
+  transition: opacity .5s ease;
 }
-#pressure-vignette.crit { animation: pressurePulse 1.05s ease-in-out infinite; }
-@keyframes pressurePulse { 0%, 100% { opacity: var(--pv, .5) } 50% { opacity: calc(var(--pv, .5) + .35) } }
 
 #cinematic {
   position: fixed; inset: 0; z-index: 95; pointer-events: none;

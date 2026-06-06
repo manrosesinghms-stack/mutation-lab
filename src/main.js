@@ -38,6 +38,7 @@ import {
   buySkin,
 } from "./economy.js";
 import { SKIN_BY_ID } from "./data/skins.js";
+import { speciesTier, speciesTierColor } from "./data/tiers.js";
 import {
   initCreature,
   renderCreature,
@@ -55,6 +56,7 @@ import {
   setSkin,
   setAura,
   setHabitat,
+  setSpeciesTier,
   setBloomCallback,
   spawnBloom,
   hasBloom,
@@ -137,16 +139,21 @@ initUI({
     const res = doSpeciate();
     if (!res) { flashStatus("can't speciate yet — reach the wall first"); return; }
     resetParts();        // new lineage starts bald, re-grows as you draft
+    applyCreatureSkin(); // ascend the BASE body to the new species tier
+    const tier = speciesTier(state.speciations || 0);
+    setSpeciesTier(state.speciations || 0); // grander orbiting ascension crown
+    setAura(speciesTierColor(state.speciations || 0), 1.2);
     refreshGhosts();
     audio.playEvolve();
+    const tcol = "#" + tier.color.toString(16).padStart(6, "0");
     flash("rgba(255,177,61,0.55)");
     shake(22);
     const c = stageCenter();
-    burst(c.x, c.y, { count: 80, color: "#ffd76b", spread: 240, up: 0, life: 1000 });
+    burst(c.x, c.y, { count: 90, color: tcol, spread: 260, up: 0, life: 1100 });
     audio.playRoar();
     cinematicPulse();
-    playCinematic("SPECIATION", res.card.name, "#ffd76b");
-    flashStatus(`SPECIATED: ${res.card.name} · +${formatNumber(res.gain)} Genome`);
+    playCinematic(`◆ ${tier.name.toUpperCase()} ◆`, `${res.card.name} · Tier ${state.speciations}`, tcol);
+    flashStatus(`ASCENDED → ${tier.name} form · ${res.card.name} · +${formatNumber(res.gain)} Genome`);
     grantReroll(1);
     startNewRun();
     save();
@@ -190,7 +197,7 @@ initUI({
   onBuySkin: (id) => {
     const sk = buySkin(id);
     if (!sk) { genomeStatus("not enough Genome"); return; }
-    setSkin(SKIN_BY_ID[id]);
+    applyCreatureSkin();
     audio.playBuy(2);
     renderGenomeLab();
     save();
@@ -281,12 +288,21 @@ function updateCorruption(elapsed) {
 const pVig = document.getElementById("pressure-vignette");
 function updatePressureVignette(pressure) {
   if (!pVig) return;
-  const t = Math.max(0, Math.min(1, (pressure - 0.7) / 0.3));
-  const op = t * 0.85;
-  pVig.style.setProperty("--pv", op.toFixed(3));
-  pVig.style.opacity = op.toFixed(3);
-  const crit = pressure >= 0.98 && !state.reduceMotion;
-  pVig.classList.toggle("crit", crit);
+  // Only a faint hint as you ramp into the wall (0.85 -> 1.0), capped low so it
+  // never dominates. No constant heartbeat pulse — the "BODY MAXED" banner is
+  // the real signal; this is just ambient reinforcement.
+  const t = Math.max(0, Math.min(1, (pressure - 0.85) / 0.15));
+  pVig.style.opacity = (t * 0.28).toFixed(3);
+  pVig.classList.remove("crit");
+}
+
+// Choose the creature's base look: an equipped cosmetic skin wins; otherwise the
+// body shows its current Species-Tier palette (so "Wild Type" still escalates
+// visibly with each Speciation instead of always looking like the starting cell).
+function applyCreatureSkin() {
+  const id = state.skin || "default";
+  const cosmetic = id !== "default" ? SKIN_BY_ID[id] : null;
+  setSkin(cosmetic || speciesTier(state.speciations || 0).skin);
 }
 
 function refreshGhosts() {
@@ -414,7 +430,8 @@ if (!hasBackground(state.background)) state.background = "aurora";
 setBackground(state.background);
 setHabitat(state.biome); // theme the 3D habitat to the run's biome
 setVariant(state.variant); // apply any rare run variant
-setSkin(SKIN_BY_ID[state.skin] || SKIN_BY_ID.default); // apply equipped skin
+applyCreatureSkin();       // base body = cosmetic skin, else current species tier
+setSpeciesTier(state.speciations || 0); // restore the ascension crown
 
 const BIOME_ICON = { ocean: "🌊", volcanic: "🌋", verdant: "🌿", glacial: "❄️", abyssal: "🌌", voidrift: "🕳️" };
 function startNewRun() {

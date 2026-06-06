@@ -4,6 +4,7 @@
 // tentacles, clustered spikes, leafy fronds) as the player drafts mutations.
 
 import * as THREE from "three";
+import { speciesTier } from "./data/tiers.js";
 
 let renderer, scene, camera, organism, light;
 let canvas;
@@ -106,6 +107,59 @@ function makeOrganismGeometry(detail = 3, radius = 1) {
   }
   geo.computeVertexNormals();
   return geo;
+}
+
+// ---- Species Tier "ascension crown": orbiting glowing shards + halo rings that
+// escalate with each Speciation, so a higher lineage instantly looks grander. ----
+let tierGroup, tierIndex = 0;
+export function setSpeciesTier(n) {
+  tierIndex = Math.max(0, n | 0);
+  if (!scene) return;
+  if (!tierGroup) { tierGroup = new THREE.Group(); scene.add(tierGroup); }
+  while (tierGroup.children.length) {
+    const c = tierGroup.children[0];
+    tierGroup.remove(c);
+    if (c.geometry) c.geometry.dispose();
+    if (c.material) c.material.dispose();
+  }
+  const T = speciesTier(tierIndex);
+  const col = new THREE.Color(T.color);
+  for (let i = 0; i < T.crown; i++) {
+    const m = new THREE.Mesh(
+      new THREE.OctahedronGeometry(0.12, 0),
+      new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 1.5, flatShading: true, metalness: 0.3, roughness: 0.2 }));
+    m.userData.ang = (i / T.crown) * Math.PI * 2;
+    m.userData.tilt = (i % 2 ? 0.35 : -0.22);
+    m.userData.shard = true;
+    tierGroup.add(m);
+  }
+  for (let r = 0; r < T.rings; r++) {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(1.0, 0.016, 8, 72),
+      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
+    ring.rotation.x = Math.PI / 2 + (r * 0.45 - 0.2);
+    ring.userData.ring = true;
+    tierGroup.add(ring);
+  }
+}
+
+function updateTierCrown(dt, elapsed) {
+  if (!tierGroup) return;
+  const rad = currentScale * 1.55;
+  for (const c of tierGroup.children) {
+    if (c.userData.ring) {
+      c.scale.setScalar(currentScale * 1.5);
+      c.rotation.z += dt * 0.4;
+      continue;
+    }
+    const a = c.userData.ang + elapsed * 0.6;
+    c.position.set(
+      Math.cos(a) * rad,
+      Math.sin(a * 0.5 + c.userData.tilt) * 0.5 * currentScale + Math.sin(elapsed * 1.4 + a) * 0.08,
+      Math.sin(a) * rad);
+    c.rotation.x += dt * 1.6;
+    c.rotation.y += dt * 1.3;
+  }
 }
 
 // ---- Creature Habitat: a lab-tank / biome environment instead of a void ----
@@ -377,6 +431,9 @@ export function renderCreature(dt, elapsed) {
     } else {
       const h = (skin.h + hueShift) % 1;
       organism.material.color.setHSL(h, skin.s * (1 - 0.7 * stress), skin.l + 0.05 * stress);
+      // emissive glow tracks the body hue (was stuck green) so skin/tier palettes
+      // fully take over the creature instead of reading muddy green-on-colour
+      organism.material.emissive.setHSL(h, Math.min(1, skin.s * 0.8), 0.16 + stress * 0.06);
       organism.material.emissiveIntensity = skin.emi + stress * 1.3;
       organism.material.metalness = skin.metal;
       organism.material.roughness = skin.rough;
@@ -437,6 +494,7 @@ export function renderCreature(dt, elapsed) {
   }
 
   updateHabitat(dt, elapsed);
+  updateTierCrown(dt, elapsed);
 
   renderer.render(scene, camera);
 }
