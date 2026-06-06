@@ -13,6 +13,11 @@ import {
   acquireMutation,
   pressureLevel,
   doSpeciate,
+  canSpeciate,
+  doTranscend,
+  canTranscend,
+  buyHelixNode,
+  hasHelix,
   buyNode,
   toggleEquip,
   draftSize,
@@ -68,7 +73,8 @@ import {
 } from "./creature.js";
 import { creatureName } from "./data/names.js";
 import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
-         renderGenomeLab, genomeStatus, openHelp, showChoice, renderChallenges } from "./ui.js";
+         renderGenomeLab, genomeStatus, openHelp, showChoice, renderChallenges,
+         renderHelix } from "./ui.js";
 import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
@@ -173,6 +179,30 @@ initUI({
     grantReroll(1);
     startNewRun();
     save();
+  },
+  onTranscend: () => {
+    if (!canTranscend()) { flashStatus("can't Transcend yet — reach 8 Speciations first"); return; }
+    const res = doTranscend();
+    if (!res) return;
+    resetParts();
+    applyCreatureSkin();
+    setSpeciesTier(0);
+    setAura(0xffffff, 1.4);
+    setBodyShape(0, (state.runShapeSeed = Math.floor(Math.random() * 100000)));
+    refreshGhosts();
+    audio.playEvolve(); audio.playRoar();
+    cinematicPulse();
+    flash("rgba(200,160,255,0.6)"); shake(26);
+    const c = stageCenter();
+    burst(c.x, c.y, { count: 110, color: "#c8a0ff", spread: 300, up: 0, life: 1300 });
+    playCinematic("✦ TRANSCENDENCE ✦", `+${formatNumber(res.gain)} Helix · everything reborn`, "#c8a0ff");
+    flashStatus(`✦ TRANSCENDED — +${formatNumber(res.gain)} Helix. The Helix Tree awaits.`);
+    startNewRun();
+    save();
+  },
+  onBuyHelix: (id) => {
+    if (buyHelixNode(id)) { audio.playBuy(2); renderHelix(); save(); }
+    else flashStatus("not enough Helix");
   },
   onBuyNode: (id) => {
     if (buyNode(id)) { audio.playBuy(2); refreshGhosts(); renderGenomeLab(); genomeStatus("node upgraded"); save(); }
@@ -390,6 +420,48 @@ function pickMutation(id) {
   save();
 }
 
+// ---- Idle automation (Helix nodes Auto-Evolve / Auto-Speciate) ----
+let autoT = 0;
+function autoTick(dt) {
+  if (!hasHelix("autoevolve") && !hasHelix("autospec")) return;
+  autoT += dt;
+  if (autoT < 6) return;
+  // never act while the player is mid-draft / mid-event
+  if (!document.getElementById("draft-modal").classList.contains("hidden")) return;
+  if (!document.getElementById("choice-modal").classList.contains("hidden")) return;
+  autoT = 0;
+  if (hasHelix("autospec") && canSpeciate()) { autoSpeciate(); return; }
+  if (hasHelix("autoevolve") && canPrestige()) { autoEvolve(); }
+}
+function autoEvolve() {
+  const gained = doPrestige();
+  if (!gained) return;
+  // auto-resolve Genetic Instability so the modal never blocks idle play
+  if (state.mutations.length >= 14 && !state.instabilityResolved) {
+    state.instabilityResolved = true;
+    state.stabilizeBonus = Math.max(state.stabilizeBonus || 1, 1.5);
+  }
+  const ids = rollDraft(draftSize());
+  if (ids.length) {
+    const id = ids[(Math.random() * ids.length) | 0];
+    acquireMutation(id);
+    const d = getMutation(id);
+    onMutationGained(d && d.part);
+  }
+  startNewRun(true);
+  save();
+}
+function autoSpeciate() {
+  const res = doSpeciate();
+  if (!res) return;
+  resetParts();
+  applyCreatureSkin();
+  setSpeciesTier(state.speciations || 0);
+  refreshGhosts();
+  startNewRun(true);
+  save();
+}
+
 let instabilityOpen = false;
 function triggerInstability() {
   if (instabilityOpen) return;
@@ -473,7 +545,7 @@ applyCreatureSkin();       // base body = cosmetic skin, else current species ti
 setSpeciesTier(state.speciations || 0); // restore the ascension crown
 
 const BIOME_ICON = { ocean: "🌊", volcanic: "🌋", verdant: "🌿", glacial: "❄️", abyssal: "🌌", voidrift: "🕳️" };
-function startNewRun() {
+function startNewRun(silent) {
   // roll a biome → sets the backdrop + a build buff for this run
   const biome = rollBiome();
   setBackground(biome.background);
@@ -483,14 +555,14 @@ function startNewRun() {
   setBodyShape(state.speciations || 0, state.runShapeSeed);
   const parts = state.mutations.map((id) => getMutation(id)).filter((d) => d && d.part).map((d) => d.part);
   rebuildVisuals(parts, state.mutations.length);
-  flashStatus(`${BIOME_ICON[biome.id] || "🌍"} ${biome.name} — ${biome.desc}`);
-  rollAndApplyVariant();
+  if (!silent) flashStatus(`${BIOME_ICON[biome.id] || "🌍"} ${biome.name} — ${biome.desc}`);
+  rollAndApplyVariant(silent);
 }
 
-function rollAndApplyVariant() {
+function rollAndApplyVariant(silent) {
   const v = rollVariant();
   setVariant(state.variant);
-  if (!v) return;
+  if (!v || silent) return; // skip the fanfare during automation
   const col = v === "golden" ? "#ffd76b" : v === "crystal" ? "#9fe8ff" : "#7a2aff";
   flash(v === "golden" ? "rgba(255,215,107,.5)" : v === "crystal" ? "rgba(159,232,255,.5)" : "rgba(122,42,255,.55)");
   shake(16);
@@ -737,6 +809,7 @@ function update() {
 
   // Mitosis Engine node: auto-buy organelles (only when toggled on)
   if (hasNode("auto_gen") && state.autoBuyOn !== false) autoBuyGenerators();
+  autoTick(dt); // Helix auto-evolve / auto-speciate
   pruneTempBuffs(); // drop expired blooms/Digest buffs
 
   // milestone ding on each new power-of-ten of lifetime biomass

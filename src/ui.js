@@ -7,7 +7,9 @@ import {
   epForReset, canPrestige, effectiveClickPower, pressureLevel,
   canSpeciate, genomeForSpeciate, equipSlots, activeBuffs,
   currentWeekly, dailyBestToday, todaySeed,
+  canTranscend, transcendGain, helixNodeLevel, helixNodeCost,
 } from "./economy.js";
+import { HELIX_NODES } from "./data/helix.js";
 import { formatNumber } from "./format.js";
 import { getMutation, RARITY, MUTATIONS } from "./data/mutations.js";
 import { GENOME_NODES, nodeCost, nodeLevel } from "./data/genomeNodes.js";
@@ -50,6 +52,11 @@ export function initUI(handlers) {
   el.speciateGain = document.getElementById("speciate-gain");
   el.genomeBtn = document.getElementById("genome-btn");
   el.genomeValue = document.getElementById("genome-value");
+  el.transcendBtn = document.getElementById("transcend-btn");
+  el.transcendGain = document.getElementById("transcend-gain");
+  el.helixBtn = document.getElementById("helix-btn");
+  el.helixValue = document.getElementById("helix-value");
+  el.helixModal = document.getElementById("helix-modal");
   el.genomeModal = document.getElementById("genome-modal");
   el.nodeList = document.getElementById("node-list");
   el.speciesList = document.getElementById("species-list");
@@ -72,6 +79,9 @@ export function initUI(handlers) {
   el.speciateBtn.addEventListener("click", handlers.onSpeciate);
   el.genomeBtn.addEventListener("click", () => openGenomeLab());
   document.getElementById("genome-close").addEventListener("click", () => el.genomeModal.classList.add("hidden"));
+  el.transcendBtn.addEventListener("click", handlers.onTranscend);
+  el.helixBtn.addEventListener("click", () => openHelix());
+  document.getElementById("helix-close").addEventListener("click", () => el.helixModal.classList.add("hidden"));
   document.getElementById("export-btn").addEventListener("click", handlers.onExport);
   document.getElementById("import-btn").addEventListener("click", handlers.onImport);
   document.getElementById("fuse-btn").addEventListener("click", handlers.onFuse);
@@ -119,6 +129,32 @@ export function initUI(handlers) {
 }
 
 let uiHandlers = {};
+
+export function openHelix() {
+  renderHelix();
+  el.helixModal.classList.remove("hidden");
+}
+export function renderHelix() {
+  document.getElementById("helix-avail").textContent = formatNumber(state.helix || 0);
+  document.getElementById("transcensions-n").textContent = state.transcensions || 0;
+  const list = document.getElementById("helix-list");
+  list.innerHTML = "";
+  for (const n of HELIX_NODES) {
+    const lvl = helixNodeLevel(n.id);
+    const cost = helixNodeCost(n.id);
+    const maxed = !isFinite(cost);
+    const broke = !maxed && (state.helix || 0) < cost;
+    const row = document.createElement("div");
+    row.className = "node" + (maxed ? " maxed" : broke ? " broke" : "");
+    row.innerHTML = `
+      <div class="node-top"><span>${n.name}</span>
+        <span class="node-cost">${maxed ? (n.max > 1 ? "MAX" : "OWNED") : formatNumber(cost) + " 🌀"}</span></div>
+      <div class="node-desc">${n.desc}</div>
+      <div class="node-lvl">${n.max > 1 ? "Lv " + lvl + " / " + n.max : (lvl ? "active" : "locked")}</div>`;
+    if (!maxed && !broke) row.addEventListener("click", () => uiHandlers.onBuyHelix(n.id));
+    list.appendChild(row);
+  }
+}
 
 export function openGenomeLab() {
   renderGenomeLab();
@@ -460,6 +496,15 @@ export function renderUI(rate, dt = 0.016) {
   el.speciateBtn.classList.toggle("hidden", !canSpec);
   if (canSpec) el.speciateGain.textContent = `+${formatNumber(genomeForSpeciate())} Genome`;
   el.genomeValue.textContent = formatNumber(state.genome || 0);
+
+  // Transcend (3rd prestige) — button appears once it's unlockable; Helix tree
+  // button appears once you've ever Transcended or have Helix to spend.
+  const canTr = canTranscend();
+  el.transcendBtn.classList.toggle("hidden", !canTr);
+  if (canTr) el.transcendGain.textContent = `+${formatNumber(transcendGain())} Helix`;
+  const showHelix = (state.transcensions || 0) > 0 || (state.helix || 0) > 0;
+  el.helixBtn.classList.toggle("hidden", !showHelix);
+  if (showHelix) el.helixValue.textContent = formatNumber(state.helix || 0);
 
   // auto-buy toggle (only shown once the Mitosis Engine node is owned)
   if (nodeLevel(state, "auto_gen") > 0) {

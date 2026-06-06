@@ -11,6 +11,7 @@ import { completedSets } from "./data/sets.js";
 import { BIOMES, BIOME_BY_ID } from "./data/biomes.js";
 import { CHALLENGE_BY_ID } from "./data/challenges.js";
 import { SKIN_BY_ID } from "./data/skins.js";
+import { HELIX_NODES, HELIX_BY_ID, helixLevel as hLvl, helixCost as hCost } from "./data/helix.js";
 
 // buy (if needed) + equip a cosmetic skin; returns the skin or null
 export function buySkin(id) {
@@ -94,7 +95,47 @@ export function getModifiers() {
     if (a.prodMult) mods.prodMult *= a.prodMult;
     if (a.clickMult) mods.clickMult *= a.clickMult;
   }
+  // Helix meta-tree (3rd prestige) — permanent across every Transcension
+  mods.prodMult *= 1 + 0.30 * hLvl(state, "memory");
+  mods.clickMult *= 1 + 1.5 * hLvl(state, "touch");
   return mods;
+}
+
+// ---- Transcend (3rd prestige layer): reset Genome/Species -> Helix ----
+export function helixNodeLevel(id) { return hLvl(state, id); }
+export function helixNodeCost(id) { return hCost(state, id); }
+export function hasHelix(id) { return hLvl(state, id) > 0; }
+export function buyHelixNode(id) {
+  const c = hCost(state, id);
+  if (!isFinite(c) || (state.helix || 0) < c) return false;
+  state.helix -= c;
+  state.helixNodes = state.helixNodes || {};
+  state.helixNodes[id] = (state.helixNodes[id] || 0) + 1;
+  return true;
+}
+export function transcendGain() {
+  const base = Math.floor((state.speciations || 0) / 2) + Math.floor(Math.log10((state.genome || 0) + 1));
+  return Math.max(0, Math.floor(base * (1 + 0.20 * hLvl(state, "density"))));
+}
+export function canTranscend() { return (state.speciations || 0) >= 8 && transcendGain() >= 1; }
+export function doTranscend() {
+  if (!canTranscend()) return null;
+  const gain = transcendGain();
+  state.helix = (state.helix || 0) + gain;
+  state.transcensions = (state.transcensions || 0) + 1;
+  // wipe the two layers below (Helix + helixNodes + cosmetics/achievements persist)
+  const hs = hLvl(state, "headstart");
+  state.genome = 2 * hs;
+  state.species = []; state.equippedSpecies = [];
+  state.genomeNodes = {};
+  state.speciations = 0;
+  state.evolutionPoints = 0; state.mutations = []; state.prestiges = 0;
+  state.lastMilestoneExp = 2;
+  for (const g of GENERATORS) state.owned[g.id] = 0;
+  state.biomass = startBoostBiomass() + (hs > 0 ? Math.pow(10, hs) : 0);
+  state.runBiomass = state.biomass;
+  state.instabilityResolved = false; state.embraceChaos = false; state.stabilizeBonus = 1;
+  return { gain };
 }
 
 // Unlock any newly-discovered synergy traits / completed sets; returns new ones.

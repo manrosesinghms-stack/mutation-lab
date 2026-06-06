@@ -82,6 +82,11 @@
           <span class="evolve-gain" id="speciate-gain">+0 Genome</span>
         </button>
         <button id="genome-btn" class="ghost genome-open">🧬 Genome Lab · <b id="genome-value">0</b></button>
+        <button id="transcend-btn" class="transcend hidden">
+          <span class="evolve-label">✦ TRANSCEND</span>
+          <span class="evolve-gain" id="transcend-gain">+0 Helix</span>
+        </button>
+        <button id="helix-btn" class="ghost genome-open hidden">🌀 Helix Tree · <b id="helix-value">0</b></button>
         <div id="mutation-collection"><!-- chips injected by ui.js --></div>
       </section>
 
@@ -250,6 +255,18 @@
         <button id="viewdna-btn" class="ghost">🧬 View shared DNA</button>
         <span id="genome-status"></span>
       </div>
+    </div>
+  </div>
+
+  <!-- Helix tree modal (3rd prestige meta-tree) -->
+  <div id="helix-modal" class="hidden">
+    <div class="genome-inner codex-inner">
+      <div class="genome-head">
+        <h2>🌀 HELIX TREE</h2>
+        <button id="helix-close" class="ghost">✕ Close</button>
+      </div>
+      <p class="genome-hint" style="margin-top:10px">Permanent upgrades bought with <b>Helix</b> — they persist across every Transcension. <span id="helix-avail">0</span> Helix available · <span id="transcensions-n">0</span> Transcensions.</p>
+      <div id="helix-list"></div>
     </div>
   </div>
 

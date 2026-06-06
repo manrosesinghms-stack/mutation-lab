@@ -284,6 +284,22 @@ html, body {
 .speciate.hidden { display: none; }
 .speciate .evolve-gain { color: #ffd76b; font-size: 13px; }
 
+/* transcend button (3rd prestige) */
+.transcend {
+  width: 100%; margin-top: 8px;
+  display: flex; justify-content: space-between; align-items: center;
+  background: linear-gradient(90deg, #2a1457, #5a2b9a 60%, #8a3df0);
+  color: #f0e6ff; border: 1px solid #b88cff; border-radius: 12px;
+  padding: 12px 16px; font-weight: 800; letter-spacing: .12em; cursor: pointer;
+  box-shadow: 0 0 26px -6px rgba(184,140,255,.6);
+  animation: evoPulse 1.3s ease-in-out infinite;
+  transition: transform .06s ease, filter .2s ease;
+}
+.transcend:hover { filter: brightness(1.15); transform: translateY(-1px); }
+.transcend:active { transform: translateY(1px); }
+.transcend.hidden { display: none; }
+.transcend .evolve-gain { color: #d9c2ff; font-size: 13px; }
+
 .genome-open { width: 100%; margin-top: 8px; text-align: center; }
 .genome-open b { color: var(--accent2); }
 

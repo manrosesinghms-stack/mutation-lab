@@ -27,6 +27,10 @@ function freshState() {
     equippedSpecies: [],   // ids of currently-equipped species (capped by nodes)
     genomeNodes: {},       // { nodeId: level } purchased node grid
     speciations: 0,        // how many times Speciated
+    // --- Transcend layer (3rd prestige; persists across everything) ---
+    helix: 0,              // Helix meta-currency from Transcending
+    transcensions: 0,      // how many times Transcended
+    helixNodes: {},        // { nodeId: level } purchased Helix meta-tree
     rerolls: 0,            // draft reroll tokens
     challenge: null,       // active challenge id
     challengesDone: {},    // completed challenges
@@ -95,6 +99,7 @@ export function load() {
       species: Array.isArray(data.species) ? data.species : [],
       equippedSpecies: Array.isArray(data.equippedSpecies) ? data.equippedSpecies : [],
       genomeNodes: (data.genomeNodes && typeof data.genomeNodes === "object") ? data.genomeNodes : {},
+      helixNodes: (data.helixNodes && typeof data.helixNodes === "object") ? data.helixNodes : {},
       achievements: (data.achievements && typeof data.achievements === "object") ? data.achievements : {},
       discovered: (data.discovered && typeof data.discovered === "object") ? data.discovered : {},
       discoveredTraits: (data.discoveredTraits && typeof data.discoveredTraits === "object") ? data.discoveredTraits : {},
