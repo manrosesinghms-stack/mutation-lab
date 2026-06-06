@@ -105,6 +105,39 @@ export const ACHIEVEMENTS = [
   { id: "chal1", name: "Challenger", desc: "Complete a challenge", prodMult: 1.1, check: (s) => objCount(s.challengesDone) >= 1 },
   { id: "trait5", name: "Synergist", desc: "Discover 5 traits/sets", prodMult: 1.1, check: (s) => objCount(s.discoveredTraits) >= 5 },
   { id: "variant", name: "Rare Specimen", desc: "Roll a rare variant (Golden/Crystal/Void)", prodMult: 1.1, check: (s) => objCount(s.variantsSeen) >= 1 },
+
+  // ---- new systems (Roadmap 4) ----
+  { id: "mut_first", name: "Curator", desc: "Hold 1 Mutagen", prodMult: 1.05, check: (s) => (s.mutagen || 0) >= 1 },
+  { id: "mut_10", name: "Mutagen Hoard", desc: "Hold 10 Mutagen", prodMult: 1.08, check: (s) => (s.mutagen || 0) >= 10 },
+  { id: "lvl_first", name: "Refined", desc: "Level an organelle", prodMult: 1.05, check: (s) => objCount(s.genLevels) >= 1 },
+  { id: "lvl_all", name: "Fully Tuned", desc: "Level every organelle at least once", prodMult: 1.15, check: (s) => Object.values(s.genLevels || {}).filter((v) => v > 0).length >= 10 },
+  { id: "broker", name: "Insider", desc: "Hire a Broker", prodMult: 1.05, check: (s) => (s.market && s.market.brokers) >= 1 },
+  { id: "broker_max", name: "Wolf of Wall Cell", desc: "Hire 9 Brokers", prodMult: 1.15, check: (s) => (s.market && s.market.brokers) >= 9 },
+  { id: "garden_plant", name: "Gardener", desc: "Plant a strain", prodMult: 1.05, check: (s) => s.garden && s.garden.plots && s.garden.plots.some(Boolean) },
+  { id: "pantheon_full", name: "Ancestry", desc: "Fill all 3 Pantheon slots", prodMult: 1.12, check: (s) => s.pantheon && ["minor", "major", "apex"].every((k) => s.pantheon[k]) },
+  { id: "symb_adult", name: "Caretaker", desc: "Grow your Symbiote to Adult", prodMult: 1.1, check: (s) => (s.symbiote && s.symbiote.fed || 0) >= 15 },
+  { id: "symb_apex", name: "Apex Bond", desc: "Grow your Symbiote to Apex", prodMult: 1.15, check: (s) => (s.symbiote && s.symbiote.fed || 0) >= 30 },
+  { id: "aura_set", name: "Attuned", desc: "Attune a Symbiote aura", prodMult: 1.05, check: (s) => !!(s.symbiote && s.symbiote.aura) },
+  { id: "chal_all", name: "Tower Conqueror", desc: "Complete all 8 challenges", prodMult: 1.25, check: (s) => objCount(s.challengesDone) >= 8 },
+  { id: "upg30", name: "Engineer", desc: "Buy 30 store upgrades", prodMult: 1.12, check: (s) => objCount(s.upgrades) >= 30 },
+  { id: "spec50", name: "Phylogeny", desc: "Speciate 50 times", prodMult: 1.15, check: (s) => (s.speciations || 0) >= 50 },
+  { id: "tr25", name: "Infinite Lineage", desc: "Transcend 25 times", prodMult: 1.3, check: (s) => (s.transcensions || 0) >= 25 },
+  { id: "helix500", name: "Helix Sovereign", desc: "Hold 500 Helix", prodMult: 1.2, check: (s) => (s.helix || 0) >= 500 },
 ];
+
+// programmatic long-tail: biomass orders of magnitude (1e33 → 1e90) + click +
+// prestige tiers — endless escalating goals, each a small permanent bonus.
+for (let exp = 33; exp <= 159; exp += 2) {
+  ACHIEVEMENTS.push({ id: "bmx" + exp, name: `1e${exp} Biomass`, desc: `Reach 1e${exp} lifetime biomass`, prodMult: 1.03, check: (s) => (s.lifetimeBiomass || 0) >= Math.pow(10, exp) });
+}
+for (const hr of [2, 3, 10, 48, 168]) {
+  ACHIEVEMENTS.push({ id: "play" + hr + "h", name: `${hr}h Symbiosis`, desc: `Play for ${hr} hours total`, prodMult: 1.05, check: (s) => (s.playSeconds || 0) >= hr * 3600 });
+}
+for (const c of [1e5, 1e6, 5e6]) {
+  ACHIEVEMENTS.push({ id: "clk" + c, name: `${c >= 1e6 ? c / 1e6 + "M" : c / 1e3 + "K"} Clicks`, desc: `Click ${c >= 1e6 ? c / 1e6 + " million" : c / 1e3 + "K"} times`, clickMult: 1.08, check: (s) => (s.totalClicks || 0) >= c });
+}
+for (const p of [75, 100, 150, 200]) {
+  ACHIEVEMENTS.push({ id: "evo" + p, name: `${p} Evolutions`, desc: `Evolve ${p} times (one lineage)`, prodMult: 1.08, check: (s) => (s.prestiges || 0) >= p });
+}
 
 export const ACH_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]));
