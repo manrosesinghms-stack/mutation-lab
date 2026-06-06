@@ -215,11 +215,11 @@ setReduceMotion(!!state.reduceMotion);
 // --- Mitogen Bloom: golden clickable spawn -> frenzy buff (active-play upside) ---
 setBloomCallback((sx, sy) => {
   state.bloomCaught = true;
-  addTempBuff({ id: "bloom", prodMult: 7, durationMs: 20000 });
+  addTempBuff({ id: "bloom", prodMult: 4, durationMs: 20000 });
   audio.playMilestone();
   flash("rgba(255,215,107,0.4)");
   burst(sx, sy, { count: 40, color: "#ffd76b", spread: 160, life: 900 });
-  flashStatus("MITOGEN BLOOM! ×7 production for 20s");
+  flashStatus("MITOGEN BLOOM! ×4 production for 20s (temporary)");
 });
 // ~one bloom per minute when none is active
 setInterval(() => { if (!hasBloom() && Math.random() < 0.5) spawnBloom(); }, 30000);

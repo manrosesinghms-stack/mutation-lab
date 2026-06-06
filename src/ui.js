@@ -249,6 +249,7 @@ export function renderUI(rate, dt = 0.016) {
 
   // active temporary buffs (explains why /sec swings up then drops)
   const buffs = activeBuffs();
+  el.rate.classList.toggle("boosted", buffs.length > 0);
   if (buffs.length) {
     const now = Date.now();
     el.buffLine.classList.remove("hidden");
@@ -256,7 +257,7 @@ export function renderUI(rate, dt = 0.016) {
       const left = Math.max(0, Math.ceil((b.expiresAt - now) / 1000));
       const label = b.id === "bloom" ? "Frenzy" : b.id === "digest" ? "Digest" : b.id;
       const mult = b.prodMult ? `×${formatNumber(b.prodMult)}` : "";
-      return `⚡ ${label} ${mult} · ${left}s`;
+      return `⚡ ${label} ${mult} · ${left}s left (temporary)`;
     }).join("&nbsp;&nbsp;");
   } else {
     el.buffLine.classList.add("hidden");

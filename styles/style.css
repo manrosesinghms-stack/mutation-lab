@@ -80,6 +80,8 @@ html, body {
 .biomass { font-size: 34px; font-weight: 800; line-height: 1; }
 .biomass .unit { display:block; font-size: 12px; color: var(--muted); letter-spacing:.2em; text-transform:uppercase; margin-top:6px; font-weight:600;}
 .rate { color: var(--accent); font-size: 14px; margin-top: 10px; font-weight: 600; }
+#biomass-rate.boosted { color: #ffd76b; text-shadow: 0 0 12px rgba(255,215,107,.55); }
+#biomass-rate.boosted::after { content: " ⚡"; }
 .rate.small { color: var(--muted); margin-top: 2px; }
 .buff-line {
   margin-top: 8px; font-size: 12px; font-weight: 700; color: #ffd76b;
