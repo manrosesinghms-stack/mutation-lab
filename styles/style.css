@@ -138,7 +138,16 @@ html, body {
 #generators h2 {
   font-size: 12px; letter-spacing: .2em; text-transform: uppercase;
   color: var(--muted); margin: 0 0 10px;
+  display: flex; align-items: center; justify-content: space-between;
 }
+.autobuy {
+  background: transparent; border: 1px solid var(--line); border-radius: 7px;
+  color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: .05em;
+  padding: 3px 8px; cursor: pointer; text-transform: none;
+}
+.autobuy.off { color: var(--muted); }
+.autobuy:hover { border-color: var(--accent); }
+.autobuy.hidden { display: none; }
 #generator-list { display: flex; flex-direction: column; gap: 8px; }
 
 .gen {

@@ -37,6 +37,7 @@ function freshState() {
     playSeconds: 0,        // total time played
     totalClicks: 0,        // lifetime clicks
     skin: "default",       // equipped cosmetic skin
+    autoBuyOn: true,       // Mitosis Engine auto-buy toggle (pause to save up)
     skinsOwned: { default: true }, // purchased skins
     musicVolume: 0.5,      // 0..1 ambient music volume
     musicTrack: "lofi",    // selected music theme

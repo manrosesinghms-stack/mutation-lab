@@ -62,6 +62,8 @@ export function initUI(handlers) {
   el.draftCards = document.getElementById("draft-cards");
 
   el.muteBtn = document.getElementById("mute-btn");
+  el.autobuyToggle = document.getElementById("autobuy-toggle");
+  el.autobuyToggle.addEventListener("click", () => handlers.onToggleAutoBuy());
 
   document.getElementById("save-btn").addEventListener("click", handlers.onSave);
   document.getElementById("wipe-btn").addEventListener("click", handlers.onWipe);
@@ -450,6 +452,16 @@ export function renderUI(rate, dt = 0.016) {
   el.speciateBtn.classList.toggle("hidden", !canSpec);
   if (canSpec) el.speciateGain.textContent = `+${formatNumber(genomeForSpeciate())} Genome`;
   el.genomeValue.textContent = formatNumber(state.genome || 0);
+
+  // auto-buy toggle (only shown once the Mitosis Engine node is owned)
+  if (nodeLevel(state, "auto_gen") > 0) {
+    el.autobuyToggle.classList.remove("hidden");
+    const on = state.autoBuyOn !== false;
+    el.autobuyToggle.textContent = on ? "Auto-buy: ON" : "Auto-buy: OFF";
+    el.autobuyToggle.classList.toggle("off", !on);
+  } else {
+    el.autobuyToggle.classList.add("hidden");
+  }
 
   // mutation chips + creature name (rebuild only when the set changes)
   if (el._mutSig !== state.mutations.join(",")) {

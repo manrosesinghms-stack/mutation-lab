@@ -117,6 +117,12 @@ initUI({
     setMuteLabel(m);
     save();
   },
+  onToggleAutoBuy: () => {
+    const on = state.autoBuyOn !== false;
+    state.autoBuyOn = !on;
+    flashStatus(`auto-buy ${state.autoBuyOn ? "ON" : "OFF — save up for what you want"}`);
+    save();
+  },
   onSetVolume: (v) => { state.musicVolume = v; setMusicVolume(v); startMusic(); save(); },
   onSetTheme: (id) => { state.musicTrack = id; setMusicTheme(id); startMusic(); save(); },
   onSetShake: (v) => { state.shake = v; applyShakeSetting(v); save(); },
@@ -539,8 +545,8 @@ function update() {
   const rate = productionPerSecond();
   if (rate > 0) addBiomass(rate * dt);
 
-  // Mitosis Engine node: auto-buy organelles
-  if (hasNode("auto_gen")) autoBuyGenerators();
+  // Mitosis Engine node: auto-buy organelles (only when toggled on)
+  if (hasNode("auto_gen") && state.autoBuyOn !== false) autoBuyGenerators();
   pruneTempBuffs(); // drop expired blooms/Digest buffs
 
   // milestone ding on each new power-of-ten of lifetime biomass
