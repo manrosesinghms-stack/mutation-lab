@@ -46,6 +46,25 @@ html, body {
   pointer-events: none;
   animation: pulse 2.2s ease-in-out infinite;
 }
+#creature-name {
+  position: absolute; left: 50%; top: 22px; transform: translateX(-50%);
+  font-size: 20px; font-weight: 800; letter-spacing: .04em; text-align: center;
+  pointer-events: none; color: var(--ink);
+  text-shadow: 0 2px 12px rgba(0,0,0,.7);
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+#photo-bar {
+  position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%);
+  display: flex; gap: 10px; z-index: 5;
+}
+#photo-bar.hidden { display: none; }
+#photo-bar .ghost { background: rgba(15,22,31,.85); }
+
+/* photo mode: hide the side panel + UI, let the creature fill the screen */
+#app.photo-mode { grid-template-columns: 1fr 0; }
+#app.photo-mode #panel { display: none; }
+#app.photo-mode #creature-hint { display: none; }
 @keyframes pulse { 0%,100% { opacity:.35 } 50% { opacity:.9 } }
 
 /* ---------- Panel ---------- */
@@ -267,6 +286,12 @@ html, body {
 .mut-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
 .mut-pill { font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); }
 .mut-pill.locked { color: #3a4a5a; border-style: dashed; }
+.hist-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+.hist-row { display: flex; align-items: center; gap: 10px; background: var(--bg2);
+  border: 1px solid var(--line); border-left: 3px solid var(--accent2); border-radius: 8px; padding: 8px 12px; }
+.hist-n { color: var(--accent2); font-weight: 800; font-size: 13px; min-width: 22px; }
+.hist-name { font-weight: 700; font-size: 13px; }
+.hist-meta { color: var(--muted); font-size: 11px; margin-left: auto; }
 .ach-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .ach { background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; opacity: .5; }
 .ach.got { opacity: 1; border-color: var(--accent); }

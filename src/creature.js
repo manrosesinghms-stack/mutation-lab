@@ -102,7 +102,7 @@ export function initCreature(canvasEl, onClick) {
   canvas = canvasEl;
   onClickCb = onClick;
 
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
   scene = new THREE.Scene();
@@ -269,10 +269,13 @@ export function renderCreature(dt, elapsed) {
 
   if (partsGroup) {
     for (const p of partsGroup.children) {
-      // pop-in (juicy overshoot)
+      // emerge: grow + push out of the skin (juicy overshoot)
       if (p.userData.growT < 1) {
-        p.userData.growT = Math.min(1, p.userData.growT + dt * 2.4);
+        p.userData.growT = Math.min(1, p.userData.growT + dt * 2.0);
         p.scale.setScalar(Math.max(0.0001, easeOutBack(p.userData.growT) * p.userData.targetScale));
+        if (p.userData.fromPos && p.userData.toPos) {
+          p.position.lerpVectors(p.userData.fromPos, p.userData.toPos, p.userData.growT);
+        }
       }
       if (p.userData.sway) {
         p.rotation.z = p.userData.baseRotZ + Math.sin(elapsed * 2 + p.userData.seed) * 0.18;
@@ -493,8 +496,11 @@ export function addMutationPart(type) {
   const part = buildPart(type);
   // align the part's +Y to point outward from the body
   part.quaternion.setFromUnitVectors(UP, dir);
-  // sit on the lumpy surface (sink the base slightly so it doesn't float)
-  part.position.copy(dir).multiplyScalar(surfaceRadius(dir) - 0.05);
+  // emerge animation: start embedded in the body, push outward as it grows
+  const R = surfaceRadius(dir);
+  part.userData.fromPos = dir.clone().multiplyScalar(R * 0.55);
+  part.userData.toPos = dir.clone().multiplyScalar(R - 0.05);
+  part.position.copy(part.userData.fromPos);
   part.userData.growT = 0;
   part.userData.targetScale = 1;
   part.userData.baseRotZ = part.rotation.z;
@@ -522,6 +528,36 @@ export function rebuildVisuals(parts, totalMutations) {
 // Big squash on prestige.
 export function prestigeFlash() {
   punch = 1.8;
+}
+
+// Render a shareable PNG: the creature + a caption bar (name + mutation count).
+// Returns a data URL.
+export function exportPhoto(name, subtitle) {
+  if (!renderer) return null;
+  renderer.render(scene, camera); // ensure the buffer is current
+  const src = renderer.domElement;
+  const W = src.width, H = src.height;
+  const out = document.createElement("canvas");
+  out.width = W; out.height = H;
+  const ctx = out.getContext("2d");
+  // dark backdrop + the creature
+  const grad = ctx.createRadialGradient(W * 0.5, H * 0.4, 0, W * 0.5, H * 0.5, W * 0.7);
+  grad.addColorStop(0, "#16202c"); grad.addColorStop(1, "#0b0f14");
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(src, 0, 0, W, H);
+  // caption
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#e8f0f7";
+  ctx.font = `bold ${Math.round(W * 0.038)}px Segoe UI, system-ui, sans-serif`;
+  ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = 12;
+  ctx.fillText(name || "Mutation Lab", W / 2, H - Math.round(H * 0.075));
+  if (subtitle) {
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = "#7e93a8";
+    ctx.font = `${Math.round(W * 0.022)}px Segoe UI, system-ui, sans-serif`;
+    ctx.fillText(subtitle, W / 2, H - Math.round(H * 0.04));
+  }
+  return out.toDataURL("image/png");
 }
 
 // Clear all mutation parts (used on Speciate — new lineage starts bald).

@@ -12,6 +12,7 @@ import { getMutation, RARITY, MUTATIONS } from "./data/mutations.js";
 import { GENOME_NODES, nodeCost, nodeLevel } from "./data/genomeNodes.js";
 import { ACHIEVEMENTS } from "./data/achievements.js";
 import { MUSIC_THEMES } from "./music.js";
+import { creatureName } from "./data/names.js";
 
 const el = {};
 let onBuy = null;
@@ -26,6 +27,8 @@ export function initUI(handlers) {
   el.status = document.getElementById("status");
   el.fx = document.getElementById("fx-layer");
   el.buffLine = document.getElementById("buff-line");
+  el.creatureName = document.getElementById("creature-name");
+  el.setNaming = document.getElementById("set-naming");
   // evolution
   el.ep = document.getElementById("ep-value");
   el.prestige = document.getElementById("prestige-count");
@@ -84,6 +87,7 @@ export function initUI(handlers) {
   el.setShake.addEventListener("click", (e) => { const v = e.target.dataset.v; if (v) { handlers.onSetShake(v); renderSettings(); } });
   el.setReduce.addEventListener("change", () => { handlers.onSetReduce(el.setReduce.checked); renderSettings(); });
   el.setMute.addEventListener("click", () => { handlers.onMute(); renderSettings(); });
+  el.setNaming.addEventListener("click", (e) => { const v = e.target.dataset.v; if (v) { handlers.onSetNaming(v); renderSettings(); el._mutSig = null; } });
   uiHandlers = handlers;
 
   buildGeneratorRows();
@@ -126,6 +130,9 @@ function renderSettings() {
   }
   for (const b of el.setShake.querySelectorAll("button")) {
     b.classList.toggle("active", b.dataset.v === (state.shake || "subtle"));
+  }
+  for (const b of el.setNaming.querySelectorAll("button")) {
+    b.classList.toggle("active", b.dataset.v === (state.namingStyle || "scientific"));
   }
   el.setReduce.checked = !!state.reduceMotion;
   el.setMute.textContent = state.muted ? "🔇 Off" : "🔊 On";
@@ -171,8 +178,20 @@ function renderStats() {
       <div class="ab">${bonus}</div></div>`;
   }).join("");
 
+  // Species history (your evolutionary lineage)
+  const species = s.species || [];
+  const history = species.length
+    ? species.map((sp, i) => `<div class="hist-row">
+        <span class="hist-n">${i + 1}</span>
+        <span class="hist-name">${sp.name}</span>
+        <span class="hist-meta">${(sp.mutations || []).length} mutations · ×${formatNumber(Math.sqrt(Math.max(1, sp.strength || 1)))}</span>
+      </div>`).join("")
+    : `<div class="empty">No species yet — reach the wall and Speciate to start your lineage.</div>`;
+
   el.statsBody.innerHTML = `
     <div class="stats-grid">${stats}</div>
+    <h3>🧬 Species History · ${species.length} banked</h3>
+    <div class="hist-list">${history}</div>
     <h3>Mutations Discovered · ${discCount} / ${MUTATIONS.length}</h3>
     <div class="mut-grid">${pills}</div>
     <h3>Achievements · ${achCount} / ${ACHIEVEMENTS.length}</h3>
@@ -294,10 +313,11 @@ export function renderUI(rate, dt = 0.016) {
   if (canSpec) el.speciateGain.textContent = `+${formatNumber(genomeForSpeciate())} Genome`;
   el.genomeValue.textContent = formatNumber(state.genome || 0);
 
-  // mutation chips (rebuild only when the set changes)
+  // mutation chips + creature name (rebuild only when the set changes)
   if (el._mutSig !== state.mutations.join(",")) {
     el._mutSig = state.mutations.join(",");
     renderMutationChips();
+    el.creatureName.textContent = creatureName(state.mutations, state.namingStyle || "scientific");
   }
 
   for (const g of GENERATORS) {

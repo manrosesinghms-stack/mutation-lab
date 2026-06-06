@@ -19,7 +19,12 @@
     <!-- 3D creature lives here -->
     <div id="stage">
       <canvas id="creature-canvas"></canvas>
-      <div id="creature-hint">click the organism</div>
+      <div id="creature-name"></div>
+      <div id="creature-hint">click the organism · drag to spin</div>
+      <div id="photo-bar" class="hidden">
+        <button id="photo-shot" class="ghost">📸 Save screenshot</button>
+        <button id="photo-exit" class="ghost">✕ Exit photo mode</button>
+      </div>
     </div>
 
     <!-- UI overlay -->
@@ -76,6 +81,7 @@
         <button id="help-btn" class="ghost" title="How to play">❓</button>
         <button id="stats-btn" class="ghost">📊</button>
         <button id="settings-btn" class="ghost" title="Settings">⚙️</button>
+        <button id="photo-btn" class="ghost" title="Photo mode">📸</button>
         <button id="mute-btn" class="ghost" title="Toggle sound">🔊</button>
         <span id="status"></span>
       </footer>
@@ -135,6 +141,11 @@
       <div class="settings-body">
         <div class="set-row"><label>Sound effects</label><button id="set-mute" class="ghost">🔊 On</button></div>
         <div class="set-row"><label>Music volume</label><input id="set-volume" type="range" min="0" max="100" /></div>
+        <div class="set-row"><label>Creature name style</label>
+          <div id="set-naming" class="seg">
+            <button data-v="scientific">Scientific</button><button data-v="cute">Cute</button><button data-v="eldritch">Eldritch</button>
+          </div>
+        </div>
         <div class="set-row"><label>Music theme</label><div id="set-themes" class="seg"></div></div>
         <div class="set-row"><label>Screen shake</label>
           <div id="set-shake" class="seg">

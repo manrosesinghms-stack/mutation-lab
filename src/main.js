@@ -39,7 +39,9 @@ import {
   spawnBloom,
   hasBloom,
   engorgePop,
+  exportPhoto,
 } from "./creature.js";
+import { creatureName } from "./data/names.js";
 import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
          renderGenomeLab, genomeStatus, openHelp } from "./ui.js";
 import { formatNumber } from "./format.js";
@@ -100,6 +102,7 @@ initUI({
   onSetTheme: (id) => { state.musicTrack = id; setMusicTheme(id); startMusic(); save(); },
   onSetShake: (v) => { state.shake = v; applyShakeSetting(v); save(); },
   onSetReduce: (b) => { state.reduceMotion = b; setReduceMotion(b); save(); },
+  onSetNaming: (v) => { state.namingStyle = v; save(); },
   onSpeciate: () => {
     const res = doSpeciate();
     if (!res) { flashStatus("can't speciate yet — reach the wall first"); return; }
@@ -238,6 +241,31 @@ setInterval(() => {
     save();
   }
 }, 30000);
+
+// --- Photo Mode (hide UI, free-orbit, save a screenshot of your creature) ---
+const appEl = document.getElementById("app");
+const photoBar = document.getElementById("photo-bar");
+document.getElementById("photo-btn").addEventListener("click", () => {
+  appEl.classList.add("photo-mode");
+  photoBar.classList.remove("hidden");
+  setTimeout(resizeCreature, 60);
+});
+document.getElementById("photo-exit").addEventListener("click", () => {
+  appEl.classList.remove("photo-mode");
+  photoBar.classList.add("hidden");
+  setTimeout(resizeCreature, 60);
+});
+document.getElementById("photo-shot").addEventListener("click", () => {
+  const name = creatureName(state.mutations, state.namingStyle || "scientific");
+  const sub = `${state.mutations.length} mutations · evolution ${state.prestiges || 0} · Mutation Lab`;
+  const url = exportPhoto(name, sub);
+  if (!url) { flashStatus("screenshot failed"); return; }
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name.replace(/[^a-z0-9]+/gi, "_") + ".png";
+  a.click();
+  flashStatus("📸 screenshot saved");
+});
 
 // --- Digest button (opt-in biomass sink -> production surge) ---
 document.getElementById("digest-btn").addEventListener("click", () => {
