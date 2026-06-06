@@ -34,6 +34,7 @@ import {
   setStress,
   resetParts,
   setEquippedGhosts,
+  setReduceMotion,
   setBloomCallback,
   spawnBloom,
   hasBloom,
@@ -45,8 +46,8 @@ import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
 import * as audio from "./audio.js";
-import { startMusic, setMusicIntensity, setMusicVolume } from "./music.js";
-import { initJuice, burst, shake, updateJuice, flash } from "./juice.js";
+import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme } from "./music.js";
+import { initJuice, burst, shake, updateJuice, flash, setShakeScale } from "./juice.js";
 
 // screen-center of the 3D stage, for big bursts
 function stageCenter() {
@@ -95,6 +96,10 @@ initUI({
     setMuteLabel(m);
     save();
   },
+  onSetVolume: (v) => { state.musicVolume = v; setMusicVolume(v); startMusic(); save(); },
+  onSetTheme: (id) => { state.musicTrack = id; setMusicTheme(id); startMusic(); save(); },
+  onSetShake: (v) => { state.shake = v; applyShakeSetting(v); save(); },
+  onSetReduce: (b) => { state.reduceMotion = b; setReduceMotion(b); save(); },
   onSpeciate: () => {
     const res = doSpeciate();
     if (!res) { flashStatus("can't speciate yet — reach the wall first"); return; }
@@ -181,7 +186,8 @@ initCreature(canvas, (sx, sy) => {
   spawnFloatNumber(sx, sy, "+" + formatNumber(gain));
   audio.playClick(combo);
   burst(sx, sy, { count: 4 + Math.min(combo, 8), color: "#56e39f", spread: 55, life: 600 });
-  shake(1 + Math.min(combo, 18) * 0.25); // ~1px lone click, builds to ~5.5px at high combo
+  // (no per-click screen shake — the creature squash is the feedback; constant
+  //  clicking made the whole screen jitter. Shake is reserved for big events.)
 });
 
 initJuice();
@@ -194,20 +200,16 @@ const savedParts = state.mutations
 rebuildVisuals(savedParts, state.mutations.length);
 refreshGhosts(); // restore equipped-species ghost overlays
 
-// restore mute preference + music volume
+// apply persisted settings on boot
+const SHAKE_SCALE = { off: 0, subtle: 0.4, full: 1 };
+function applyShakeSetting(level) { setShakeScale(SHAKE_SCALE[level] != null ? SHAKE_SCALE[level] : 0.4); }
+
 audio.setMuted(!!state.muted);
 setMuteLabel(!!state.muted);
-const volSlider = document.getElementById("volume");
-const startVol = state.musicVolume == null ? 0.5 : state.musicVolume;
-volSlider.value = Math.round(startVol * 100);
-setMusicVolume(startVol);
-volSlider.addEventListener("input", () => {
-  const v = volSlider.value / 100;
-  state.musicVolume = v;
-  setMusicVolume(v);
-  startMusic();
-  save();
-});
+setMusicVolume(state.musicVolume == null ? 0.5 : state.musicVolume);
+setMusicTheme(state.musicTrack || "primordial");
+applyShakeSetting(state.shake || "subtle");
+setReduceMotion(!!state.reduceMotion);
 
 // --- Mitogen Bloom: golden clickable spawn -> frenzy buff (active-play upside) ---
 setBloomCallback((sx, sy) => {

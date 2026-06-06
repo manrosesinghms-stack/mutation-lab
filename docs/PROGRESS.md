@@ -130,4 +130,10 @@ Phase 0 walled production; Phase 2 (Speciate) now bounds the EP/prestige accumul
 ### 🎮 Game status: FEATURE-COMPLETE (gameplay)
 Phases 0–7 all done. The only remaining roadmap items (8 playtest, 9 marketing, 10 launch, 11 post-launch) are **user-dependent** — they need a human + a Steam account and can't be coded.
 
+## 🔧 Accessibility + audio options pass (2026-06-05, from playtest feedback)
+- **Screen shake was headache-inducing** (per-click shake fired on every click → constant jitter). Fix: **removed the per-click screen shake entirely** (the creature squash is the feedback); shake now only on big events and scaled by a setting. Added a **Settings panel** with **Screen shake: Off / Subtle / Full** (default Subtle) + a **Reduce motion** toggle (also gentler-by-default creature tremble, fully off under reduce-motion).
+- **Music variety:** refactored `music.js` into **6 selectable themes** — Primordial / Frenzy / Eldritch / Chiptune / Lo-fi / Off — chosen from the Settings panel, persisted.
+- New **⚙️ Settings modal** (footer) consolidates: sound-effects mute, music volume, music theme, screen shake, reduce motion. All persisted.
+- Verified live in Chrome: panel renders, theme/shake/reduce changes apply + persist, zero console errors.
+
 ## ▶️ Next (yours): playtest with real humans · Steam page + wishlists · Electron wrap + Steamworks · launch. Optional buildable extra: Electron desktop wrapper, daily-seed mode.

@@ -28,6 +28,9 @@ function freshState() {
     genomeNodes: {},       // { nodeId: level } purchased node grid
     speciations: 0,        // how many times Speciated
     musicVolume: 0.5,      // 0..1 ambient music volume
+    musicTrack: "primordial", // selected music theme
+    shake: "subtle",       // screen shake: off | subtle | full
+    reduceMotion: false,   // disable creature tremble + extra motion
     achievements: {},      // { achievementId: true } unlocked set
     discovered: {},        // { mutationId: true } every mutation ever drafted
     hitWall: false,        // ever reached the production wall (achievement)

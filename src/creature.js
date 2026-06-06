@@ -31,6 +31,9 @@ const UP = new THREE.Vector3(0, 1, 0);
 // Drive the "about to pop" look: desaturate + tremble + over-glow. 0..1.
 export function setStress(t) { stressTarget = Math.max(0, Math.min(1, t || 0)); }
 
+let reduceMotion = false;
+export function setReduceMotion(v) { reduceMotion = !!v; }
+
 export function setBloomCallback(cb) { onBloomCb = cb; }
 export function hasBloom() { return !!activeBloom; }
 export function engorgePop() { engorge = 1; }
@@ -251,7 +254,8 @@ export function renderCreature(dt, elapsed) {
     const h = (BASE_HSL.h + hueShift) % 1;
     organism.material.color.setHSL(h, BASE_HSL.s * (1 - 0.7 * stress), BASE_HSL.l + 0.05 * stress);
     organism.material.emissiveIntensity = 0.55 + stress * 1.3;
-    const tr = stress * 0.035;
+    // gentler tremble; fully off under reduce-motion (colour/glow still convey stress)
+    const tr = reduceMotion ? 0 : stress * 0.016;
     organism.position.set(
       tr > 0.0001 ? (Math.random() * 2 - 1) * tr : 0,
       tr > 0.0001 ? (Math.random() * 2 - 1) * tr : 0,

@@ -73,8 +73,8 @@
         <button id="save-btn" class="ghost">Save</button>
         <button id="wipe-btn" class="ghost danger">Wipe</button>
         <button id="stats-btn" class="ghost">📊</button>
+        <button id="settings-btn" class="ghost" title="Settings">⚙️</button>
         <button id="mute-btn" class="ghost" title="Toggle sound">🔊</button>
-        <input id="volume" type="range" min="0" max="100" value="50" title="Music volume" />
         <span id="status"></span>
       </footer>
     </aside>
@@ -84,6 +84,29 @@
   <div id="fx-layer"></div>
   <!-- prestige flash overlay -->
   <div id="flash"></div>
+
+  <!-- settings modal -->
+  <div id="settings-modal" class="hidden">
+    <div class="genome-inner settings-inner">
+      <div class="genome-head">
+        <h2>⚙️ SETTINGS</h2>
+        <button id="settings-close" class="ghost">✕ Close</button>
+      </div>
+      <div class="settings-body">
+        <div class="set-row"><label>Sound effects</label><button id="set-mute" class="ghost">🔊 On</button></div>
+        <div class="set-row"><label>Music volume</label><input id="set-volume" type="range" min="0" max="100" /></div>
+        <div class="set-row"><label>Music theme</label><div id="set-themes" class="seg"></div></div>
+        <div class="set-row"><label>Screen shake</label>
+          <div id="set-shake" class="seg">
+            <button data-v="off">Off</button><button data-v="subtle">Subtle</button><button data-v="full">Full</button>
+          </div>
+        </div>
+        <div class="set-row"><label>Reduce motion</label>
+          <label class="switch"><input id="set-reduce" type="checkbox" /><span class="track"></span></label>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- stats & collection modal -->
   <div id="stats-modal" class="hidden">

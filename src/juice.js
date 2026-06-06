@@ -5,6 +5,9 @@ let fxLayer = null;
 let shakeEl = null;
 let flashEl = null;
 let shakeAmt = 0;
+let shakeScale = 0.5; // global multiplier on all shake (0 = off); set from settings
+
+export function setShakeScale(v) { shakeScale = Math.max(0, v || 0); }
 
 export function initJuice() {
   fxLayer = document.getElementById("fx-layer");
@@ -41,9 +44,11 @@ export function burst(x, y, {
   }
 }
 
-// Request a screen shake (intensity in px). Strongest request wins.
+// Request a screen shake (intensity in px). Strongest request wins. Scaled by
+// the global setting (0 = off).
 export function shake(amount) {
-  shakeAmt = Math.max(shakeAmt, amount);
+  if (shakeScale <= 0) return;
+  shakeAmt = Math.max(shakeAmt, amount * shakeScale);
 }
 
 // Call every frame with dt (seconds) to decay + apply the shake transform.
