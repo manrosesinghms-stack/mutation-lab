@@ -604,14 +604,14 @@ initCreature(canvas, (sx, sy) => {
   const now = performance.now();
   combo = now - lastClickAt < 600 ? combo + 1 : 0;
   lastClickAt = now;
-  const gain = click();
+  const crit = combo >= 12; // chained-click "critical extraction"
+  const gain = click(crit ? 5 : 1); // crit multiplies the actual payout, not just the sparkle
   state.totalClicks = (state.totalClicks || 0) + 1;
   startMusic(); // first user gesture — kick off ambient music
-  const crit = combo >= 12; // chained-click "critical extraction"
   spawnFloatNumber(sx, sy, (crit ? "⚡" : "+") + formatNumber(gain));
   audio.playClick(combo);
   // first crit of a streak: a satisfying banner + ding (not every click → no spam)
-  if (combo === 12) { flashStatus("⚡ CRITICAL EXTRACTION! — chained clicks"); audio.playMilestone(); }
+  if (combo === 12) { flashStatus("⚡ CRITICAL EXTRACTION! — chained clicks · ×5"); audio.playMilestone(); }
   ripple(sx, sy, crit ? "#ffd76b" : "#7be3b0");
   flyToCounter(sx, sy, crit ? "#ffd76b" : "#7be3b0");
   burst(sx, sy, { count: 4 + Math.min(combo, 8), color: crit ? "#ffd76b" : "#56e39f", spread: 55, life: 600 });

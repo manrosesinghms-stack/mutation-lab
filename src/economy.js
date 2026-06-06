@@ -542,14 +542,19 @@ export function productionPerSecond() {
 }
 
 // Click power after mutation modifiers.
+// A click yields a flat base PLUS a share of current production/sec, so tapping
+// the cell stays meaningful at every scale (passive multipliers can't drown it
+// out). Both halves scale with clickMult, so click upgrades/frenzies still bite.
 export function effectiveClickPower() {
-  return state.clickPower * getModifiers().clickMult;
+  const share = (TUN.click && TUN.click.prodShare) || 0;
+  const base = state.clickPower + productionPerSecond() * share;
+  return base * getModifiers().clickMult;
 }
 
-// A manual click.
-export function click() {
+// A manual click. critMult multiplies the payout (combo "critical extraction").
+export function click(critMult = 1) {
   if (challengeRule() === "noClick") return 0; // Pacifist challenge
-  const gain = effectiveClickPower();
+  const gain = effectiveClickPower() * critMult;
   addBiomass(gain);
   return gain;
 }

@@ -27,6 +27,16 @@ export const TUN = {
                              // S, production still climbs noticeably (sqrt-ish)
   },
 
+  // Clicking — keep the core verb meaningful at every scale. A click is worth a
+  // flat base PLUS a share of current production/sec, so tapping always lands a
+  // real chunk even when passive multipliers dominate (Cookie-Clicker-style
+  // "% of CpS per click"). Combo crits multiply the whole payout.
+  click: {
+    prodShare: 0.03,  // each click also yields 3% of production/sec
+    critCombo: 12,    // chained clicks within 600ms to trigger a critical
+    critMult: 5,      // a critical extraction pays 5× the click
+  },
+
   // Per-generator saturation — discourages dumping everything into one organelle.
   // Each generator's raw output is softcapped before the global mults apply.
   genSaturation: {
