@@ -75,15 +75,64 @@ const easeOutBack = (t) => {
 
 // Layered pseudo-noise over a unit direction — the SAME field used to deform the
 // body, so we can also query it to place parts exactly on the lumpy surface.
+// Body shape is parameterized by a "profile" (surface character) + a per-run
+// seed (so runs differ) + a base-scale vector (overall silhouette proportions).
+// Both the geometry AND part placement read bumpAt(), so they stay consistent.
+let shapeProfile = { a1: 0.18, f1: 4.0, a2: 0.12, f2: 6.0, a3: 0.08, f3: 8.0, lobe: 0, lobeF: 1.6, spike: 0 };
+let shapeSeed = 0;
+let bodyDetail = 3;
+const bodyScale = new THREE.Vector3(1, 1, 1);
+
+// Per-tier silhouettes: scale = overall proportions, detail = facet count
+// (low = angular/crystalline), profile = surface character.
+const TIER_SHAPE = [
+  { scale: [1, 1, 1],          detail: 3, profile: { a1: 0.18, f1: 4.0, a2: 0.12, f2: 6.0, a3: 0.08, f3: 8.0, lobe: 0,    lobeF: 1.6, spike: 0 } },     // Protocell — round
+  { scale: [0.82, 1.34, 0.82], detail: 3, profile: { a1: 0.12, f1: 3.2, a2: 0.10, f2: 5.0, a3: 0.06, f3: 7.0, lobe: 0,    lobeF: 1.4, spike: 0 } },     // Luminark — tall teardrop
+  { scale: [1.05, 1.05, 1.05], detail: 1, profile: { a1: 0.08, f1: 3.0, a2: 0.06, f2: 4.0, a3: 0.05, f3: 6.0, lobe: 0,    lobeF: 1.4, spike: 0.06 } },  // Crystalis — faceted crystal
+  { scale: [1.18, 0.92, 1.12], detail: 3, profile: { a1: 0.16, f1: 3.4, a2: 0.10, f2: 5.0, a3: 0.07, f3: 7.0, lobe: 0.28, lobeF: 1.7, spike: 0 } },     // Aurean — multi-lobed cluster
+  { scale: [1.0, 1.06, 1.0],   detail: 2, profile: { a1: 0.14, f1: 4.0, a2: 0.10, f2: 6.0, a3: 0.07, f3: 8.0, lobe: 0.1,  lobeF: 2.0, spike: 0.34 } },   // Voidborn — spiky core
+  { scale: [1.12, 1.12, 1.12], detail: 2, profile: { a1: 0.12, f1: 3.6, a2: 0.10, f2: 5.4, a3: 0.07, f3: 7.4, lobe: 0.22, lobeF: 2.2, spike: 0.3 } },    // Celestial — radiant star-form
+];
+
 function bumpAt(n) {
-  return (
-    0.18 * Math.sin(n.x * 4.0 + n.y * 2.0) +
-    0.12 * Math.sin(n.y * 6.0 + n.z * 3.0) +
-    0.08 * Math.cos(n.z * 8.0 + n.x * 5.0)
-  );
+  const s = shapeSeed, p = shapeProfile;
+  let b =
+    p.a1 * Math.sin(n.x * p.f1 + n.y * 2.0 + s) +
+    p.a2 * Math.sin(n.y * p.f2 + n.z * 3.0 + s * 1.7) +
+    p.a3 * Math.cos(n.z * p.f3 + n.x * 5.0 + s * 2.3);
+  if (p.lobe) b += p.lobe * Math.sin(n.y * p.lobeF + s) * Math.cos(n.x * p.lobeF * 0.8 + s);
+  if (p.spike) {
+    const v = Math.sin(n.x * 7 + s) * Math.sin(n.y * 7 + s * 1.3) * Math.sin(n.z * 7 + s * 0.7);
+    b += p.spike * Math.pow(Math.max(0, v), 3);
+  }
+  return b;
 }
 function surfaceRadius(dir) {
   return 1 + bumpAt(dir);
+}
+
+// Rebuild the body mesh (and its shared fresnel shell) for the current shape.
+function rebuildBody() {
+  if (!organism) return;
+  const geo = makeOrganismGeometry(bodyDetail, 1);
+  const old = organism.geometry;
+  organism.geometry = geo;
+  if (rimMesh) rimMesh.geometry = geo;
+  if (old) old.dispose();
+}
+
+// Set the body silhouette from the species tier + a per-run seed. Returns true
+// if the caller should re-seat existing parts (rebuildVisuals) onto the new body.
+export function setBodyShape(tier, seed) {
+  const T = TIER_SHAPE[Math.min(Math.max(0, tier | 0), TIER_SHAPE.length - 1)];
+  shapeProfile = { ...T.profile };
+  shapeSeed = (seed || 0) * 0.137;
+  bodyDetail = T.detail;
+  // per-run scale jitter (deterministic from seed) so two same-tier runs differ
+  const j = (k) => 1 + Math.sin((seed || 0) * 12.9898 + k) * 0.5 * 0.16;
+  bodyScale.set(T.scale[0] * j(1), T.scale[1] * j(2), T.scale[2] * j(3));
+  rebuildBody();
+  return true;
 }
 
 // Evenly-distributed direction on a sphere (fibonacci) for socket placement.
@@ -406,9 +455,9 @@ export function renderCreature(dt, elapsed) {
   // base scale + breathing + per-axis jelly jiggle
   const breathe = 1 + Math.sin(elapsed * 1.6) * 0.02;
   organism.scale.set(
-    currentScale * squash * breathe * (1 + Math.sin(elapsed * 2.3) * 0.022),
-    currentScale * stretch * breathe * (1 + Math.sin(elapsed * 1.9 + 2) * 0.022),
-    currentScale * squash * breathe * (1 + Math.sin(elapsed * 2.6 + 4) * 0.022)
+    bodyScale.x * currentScale * squash * breathe * (1 + Math.sin(elapsed * 2.3) * 0.022),
+    bodyScale.y * currentScale * stretch * breathe * (1 + Math.sin(elapsed * 1.9 + 2) * 0.022),
+    bodyScale.z * currentScale * squash * breathe * (1 + Math.sin(elapsed * 2.6 + 4) * 0.022)
   );
   // Digest swell
   engorge += (0 - engorge) * Math.min(1, dt * 2);

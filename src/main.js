@@ -57,6 +57,7 @@ import {
   setAura,
   setHabitat,
   setSpeciesTier,
+  setBodyShape,
   setBloomCallback,
   spawnBloom,
   hasBloom,
@@ -407,6 +408,8 @@ initBackground(document.getElementById("bg-canvas"));
 initCinematic();
 
 // restore creature parts from a saved game (visual mutations only)
+if (state.runShapeSeed == null) state.runShapeSeed = 1;
+setBodyShape(state.speciations || 0, state.runShapeSeed); // shape the body BEFORE seating parts
 const savedParts = state.mutations
   .map((id) => getMutation(id))
   .filter((d) => d && d.part)
@@ -439,6 +442,11 @@ function startNewRun() {
   const biome = rollBiome();
   setBackground(biome.background);
   setHabitat(biome.id);
+  // re-roll the body silhouette so each run looks different, then re-seat parts
+  state.runShapeSeed = Math.floor(Math.random() * 100000);
+  setBodyShape(state.speciations || 0, state.runShapeSeed);
+  const parts = state.mutations.map((id) => getMutation(id)).filter((d) => d && d.part).map((d) => d.part);
+  rebuildVisuals(parts, state.mutations.length);
   flashStatus(`${BIOME_ICON[biome.id] || "🌍"} ${biome.name} — ${biome.desc}`);
   rollAndApplyVariant();
 }
