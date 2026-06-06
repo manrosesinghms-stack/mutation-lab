@@ -46,7 +46,7 @@ import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
 import * as audio from "./audio.js";
-import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme } from "./music.js";
+import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme, hasTheme } from "./music.js";
 import { initJuice, burst, shake, updateJuice, flash, setShakeScale } from "./juice.js";
 
 // screen-center of the 3D stage, for big bursts
@@ -207,7 +207,8 @@ function applyShakeSetting(level) { setShakeScale(SHAKE_SCALE[level] != null ? S
 audio.setMuted(!!state.muted);
 setMuteLabel(!!state.muted);
 setMusicVolume(state.musicVolume == null ? 0.5 : state.musicVolume);
-setMusicTheme(state.musicTrack || "primordial");
+if (!hasTheme(state.musicTrack)) state.musicTrack = "lofi"; // migrate old/unknown
+setMusicTheme(state.musicTrack);
 applyShakeSetting(state.shake || "subtle");
 setReduceMotion(!!state.reduceMotion);
 

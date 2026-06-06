@@ -81,6 +81,12 @@ html, body {
 .biomass .unit { display:block; font-size: 12px; color: var(--muted); letter-spacing:.2em; text-transform:uppercase; margin-top:6px; font-weight:600;}
 .rate { color: var(--accent); font-size: 14px; margin-top: 10px; font-weight: 600; }
 .rate.small { color: var(--muted); margin-top: 2px; }
+.buff-line {
+  margin-top: 8px; font-size: 12px; font-weight: 700; color: #ffd76b;
+  letter-spacing: .02em; animation: warnPulse 1.4s ease-in-out infinite;
+}
+.buff-line.hidden { display: none; }
+
 .digest {
   margin-top: 12px; width: 100%;
   background: transparent; color: var(--accent2);

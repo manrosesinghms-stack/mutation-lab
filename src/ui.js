@@ -5,7 +5,7 @@ import { GENERATORS } from "./data/generators.js";
 import {
   costOf, canAfford, isUnlocked,
   epForReset, canPrestige, effectiveClickPower, pressureLevel,
-  canSpeciate, genomeForSpeciate, equipSlots,
+  canSpeciate, genomeForSpeciate, equipSlots, activeBuffs,
 } from "./economy.js";
 import { formatNumber } from "./format.js";
 import { getMutation, RARITY, MUTATIONS } from "./data/mutations.js";
@@ -25,6 +25,7 @@ export function initUI(handlers) {
   el.genList = document.getElementById("generator-list");
   el.status = document.getElementById("status");
   el.fx = document.getElementById("fx-layer");
+  el.buffLine = document.getElementById("buff-line");
   // evolution
   el.ep = document.getElementById("ep-value");
   el.prestige = document.getElementById("prestige-count");
@@ -245,6 +246,21 @@ export function renderUI(rate, dt = 0.016) {
   el.biomass.textContent = formatNumber(el._dispBiomass);
   el.rate.textContent = formatNumber(rate);
   el.click.textContent = formatNumber(effectiveClickPower());
+
+  // active temporary buffs (explains why /sec swings up then drops)
+  const buffs = activeBuffs();
+  if (buffs.length) {
+    const now = Date.now();
+    el.buffLine.classList.remove("hidden");
+    el.buffLine.innerHTML = buffs.map((b) => {
+      const left = Math.max(0, Math.ceil((b.expiresAt - now) / 1000));
+      const label = b.id === "bloom" ? "Frenzy" : b.id === "digest" ? "Digest" : b.id;
+      const mult = b.prodMult ? `×${formatNumber(b.prodMult)}` : "";
+      return `⚡ ${label} ${mult} · ${left}s`;
+    }).join("&nbsp;&nbsp;");
+  } else {
+    el.buffLine.classList.add("hidden");
+  }
 
   // evolution readouts
   el.ep.textContent = formatNumber(state.evolutionPoints || 0);
