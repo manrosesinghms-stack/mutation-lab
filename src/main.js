@@ -75,7 +75,7 @@ import * as audio from "./audio.js";
 import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme, hasTheme, setMusicStress, setMusicDanger } from "./music.js";
 import { initCinematic, playCinematic } from "./cinematic.js";
 import { initJuice, burst, shake, updateJuice, flash, setShakeScale, setJuiceReduceMotion, ripple, flyToCounter } from "./juice.js";
-import { initBackground, renderBackground, setBackground, hasBackground, resizeBackground } from "./background.js";
+import { initBackground, renderBackground, setBackground, hasBackground, resizeBackground, setBackgroundReduceMotion } from "./background.js";
 
 // screen-center of the 3D stage, for big bursts
 function stageCenter() {
@@ -134,7 +134,7 @@ initUI({
   onSetVolume: (v) => { state.musicVolume = v; setMusicVolume(v); startMusic(); save(); },
   onSetTheme: (id) => { state.musicTrack = id; setMusicTheme(id); startMusic(); save(); },
   onSetShake: (v) => { state.shake = v; applyShakeSetting(v); save(); },
-  onSetReduce: (b) => { state.reduceMotion = b; setReduceMotion(b); setJuiceReduceMotion(b); save(); },
+  onSetReduce: (b) => { state.reduceMotion = b; setReduceMotion(b); setJuiceReduceMotion(b); setBackgroundReduceMotion(b); save(); },
   onSetGraphics: (v) => {
     state.graphics = v;
     setQuality(v);
@@ -441,6 +441,7 @@ setMusicTheme(state.musicTrack);
 applyShakeSetting(state.shake || "subtle");
 setReduceMotion(!!state.reduceMotion);
 setJuiceReduceMotion(!!state.reduceMotion);
+setBackgroundReduceMotion(!!state.reduceMotion);
 if (!hasBackground(state.background)) state.background = "aurora";
 setBackground(state.background);
 setHabitat(state.biome); // theme the 3D habitat to the run's biome
