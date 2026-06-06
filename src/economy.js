@@ -13,6 +13,7 @@ import { CHALLENGE_BY_ID } from "./data/challenges.js";
 import { SKIN_BY_ID } from "./data/skins.js";
 import { HELIX_NODES, HELIX_BY_ID, helixLevel as hLvl, helixCost as hCost } from "./data/helix.js";
 import { HYBRID_BY_KEY, spliceKey } from "./data/hybrids.js";
+import { UPGRADES, UPG_BY_ID } from "./data/upgrades.js";
 
 // buy (if needed) + equip a cosmetic skin; returns the skin or null
 export function buySkin(id) {
@@ -101,7 +102,40 @@ export function getModifiers() {
   mods.clickMult *= 1 + 1.5 * hLvl(state, "touch");
   // Gene Splicer — each discovered Hybrid is a small permanent production bonus
   mods.prodMult *= 1 + 0.02 * Object.keys(state.splices || {}).length;
+  // Upgrade Store — purchased upgrades (persist across Evolve, reset on Speciate)
+  const up = state.upgrades || {};
+  for (const id in up) {
+    if (!up[id]) continue;
+    const u = UPG_BY_ID[id];
+    if (!u) continue;
+    if (u.gen) mods.genMult[u.gen] = (mods.genMult[u.gen] || 1) * u.mult;
+    if (u.click) mods.clickMult *= u.click;
+    if (u.prod) mods.prodMult *= u.prod;
+  }
   return mods;
+}
+
+// ---- Upgrade Store ----
+export function upgradeUnlocked(u) {
+  if (u.unlock.gen) return (state.owned[u.unlock.gen] || 0) >= u.unlock.n;
+  if (u.unlock.lifetime) return (state.lifetimeBiomass || 0) >= u.unlock.lifetime;
+  return false;
+}
+export function upgradeOwned(id) { return !!(state.upgrades || {})[id]; }
+// upgrades the player can see RIGHT NOW: unlocked + not yet bought
+export function availableUpgrades() {
+  return UPGRADES.filter((u) => !upgradeOwned(u.id) && upgradeUnlocked(u));
+}
+export function affordableUpgradeCount() {
+  return availableUpgrades().filter((u) => state.biomass >= u.cost).length;
+}
+export function buyUpgrade(id) {
+  const u = UPG_BY_ID[id];
+  if (!u || upgradeOwned(id) || !upgradeUnlocked(u) || state.biomass < u.cost) return false;
+  state.biomass -= u.cost;
+  state.upgrades = state.upgrades || {};
+  state.upgrades[id] = true;
+  return true;
 }
 
 // ---- Gene Splicer minigame ----
@@ -157,6 +191,7 @@ export function doTranscend() {
   state.biomass = startBoostBiomass() + (hs > 0 ? Math.pow(10, hs) : 0);
   state.runBiomass = state.biomass;
   state.instabilityResolved = false; state.embraceChaos = false; state.stabilizeBonus = 1;
+  state.upgrades = {};
   return { gain };
 }
 
@@ -442,6 +477,7 @@ export function doSpeciate() {
   state.runBiomass = state.biomass;
   for (const g of GENERATORS) state.owned[g.id] = 0;
   state.instabilityResolved = false; state.embraceChaos = false; state.stabilizeBonus = 1;
+  state.upgrades = {}; // upgrade-store toolkit resets on the big reset
   return { card, gain, banked };
 }
 

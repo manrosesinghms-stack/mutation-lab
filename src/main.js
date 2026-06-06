@@ -15,6 +15,7 @@ import {
   doSpeciate,
   canSpeciate,
   doSplice,
+  buyUpgrade,
   doTranscend,
   canTranscend,
   buyHelixNode,
@@ -75,7 +76,7 @@ import {
 import { creatureName } from "./data/names.js";
 import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
          renderGenomeLab, genomeStatus, openHelp, showChoice, renderChallenges,
-         renderHelix, renderSplicer, spliceResult } from "./ui.js";
+         renderHelix, renderSplicer, spliceResult, renderUpgrades } from "./ui.js";
 import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
@@ -200,6 +201,10 @@ initUI({
     flashStatus(`✦ TRANSCENDED — +${formatNumber(res.gain)} Helix. The Helix Tree awaits.`);
     startNewRun();
     save();
+  },
+  onBuyUpgrade: (id) => {
+    if (buyUpgrade(id)) { audio.playBuy(2); renderUpgrades(); flashStatus("upgrade purchased!"); save(); }
+    else flashStatus("not enough biomass");
   },
   onSplice: (a, b) => {
     const res = doSplice(a, b);

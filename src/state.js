@@ -31,6 +31,7 @@ function freshState() {
     helix: 0,              // Helix meta-currency from Transcending
     transcensions: 0,      // how many times Transcended
     helixNodes: {},        // { nodeId: level } purchased Helix meta-tree
+    upgrades: {},          // { upgradeId: true } purchased store upgrades (reset on Speciate)
     splices: {},           // { hybridKey: true } discovered Gene Splicer hybrids
     spliceReadyAt: 0,      // timestamp the Gene Splicer is next usable
     rerolls: 0,            // draft reroll tokens
@@ -102,6 +103,7 @@ export function load() {
       equippedSpecies: Array.isArray(data.equippedSpecies) ? data.equippedSpecies : [],
       genomeNodes: (data.genomeNodes && typeof data.genomeNodes === "object") ? data.genomeNodes : {},
       helixNodes: (data.helixNodes && typeof data.helixNodes === "object") ? data.helixNodes : {},
+      upgrades: (data.upgrades && typeof data.upgrades === "object") ? data.upgrades : {},
       splices: (data.splices && typeof data.splices === "object") ? data.splices : {},
       achievements: (data.achievements && typeof data.achievements === "object") ? data.achievements : {},
       discovered: (data.discovered && typeof data.discovered === "object") ? data.discovered : {},

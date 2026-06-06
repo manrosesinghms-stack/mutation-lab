@@ -57,6 +57,7 @@
 
       <section id="generators">
         <h2>Organelles <button id="autobuy-toggle" class="autobuy hidden">Auto-buy: ON</button></h2>
+        <button id="upgrades-btn" class="upgrades-open hidden">⬆ Upgrades <b id="upgrades-badge">0</b></button>
         <div id="generator-list"><!-- injected by ui.js --></div>
       </section>
 
@@ -256,6 +257,19 @@
         <button id="viewdna-btn" class="ghost">🧬 View shared DNA</button>
         <span id="genome-status"></span>
       </div>
+    </div>
+  </div>
+
+  <!-- Upgrade Store modal -->
+  <div id="upgrades-modal" class="hidden">
+    <div class="genome-inner codex-inner">
+      <div class="genome-head">
+        <h2>⬆ UPGRADES</h2>
+        <button id="upgrades-close" class="ghost">✕ Close</button>
+      </div>
+      <p class="genome-hint" style="margin-top:10px">One-time boosts bought with biomass. They unlock as you grow and stay through Evolve (reset on Speciate). Always something to save up for.</p>
+      <div id="upgrades-list"></div>
+      <div id="upgrades-empty" class="genome-hint hidden">No upgrades available yet — own more organelles or grow your lifetime biomass to unlock the next one.</div>
     </div>
   </div>
 

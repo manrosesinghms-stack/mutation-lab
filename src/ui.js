@@ -9,6 +9,7 @@ import {
   currentWeekly, dailyBestToday, todaySeed,
   canTranscend, transcendGain, helixNodeLevel, helixNodeCost,
   canSplice, spliceCooldownLeft, splicesFound,
+  availableUpgrades, affordableUpgradeCount,
 } from "./economy.js";
 import { HELIX_NODES } from "./data/helix.js";
 import { PART_TYPES, PART_LABEL, HYBRID_LIST } from "./data/hybrids.js";
@@ -61,6 +62,9 @@ export function initUI(handlers) {
   el.helixValue = document.getElementById("helix-value");
   el.helixModal = document.getElementById("helix-modal");
   el.spliceModal = document.getElementById("splice-modal");
+  el.upgradesBtn = document.getElementById("upgrades-btn");
+  el.upgradesBadge = document.getElementById("upgrades-badge");
+  el.upgradesModal = document.getElementById("upgrades-modal");
   el.genomeModal = document.getElementById("genome-modal");
   el.nodeList = document.getElementById("node-list");
   el.speciesList = document.getElementById("species-list");
@@ -86,6 +90,8 @@ export function initUI(handlers) {
   el.transcendBtn.addEventListener("click", handlers.onTranscend);
   el.helixBtn.addEventListener("click", () => openHelix());
   document.getElementById("helix-close").addEventListener("click", () => el.helixModal.classList.add("hidden"));
+  el.upgradesBtn.addEventListener("click", () => openUpgrades());
+  document.getElementById("upgrades-close").addEventListener("click", () => el.upgradesModal.classList.add("hidden"));
   document.getElementById("splice-btn").addEventListener("click", () => openSplicer());
   document.getElementById("splice-close").addEventListener("click", () => el.spliceModal.classList.add("hidden"));
   document.getElementById("splice-go").addEventListener("click", () => {
@@ -138,6 +144,30 @@ export function initUI(handlers) {
 }
 
 let uiHandlers = {};
+
+// ---- Upgrade Store ----
+export function openUpgrades() {
+  renderUpgrades();
+  el.upgradesModal.classList.remove("hidden");
+}
+export function renderUpgrades() {
+  const list = document.getElementById("upgrades-list");
+  const avail = availableUpgrades().sort((a, b) => a.cost - b.cost);
+  list.innerHTML = "";
+  document.getElementById("upgrades-empty").classList.toggle("hidden", avail.length > 0);
+  for (const u of avail) {
+    const broke = state.biomass < u.cost;
+    const row = document.createElement("div");
+    row.className = "node" + (broke ? " broke" : "");
+    row.innerHTML = `
+      <div class="node-top"><span>${u.name}</span>
+        <span class="node-cost">${formatNumber(u.cost)}</span></div>
+      <div class="node-desc">${u.desc}</div>
+      <div class="node-lvl">${u.cond}</div>`;
+    if (!broke) row.addEventListener("click", () => uiHandlers.onBuyUpgrade(u.id));
+    list.appendChild(row);
+  }
+}
 
 // ---- Gene Splicer minigame ----
 let spliceSelA = null, spliceSelB = null;
@@ -585,6 +615,13 @@ export function renderUI(rate, dt = 0.016) {
   if (showHelix) el.helixValue.textContent = formatNumber(state.helix || 0);
   // live Gene Splicer cooldown while its modal is open
   if (el.spliceModal && !el.spliceModal.classList.contains("hidden")) refreshSpliceGo();
+  // Upgrade Store button: show with a badge of how many you can afford right now
+  const avail = availableUpgrades();
+  el.upgradesBtn.classList.toggle("hidden", avail.length === 0);
+  const aff = affordableUpgradeCount();
+  el.upgradesBadge.textContent = aff > 0 ? `${aff} ⚡` : `${avail.length}`;
+  el.upgradesBtn.classList.toggle("ready", aff > 0);
+  if (el.upgradesModal && !el.upgradesModal.classList.contains("hidden")) renderUpgrades();
 
   // auto-buy toggle (only shown once the Mitosis Engine node is owned)
   if (nodeLevel(state, "auto_gen") > 0) {

@@ -308,6 +308,17 @@ html, body {
 }
 .transcend.locked .evolve-gain { color: #7e6ea8; }
 
+.upgrades-open {
+  width: 100%; margin: 8px 0 4px; padding: 9px; border-radius: 10px; cursor: pointer;
+  background: rgba(86,227,159,.08); border: 1px solid var(--line); color: var(--ink);
+  font-weight: 700; font-size: 13px; letter-spacing: .04em; transition: all .15s ease;
+}
+.upgrades-open b { color: var(--accent2); }
+.upgrades-open.hidden { display: none; }
+.upgrades-open:hover { border-color: var(--accent2); }
+.upgrades-open.ready { border-color: var(--accent); box-shadow: 0 0 14px -4px var(--accent); animation: evoPulse 1.6s ease-in-out infinite; }
+.upgrades-open.ready b { color: var(--accent); }
+
 .genome-open { width: 100%; margin-top: 8px; text-align: center; }
 .genome-open b { color: var(--accent2); }
 
