@@ -1,5 +1,12 @@
 # 🧬 Mutation Lab — ROADMAP 2.0 (Retention, Stories & Shareability)
 
+> ✅ **STATUS: ALL 7 RELEASES (A–G) SHIPPED (2026-06-05).** Naming/photos/history,
+> synergies/sets/codex, bosses/rare-variants, rerolls/defects/fusion, biomes/
+> instability/alien-DNA, challenges/fossils, and DNA-sharing/daily-seed/weekly-event
+> are all built, verified, and committed. Online leaderboards for daily/weekly remain
+> the only piece needing a backend (currently local).
+
+
 > v1 built the engine (core loop, 50 mutations, 2-layer prestige, juice, pacing, tutorial).
 > **v2 makes people play for 8 hours and then tell their friends.** Every feature here must create at least one of:
 >

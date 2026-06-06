@@ -32,6 +32,9 @@ import {
   abandonChallenge,
   checkChallenge,
   grantFossil,
+  startDailyRun,
+  endDailyRun,
+  currentWeekly,
 } from "./economy.js";
 import {
   initCreature,
@@ -168,7 +171,45 @@ initUI({
     renderChallenges();
     save();
   },
+  onStartDaily: () => {
+    startDailyRun(); resetParts(); refreshGhosts();
+    audio.playEvolve();
+    flashStatus("🎲 Daily run started — same seed for everyone today");
+    renderChallenges();
+    save();
+  },
+  onEndDaily: () => {
+    endDailyRun();
+    flashStatus("daily run finished — best score recorded");
+    renderChallenges();
+    save();
+  },
 });
+
+// --- creature DNA sharing: copy your creature as a code, or view a shared one ---
+function copyCreatureDNA() {
+  const code = "MLAB1." + btoa(unescape(encodeURIComponent(JSON.stringify({
+    n: creatureName(state.mutations, state.namingStyle || "scientific"),
+    m: state.mutations, v: state.variant,
+  }))));
+  if (navigator.clipboard) navigator.clipboard.writeText(code);
+  flashStatus("🧬 creature DNA copied — share it!");
+}
+function viewSharedDNA() {
+  const code = prompt("Paste a creature DNA code (MLAB1.…):");
+  if (!code) return;
+  try {
+    const data = JSON.parse(decodeURIComponent(escape(atob(code.replace(/^MLAB1\./, "").trim()))));
+    resetParts();
+    const parts = (data.m || []).map((id) => getMutation(id)).filter((d) => d && d.part).map((d) => d.part);
+    rebuildVisuals(parts, (data.m || []).length);
+    setVariant(data.v || null);
+    document.getElementById("creature-name").textContent = data.n || "Unknown Specimen";
+    genomeStatus(`viewing "${data.n}" (${(data.m || []).length} mutations) — reload to restore yours`);
+  } catch (e) { genomeStatus("invalid DNA code"); }
+}
+document.getElementById("photo-dna").addEventListener("click", copyCreatureDNA);
+document.getElementById("viewdna-btn").addEventListener("click", viewSharedDNA);
 
 // open the mutation draft with reroll support
 function openDraft() {
@@ -322,6 +363,12 @@ if (!state.seenHelp) {
   state.seenHelp = true;
   setTimeout(openHelp, 500);
   save();
+}
+
+// announce this week's event
+{
+  const wk = currentWeekly();
+  setTimeout(() => flashStatus(`📅 ${wk.name}: ${wk.desc}`), state.seenHelp ? 1400 : 4000);
 }
 
 // --- Mitogen Bloom: golden clickable spawn -> frenzy buff (active-play upside) ---

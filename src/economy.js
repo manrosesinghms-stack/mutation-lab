@@ -52,6 +52,10 @@ export function getModifiers() {
   if (biome) biome.buff(mods, partCounts(state.mutations));
   mods.prodMult *= state.stabilizeBonus || 1; // genetic-instability stabilize choice
   if (challengeRule() === "hyper") { mods.prodMult *= 4; mods.clickMult *= 4; }
+  const wk = currentWeekly(); // weekly event modifier
+  if (wk.prod) mods.prodMult *= wk.prod;
+  if (wk.click) mods.clickMult *= wk.click;
+  if (wk.ep) mods.epMult *= wk.ep;
   // equipped Species contribute their frozen build at reduced (sqrt) weight
   for (const sid of state.equippedSpecies || []) {
     const sp = (state.species || []).find((s) => s.id === sid);
@@ -251,7 +255,40 @@ export function doPrestige() {
 
 // ---- Speciate (2nd prestige layer): snapshot build -> Species card + Genome ----
 export function draftSize() {
-  return 3 + nodeLevel(state, "draft_4");
+  return 3 + nodeLevel(state, "draft_4") + (currentWeekly().draft || 0);
+}
+
+// ---- weekly event (rotating global modifier, deterministic by week) ----
+const WEEKLY = [
+  { id: "bounty", name: "Bountiful Week", desc: "+50% Evolution Points", ep: 1.5 },
+  { id: "frenzy", name: "Frenzy Week", desc: "×1.5 production", prod: 1.5 },
+  { id: "mutagenic", name: "Mutagenic Week", desc: "+1 mutation draft card", draft: 1 },
+  { id: "feral", name: "Feral Week", desc: "×2 click power", click: 2 },
+];
+export function currentWeekly() {
+  const wk = Math.floor(Date.now() / (7 * 864e5));
+  return WEEKLY[wk % WEEKLY.length];
+}
+
+// ---- daily seed run (everyone gets the same drafts that day) ----
+export function startDailyRun() {
+  setDraftSeed(todaySeed());
+  state.dailyActive = true;
+  state.evolutionPoints = 0; state.mutations = []; state.prestiges = 0;
+  state.biomass = 0; state.runBiomass = 0; state.lastMilestoneExp = 2;
+  state.instabilityResolved = false; state.embraceChaos = false; state.stabilizeBonus = 1;
+  for (const g of GENERATORS) state.owned[g.id] = 0;
+}
+export function endDailyRun() {
+  state.dailyBest = state.dailyBest || {};
+  const seed = String(todaySeed());
+  state.dailyBest[seed] = Math.max(state.dailyBest[seed] || 0, state.runBiomass || 0);
+  setDraftSeed(null);
+  state.dailyActive = false;
+}
+export function dailyBestToday() {
+  state.dailyBest = state.dailyBest || {};
+  return state.dailyBest[String(todaySeed())] || 0;
 }
 
 function speciesStrength(mutList) {
@@ -418,13 +455,27 @@ export function autoBuyGenerators(maxBuys = 60) {
 
 // ---- Mutation draft ----
 // Roll N distinct mutations, weighted by rarity.
+// seedable RNG so Daily runs draw the same pool for everyone
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+let seededRand = null;
+export function setDraftSeed(seed) { seededRand = seed != null ? mulberry32(seed | 0) : null; }
+export function todaySeed() { return Math.floor(Date.now() / 864e5); } // day number
+
 export function rollDraft(n = 3) {
+  const rnd = seededRand || Math.random;
   const weights = { common: 60, rare: 30, legendary: 10 };
-  const pool = MUTATIONS.filter((m) => !m.alien); // aliens are injected separately
+  const pool = MUTATIONS.filter((m) => !m.alien);
   const picks = [];
   while (picks.length < n && pool.length > 0) {
     const total = pool.reduce((s, m) => s + weights[m.rarity], 0);
-    let r = Math.random() * total;
+    let r = rnd() * total;
     let idx = 0;
     for (let i = 0; i < pool.length; i++) {
       r -= weights[pool[i].rarity];
@@ -433,11 +484,10 @@ export function rollDraft(n = 3) {
     picks.push(pool[idx].id);
     pool.splice(idx, 1);
   }
-  // ~7% chance an Alien DNA card crashes the draft
-  if (Math.random() < 0.07 && picks.length) {
+  if (rnd() < 0.07 && picks.length) {
     const aliens = MUTATIONS.filter((m) => m.alien);
-    const a = aliens[(Math.random() * aliens.length) | 0];
-    if (a) picks[(Math.random() * picks.length) | 0] = a.id;
+    const a = aliens[(rnd() * aliens.length) | 0];
+    if (a) picks[(rnd() * picks.length) | 0] = a.id;
   }
   return picks;
 }

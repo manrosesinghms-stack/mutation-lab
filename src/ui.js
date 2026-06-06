@@ -6,6 +6,7 @@ import {
   costOf, canAfford, isUnlocked,
   epForReset, canPrestige, effectiveClickPower, pressureLevel,
   canSpeciate, genomeForSpeciate, equipSlots, activeBuffs,
+  currentWeekly, dailyBestToday, todaySeed,
 } from "./economy.js";
 import { formatNumber } from "./format.js";
 import { getMutation, RARITY, MUTATIONS } from "./data/mutations.js";
@@ -126,8 +127,17 @@ export function openChallenges() { renderChallenges(); el.chalModal.classList.re
 export function renderChallenges() {
   const done = state.challengesDone || {};
   const active = state.challenge;
+  const wk = currentWeekly();
+  const daily = state.dailyActive;
   el.chalBody.innerHTML = `
-    ${active ? `<div class="trait got"><div class="tn">⚔️ Active challenge</div><div class="tf">Reach the goal — or abandon below.</div></div>` : `<p class="help-tip" style="margin-bottom:10px">Starting a challenge resets your current run (your Species, Genome &amp; achievements are kept).</p>`}
+    <div class="trait"><div class="tn">📅 Weekly Event — ${wk.name}</div><div class="tf">${wk.desc} · active for everyone this week</div></div>
+    <div class="trait ${daily ? "got" : ""}">
+      <div class="tn">🎲 Daily Seed #${todaySeed()}</div>
+      <div class="tf">Same mutation draws for everyone today. Today's best: ${formatNumber(dailyBestToday())} biomass</div>
+      ${daily ? `<button class="ghost" id="daily-end">Finish daily run</button>` : `<button class="ghost" id="daily-start">Start daily run (resets run)</button>`}
+    </div>
+    <h3>Challenge Runs</h3>
+    ${active && active !== "daily" ? `<div class="trait got"><div class="tn">⚔️ Active challenge</div><div class="tf">Reach the goal — or abandon below.</div></div>` : `<p class="help-tip" style="margin-bottom:10px">Starting a challenge resets your current run (your Species, Genome &amp; achievements are kept).</p>`}
     ${CHALLENGES.map((c) => `
       <div class="trait ${done[c.id] ? "got" : ""}">
         <div class="tn">${done[c.id] ? "✓ " : ""}${c.name}</div>
@@ -139,6 +149,10 @@ export function renderChallenges() {
   el.chalBody.querySelectorAll(".chal-start").forEach((b) => b.addEventListener("click", () => uiHandlers.onStartChallenge(b.dataset.id)));
   const ab = document.getElementById("chal-abandon");
   if (ab) ab.addEventListener("click", () => uiHandlers.onAbandonChallenge());
+  const ds = document.getElementById("daily-start");
+  if (ds) ds.addEventListener("click", () => uiHandlers.onStartDaily());
+  const de = document.getElementById("daily-end");
+  if (de) de.addEventListener("click", () => uiHandlers.onEndDaily());
 }
 
 // ---- codex: species traits + set forms + mutation encyclopedia + museum ----

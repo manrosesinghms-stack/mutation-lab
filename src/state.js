@@ -31,6 +31,8 @@ function freshState() {
     challenge: null,       // active challenge id
     challengesDone: {},    // completed challenges
     fossils: [],           // collected ancient fossils (museum)
+    dailyActive: false,    // currently in a daily seed run
+    dailyBest: {},         // { daySeed: bestRunBiomass }
     musicVolume: 0.5,      // 0..1 ambient music volume
     musicTrack: "lofi",    // selected music theme
     background: "aurora",  // selected animated background
