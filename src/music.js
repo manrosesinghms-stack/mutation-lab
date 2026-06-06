@@ -51,6 +51,17 @@ const THEMES = {
     pad: true, padW: "sawtooth", padDur: 3.6, bass: pat(0), bassW: "sawtooth",
     melodyMode: "sparse", leadW: "sine" },
 
+  ambient: { name: "Ambient (space)", bpm: 60, root: 174, scale: [0, 2, 5, 7, 9],
+    prog: [0, 5, -3, 2], major: true, seventh: true,
+    pad: true, padW: "sine", padDur: 4.5, bass: pat(0), bassW: "sine", bassDur: 1.2,
+    melodyMode: "sparse", leadW: "sine" },
+
+  synthwave: { name: "Synthwave", bpm: 112, root: 220, scale: [0, 2, 3, 7, 10],
+    prog: [0, -4, -5, -2], major: false,
+    kick: pat(0, 4, 8, 12), kickGain: 0.5, snare: pat(4, 12), snareGain: 0.2,
+    hat: pat(2, 6, 10, 14), hatGain: 0.1, bass: pat(0, 3, 6, 8, 11, 14), bassW: "sawtooth", bassDur: 0.18,
+    pad: true, padW: "sawtooth", padDur: 1.4, melodyMode: "arp", leadW: "sawtooth" },
+
   off: { name: "Off", off: true },
 };
 let theme = THEMES.lofi;
@@ -179,28 +190,37 @@ function playMelody(s, t, chord, f) {
   const SI = s % 16;
   const sc = theme.scale;
   const lead = theme.leadW || "triangle";
+  // phrase drifts the motif over time so a theme evolves instead of looping a
+  // 4-second riff — the biggest fix for "all the music sounds the same".
+  const phrase = Math.floor(s / 32);
+  const note = (i) => sc[((i % sc.length) + phrase) % sc.length];
+  // a little melodic "answer" run at the end of each 4-bar progression cycle
+  const fill = (s % (16 * (theme.prog.length))) >= 16 * theme.prog.length - 4;
   switch (theme.melodyMode) {
     case "bell":
-      if (SI === 0 || SI === 6 || SI === 10) tone(t, f(chord[(SI / 2) % chord.length], 1), "sine", 0.06, 1.3, 0.03, 0.9);
+      if (SI === 0 || SI === 6 || SI === 10) tone(t, f(chord[(SI / 2 + phrase) % chord.length], 1), "sine", 0.07, 1.3, 0.03, 0.9);
       break;
     case "arp":
-      if (SI % 2 === 0) tone(t, f(chord[(SI / 2) % chord.length], 1), lead, 0.06 + intensity * 0.04, 0.4, 0.01, 0.25);
+      if (SI % 2 === 0) tone(t, f(chord[(SI / 2 + phrase) % chord.length], 1 + (SI >= 12 ? 1 : 0)), lead, 0.07 + intensity * 0.04, 0.4, 0.01, 0.25);
       break;
     case "pluck":
       if ([2, 6, 7, 10, 14].includes(SI) && Math.sin(s * 1.3) > 0.1 - intensity)
-        tone(t, f(sc[(s * 3) % sc.length], 1), lead, 0.07, 0.22, 0.004, 0.12);
+        tone(t, f(note(s * 3), 1), lead, 0.08, 0.22, 0.004, 0.12);
       break;
     case "chip":
       if (Math.sin(s * 2.1) > 0.3 - intensity * 0.6)
-        tone(t, f(sc[(s * 5) % sc.length], 1), "square", 0.05, 0.11, 0.002, 0.04);
+        tone(t, f(note(s * 5), 1 + (fill ? 1 : 0)), "square", 0.06, 0.11, 0.002, 0.04);
       break;
     case "rhodes":
       if ([0, 3, 6, 8, 11, 14].includes(SI) && Math.sin(s * 1.1) > 0.2 - intensity)
-        tone(t, f(sc[(s * 2) % sc.length], 1), "triangle", 0.06, 0.5, 0.01, 0.3);
+        tone(t, f(note(s * 2), 1), "triangle", 0.07, 0.5, 0.01, 0.3);
       break;
     case "sparse":
-      if (SI % 8 === 0 && Math.sin(s * 0.7) > 0.35)
-        tone(t, f(sc[s % sc.length], 1), "sine", 0.05, 1.7, 0.1, 1.1);
+      if (SI % 8 === 0 && Math.sin(s * 0.7 + phrase) > 0.3)
+        tone(t, f(note(s), 1), "sine", 0.06, 1.7, 0.1, 1.1);
       break;
   }
+  // shared: a sparkle counter-melody when the game is intense (thickens late-game)
+  if (intensity > 0.5 && SI % 4 === 3 && Math.sin(s * 1.7 + phrase) > 0.4)
+    tone(t, f(note(s * 4), 2), "sine", 0.03 + intensity * 0.02, 0.18, 0.005, 0.1);
 }
