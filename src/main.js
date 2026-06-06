@@ -167,7 +167,9 @@ initUI({
     audio.playRoar();
     cinematicPulse();
     playCinematic(`◆ ${tier.name.toUpperCase()} ◆`, `${res.card.name} · Tier ${state.speciations}`, tcol);
-    flashStatus(`ASCENDED → ${tier.name} form · ${res.card.name} · +${formatNumber(res.gain)} Genome`);
+    flashStatus(res.banked
+      ? `ASCENDED → ${tier.name} form · banked ${res.card.name} · +${formatNumber(res.gain)} Genome`
+      : `ASCENDED → ${tier.name} form · +${formatNumber(res.gain)} Genome (draft mutations to bank a Species card)`);
     grantReroll(1);
     startNewRun();
     save();

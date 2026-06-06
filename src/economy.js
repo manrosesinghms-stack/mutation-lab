@@ -348,7 +348,24 @@ export function doSpeciate() {
       .map((d) => d.part),
     strength: speciesStrength(state.mutations),
   };
-  state.species.push(card);
+  // declutter: drop worthless empty cards (0 mutations, not equipped) — these
+  // come from rushing the wall on generators alone and just flood the lab.
+  state.species = (state.species || []).filter(
+    (s) => (s.mutations || []).length >= 1 || (state.equippedSpecies || []).includes(s.id));
+  // Only BANK a card if the run actually had mutations (otherwise it's a ×1 dud);
+  // the card is still returned for the ascension cinematic display.
+  const banked = card.mutations.length >= 1;
+  if (banked) {
+    state.species.push(card);
+    // keep only the strongest 30 so the list never becomes unmanageable
+    const MAX_SPECIES = 30;
+    if (state.species.length > MAX_SPECIES) {
+      const equipped = new Set(state.equippedSpecies || []);
+      state.species.sort((a, b) => (equipped.has(b.id) - equipped.has(a.id)) || ((b.strength || 1) - (a.strength || 1)));
+      state.species = state.species.slice(0, MAX_SPECIES);
+      state.equippedSpecies = (state.equippedSpecies || []).filter((id) => state.species.some((s) => s.id === id));
+    }
+  }
   state.genome = (state.genome || 0) + gain;
   state.speciations = (state.speciations || 0) + 1;
   // wipe the entire Evolve layer (EP + mutations + generators); Species cards persist
@@ -360,7 +377,7 @@ export function doSpeciate() {
   state.runBiomass = state.biomass;
   for (const g of GENERATORS) state.owned[g.id] = 0;
   state.instabilityResolved = false; state.embraceChaos = false; state.stabilizeBonus = 1;
-  return { card, gain };
+  return { card, gain, banked };
 }
 
 // ---- Genome node grid ----

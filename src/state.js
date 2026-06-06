@@ -107,6 +107,15 @@ export function load() {
     if (data.lastMilestoneExp === undefined) {
       merged.lastMilestoneExp = Math.max(2, Math.floor(Math.log10((merged.lifetimeBiomass || 0) + 1)));
     }
+    // declutter: drop worthless empty Species cards (0 mutations, not equipped)
+    // that pile up from rushing the wall on generators alone, then cap the list.
+    const eq = new Set(merged.equippedSpecies);
+    merged.species = merged.species.filter((s) => s && ((s.mutations || []).length >= 1 || eq.has(s.id)));
+    if (merged.species.length > 30) {
+      merged.species.sort((a, b) => (eq.has(b.id) - eq.has(a.id)) || ((b.strength || 1) - (a.strength || 1)));
+      merged.species = merged.species.slice(0, 30);
+      merged.equippedSpecies = merged.equippedSpecies.filter((id) => merged.species.some((s) => s.id === id));
+    }
     return merged;
   } catch (e) {
     console.warn("load failed", e);
