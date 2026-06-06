@@ -12,8 +12,11 @@ import {
   availableUpgrades, affordableUpgradeCount,
   REAGENTS, marketState, marketUnitValue, brokerFee, brokerCost, maxBuy,
   mutagenProgress, genLevel, genLevelCost,
+  catalyst, catalystMax, symbioteStage,
 } from "./economy.js";
 import { HELIX_NODES } from "./data/helix.js";
+import { SPELLS } from "./data/spells.js";
+import { ANCESTRAL_GENES, GENE_BY_ID, PANTHEON_SLOTS, SYMBIOTE_STAGES, SYMBIOTE_THRESH, SYMBIOTE_AURAS } from "./data/genes.js";
 import { PART_TYPES, PART_LABEL, HYBRID_LIST } from "./data/hybrids.js";
 import { partCounts } from "./data/synergies.js";
 import { formatNumber } from "./format.js";
@@ -70,6 +73,9 @@ export function initUI(handlers) {
   el.upgradesModal = document.getElementById("upgrades-modal");
   el.marketModal = document.getElementById("market-modal");
   el.mutagenModal = document.getElementById("mutagen-modal");
+  el.reactorModal = document.getElementById("reactor-modal");
+  el.pantheonModal = document.getElementById("pantheon-modal");
+  el.symbioteModal = document.getElementById("symbiote-modal");
   el.genomeModal = document.getElementById("genome-modal");
   el.nodeList = document.getElementById("node-list");
   el.speciesList = document.getElementById("species-list");
@@ -109,6 +115,13 @@ export function initUI(handlers) {
   document.getElementById("broker-buy").addEventListener("click", () => uiHandlers.onBuyBroker());
   document.getElementById("mutagen-btn").addEventListener("click", () => openMutagen());
   document.getElementById("mutagen-close").addEventListener("click", () => el.mutagenModal.classList.add("hidden"));
+  document.getElementById("reactor-btn").addEventListener("click", () => openReactor());
+  document.getElementById("reactor-close").addEventListener("click", () => el.reactorModal.classList.add("hidden"));
+  document.getElementById("pantheon-btn").addEventListener("click", () => openPantheon());
+  document.getElementById("pantheon-close").addEventListener("click", () => el.pantheonModal.classList.add("hidden"));
+  document.getElementById("symbiote-btn").addEventListener("click", () => openSymbiote());
+  document.getElementById("symbiote-close").addEventListener("click", () => el.symbioteModal.classList.add("hidden"));
+  document.getElementById("symbiote-feed").addEventListener("click", () => uiHandlers.onFeedSymbiote());
   document.getElementById("splice-close").addEventListener("click", () => el.spliceModal.classList.add("hidden"));
   document.getElementById("splice-go").addEventListener("click", () => {
     if (spliceSelA && spliceSelB) uiHandlers.onSplice(spliceSelA, spliceSelB);
@@ -182,6 +195,72 @@ export function renderUpgrades() {
       <div class="node-lvl">${u.cond}</div>`;
     if (!broke) row.addEventListener("click", () => uiHandlers.onBuyUpgrade(u.id));
     list.appendChild(row);
+  }
+}
+
+// ---- Reactor (spells) ----
+export function openReactor() { renderReactor(); el.reactorModal.classList.remove("hidden"); }
+export function renderReactor() {
+  const c = catalyst();
+  document.getElementById("catalyst-have").textContent = c;
+  document.getElementById("catalyst-max").textContent = catalystMax();
+  document.getElementById("catalyst-fill").style.width = (c / catalystMax() * 100).toFixed(1) + "%";
+  const list = document.getElementById("reactor-list");
+  list.innerHTML = "";
+  for (const sp of SPELLS) {
+    const broke = c < sp.cost;
+    const row = document.createElement("div");
+    row.className = "node" + (broke ? " broke" : "");
+    row.innerHTML = `<div class="node-top"><span>${sp.name}</span><span class="node-cost">${sp.cost} ⚗</span></div>
+      <div class="node-desc">${sp.desc}</div>`;
+    if (!broke) row.addEventListener("click", () => uiHandlers.onCastSpell(sp.id));
+    list.appendChild(row);
+  }
+}
+
+// ---- Genome Pantheon ----
+export function openPantheon() { renderPantheon(); el.pantheonModal.classList.remove("hidden"); }
+export function renderPantheon() {
+  const wrap = document.getElementById("pantheon-slots");
+  wrap.innerHTML = "";
+  const cycle = [null, ...ANCESTRAL_GENES.map((g) => g.id)];
+  for (const slot of PANTHEON_SLOTS) {
+    const cur = (state.pantheon || {})[slot.id] || null;
+    const g = GENE_BY_ID[cur];
+    const row = document.createElement("div");
+    row.className = "node" + (g ? " maxed" : "");
+    row.innerHTML = `<div class="node-top"><span>${slot.name} slot</span><span class="node-cost">×${slot.weight}</span></div>
+      <div class="node-desc">${g ? `<b>${g.name}</b> — ${g.desc}` : "empty — click to slot a gene"}</div>`;
+    row.addEventListener("click", () => {
+      const i = cycle.indexOf(cur);
+      uiHandlers.onSetPantheon(slot.id, cycle[(i + 1) % cycle.length]);
+    });
+    wrap.appendChild(row);
+  }
+}
+
+// ---- Symbiote ----
+export function openSymbiote() { renderSymbiote(); el.symbioteModal.classList.remove("hidden"); }
+export function renderSymbiote() {
+  const st = symbioteStage();
+  const fed = (state.symbiote && state.symbiote.fed) || 0;
+  document.getElementById("symbiote-stage").textContent = SYMBIOTE_STAGES[st];
+  document.getElementById("symbiote-fed").textContent = fed;
+  const next = SYMBIOTE_THRESH[st + 1];
+  const prevT = SYMBIOTE_THRESH[st] || 0;
+  const prog = next ? Math.min(1, (fed - prevT) / (next - prevT)) : 1;
+  document.getElementById("symbiote-fill").style.width = (prog * 100).toFixed(1) + "%";
+  const wrap = document.getElementById("symbiote-auras");
+  wrap.innerHTML = "";
+  for (const a of SYMBIOTE_AURAS) {
+    const locked = st < a.minStage;
+    const active = (state.symbiote || {}).aura === a.id;
+    const row = document.createElement("div");
+    row.className = "node" + (active ? " maxed" : locked ? " broke" : "");
+    row.innerHTML = `<div class="node-top"><span>${a.name}${active ? " ✓" : ""}</span><span class="node-cost">${locked ? "🔒 " + SYMBIOTE_STAGES[a.minStage] : "aura"}</span></div>
+      <div class="node-desc">${a.desc}</div>`;
+    if (!locked) row.addEventListener("click", () => uiHandlers.onSetAura(a.id));
+    wrap.appendChild(row);
   }
 }
 

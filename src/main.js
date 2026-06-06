@@ -23,6 +23,11 @@ import {
   buyBroker,
   tickMutagen,
   levelUpOrganelle,
+  tickCatalyst,
+  spendCatalyst,
+  setPantheonSlot,
+  feedSymbiote,
+  setSymbioteAura,
   doTranscend,
   canTranscend,
   buyHelixNode,
@@ -85,7 +90,8 @@ import { creatureName } from "./data/names.js";
 import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
          renderGenomeLab, genomeStatus, openHelp, showChoice, renderChallenges,
          renderHelix, renderSplicer, spliceResult, renderUpgrades, renderMarket,
-         renderMutagen } from "./ui.js";
+         renderMutagen, renderReactor, renderPantheon, renderSymbiote } from "./ui.js";
+import { SPELLS } from "./data/spells.js";
 import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
@@ -137,6 +143,25 @@ initUI({
     if (levelUpOrganelle(id)) { audio.playBuy(2); renderMutagen(); flashStatus("🧫 organelle leveled up!"); save(); }
     else flashStatus("not enough Mutagen");
   },
+  onCastSpell: (id) => {
+    const sp = SPELLS.find((s) => s.id === id);
+    if (!sp || !spendCatalyst(sp.cost)) { flashStatus("not enough catalyst"); return; }
+    if (Math.random() < 0.10) { flash("rgba(255,80,80,.3)"); flashStatus("🔬 the spell fizzled!"); renderReactor(); save(); return; }
+    if (id === "bloom") spawnBloom();
+    else if (id === "surge") addTempBuff({ id: "spellsurge", prodMult: 5, durationMs: 20000 });
+    else if (id === "biome") { const b = rollBiome(); setBackground(b.background); setHabitat(b.id); }
+    else if (id === "overcharge") addBiomass(productionPerSecond() * 300);
+    else if (id === "forced") openDraft();
+    audio.playMilestone(); cinematicPulse();
+    flashStatus(`🔬 cast ${sp.name}`);
+    renderReactor(); save();
+  },
+  onSetPantheon: (slot, gene) => { setPantheonSlot(slot, gene); audio.playBuy(1); renderPantheon(); save(); },
+  onFeedSymbiote: () => {
+    if (feedSymbiote()) { audio.playBuy(2); renderSymbiote(); flashStatus("🐛 symbiote fed"); save(); }
+    else flashStatus("need more biomass to feed");
+  },
+  onSetAura: (id) => { setSymbioteAura(id); audio.playMilestone(); renderSymbiote(); flashStatus("aura attuned"); save(); },
   onSave: () => flashStatus(save() ? "saved" : "save failed"),
   onWipe: () => {
     if (confirm("Wipe all progress? This cannot be undone.")) {
@@ -950,6 +975,9 @@ function update() {
     const mm = document.getElementById("mutagen-modal");
     if (mm && !mm.classList.contains("hidden")) renderMutagen();
   }
+  tickCatalyst();
+  const rm = document.getElementById("reactor-modal");
+  if (rm && !rm.classList.contains("hidden")) renderReactor();
   autoTick(dt); // Helix auto-evolve / auto-speciate
   pruneTempBuffs(); // drop expired blooms/Digest buffs
 

@@ -14,6 +14,7 @@ import { SKIN_BY_ID } from "./data/skins.js";
 import { HELIX_NODES, HELIX_BY_ID, helixLevel as hLvl, helixCost as hCost } from "./data/helix.js";
 import { HYBRID_BY_KEY, spliceKey } from "./data/hybrids.js";
 import { UPGRADES, UPG_BY_ID } from "./data/upgrades.js";
+import { GENE_BY_ID, PANTHEON_SLOTS, SYMBIOTE_THRESH, AURA_BY_ID } from "./data/genes.js";
 
 // buy (if needed) + equip a cosmetic skin; returns the skin or null
 export function buySkin(id) {
@@ -107,6 +108,17 @@ export function getModifiers() {
   // Mutagen organelle levels — +5% to that organelle per level
   if (state.genLevels) for (const id in state.genLevels) {
     mods.genMult[id] = (mods.genMult[id] || 1) * (1 + 0.05 * state.genLevels[id]);
+  }
+  // Genome Pantheon — slotted genes apply their delta × slot weight
+  if (state.pantheon) for (const slot of PANTHEON_SLOTS) {
+    const g = GENE_BY_ID[state.pantheon[slot.id]];
+    if (g) { mods.prodMult *= 1 + g.prod * slot.weight; mods.clickMult *= 1 + g.click * slot.weight; }
+  }
+  // Symbiote — per-stage growth bonus + the chosen aura
+  if (state.symbiote) {
+    mods.prodMult *= 1 + 0.05 * symbioteStage();
+    const a = AURA_BY_ID[state.symbiote.aura];
+    if (a) { mods.prodMult *= 1 + a.prod; mods.clickMult *= 1 + a.click; }
   }
   // Upgrade Store — purchased upgrades (persist across Evolve, reset on Speciate)
   const up = state.upgrades || {};
@@ -223,6 +235,47 @@ export function buyBroker() {
   state.biomass -= cost; M.brokers++; return true;
 }
 export function brokerCost() { const M = initMarket(); return marketUnitValue() * 2000 * (M.brokers + 1); }
+
+// ---- Genome Pantheon (4C) ----
+export function setPantheonSlot(slotId, geneId) {
+  state.pantheon = state.pantheon || {};
+  state.pantheon[slotId] = geneId || null;
+}
+
+// ---- Symbiote (4D) ----
+export function symbioteStage() {
+  const fed = (state.symbiote && state.symbiote.fed) || 0;
+  let st = 0;
+  for (let i = 0; i < SYMBIOTE_THRESH.length; i++) if (fed >= SYMBIOTE_THRESH[i]) st = i;
+  return st;
+}
+export function feedSymbiote() {
+  if (!state.symbiote) state.symbiote = { fed: 0, aura: null };
+  const cost = Math.floor((state.biomass || 0) * 0.10);
+  if (cost < 1) return false;
+  state.biomass -= cost;
+  state.symbiote.fed = (state.symbiote.fed || 0) + 1;
+  return true;
+}
+export function setSymbioteAura(id) { if (!state.symbiote) state.symbiote = { fed: 0, aura: null }; state.symbiote.aura = id; }
+
+// ---- Reactor (spell pool) ----
+const CATALYST_MAX = 100, CATALYST_REGEN_MS = 7000; // +1 per 7s → full ~12 min
+export function tickCatalyst() {
+  const now = nowSeconds() * 1000;
+  if (!state.catalystAt) { state.catalystAt = now; return; }
+  const gained = Math.floor((now - state.catalystAt) / CATALYST_REGEN_MS);
+  if (gained > 0) {
+    state.catalyst = Math.min(CATALYST_MAX, (state.catalyst || 0) + gained);
+    state.catalystAt += gained * CATALYST_REGEN_MS;
+  }
+}
+export function catalyst() { return Math.floor(state.catalyst || 0); }
+export function catalystMax() { return CATALYST_MAX; }
+export function spendCatalyst(n) {
+  if ((state.catalyst || 0) < n) return false;
+  state.catalyst -= n; return true;
+}
 
 // ---- Mutagen (slow currency) + organelle levels ----
 const MUTAGEN_GROW_MS = 20 * 60 * 1000; // one ripens every ~20 min (counts offline)

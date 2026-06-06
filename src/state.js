@@ -31,6 +31,11 @@ function freshState() {
     helix: 0,              // Helix meta-currency from Transcending
     transcensions: 0,      // how many times Transcended
     helixNodes: {},        // { nodeId: level } purchased Helix meta-tree
+    catalyst: 60,          // Reactor spell pool (regenerates over time)
+    catalystAt: 0,         // ms timestamp basis for catalyst regen
+    pantheon: {},          // { slot: geneId } slotted ancestral genes
+    symbiote: { fed: 0, aura: null }, // companion: total fed + chosen aura
+    season: null,          // active seasonal event id (null = none)
     mutagen: 0,            // slow-growing rare currency (Sugar-Lump analog)
     mutagenStart: 0,       // ms timestamp the current Mutagen began ripening
     genLevels: {},         // { genId: level } organelle levels bought with Mutagen

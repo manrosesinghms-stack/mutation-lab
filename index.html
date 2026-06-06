@@ -100,6 +100,9 @@
         <button id="splice-btn" class="ghost" title="Gene Splicer">🧪</button>
         <button id="market-btn" class="ghost" title="Biomass Exchange">📈</button>
         <button id="mutagen-btn" class="ghost" title="Mutagen — level organelles">🧫</button>
+        <button id="reactor-btn" class="ghost" title="Reactor — cast spells">🔬</button>
+        <button id="pantheon-btn" class="ghost" title="Genome Pantheon">🏛️</button>
+        <button id="symbiote-btn" class="ghost" title="Symbiote companion">🐛</button>
         <button id="stats-btn" class="ghost">📊</button>
         <button id="settings-btn" class="ghost" title="Settings">⚙️</button>
         <button id="photo-btn" class="ghost" title="Photo mode">📸</button>
@@ -259,6 +262,36 @@
         <button id="viewdna-btn" class="ghost">🧬 View shared DNA</button>
         <span id="genome-status"></span>
       </div>
+    </div>
+  </div>
+
+  <!-- Reactor (spells) modal -->
+  <div id="reactor-modal" class="hidden">
+    <div class="genome-inner codex-inner">
+      <div class="genome-head"><h2>🔬 REACTOR</h2><button id="reactor-close" class="ghost">✕ Close</button></div>
+      <p class="genome-hint" style="margin-top:10px">Catalyst regenerates over time. Spend it to cast effects — small chance to fizzle. <b id="catalyst-have">0</b> / <span id="catalyst-max">100</span> catalyst.</p>
+      <div class="mutagen-bar"><div id="catalyst-fill"></div></div>
+      <div id="reactor-list"></div>
+    </div>
+  </div>
+
+  <!-- Genome Pantheon modal -->
+  <div id="pantheon-modal" class="hidden">
+    <div class="genome-inner codex-inner">
+      <div class="genome-head"><h2>🏛️ GENOME PANTHEON</h2><button id="pantheon-close" class="ghost">✕ Close</button></div>
+      <p class="genome-hint" style="margin-top:10px">Slot ancestral genes for stacking <b>passive bonuses</b>. Click a slot to cycle the gene in it. Swap freely, anytime.</p>
+      <div id="pantheon-slots"></div>
+    </div>
+  </div>
+
+  <!-- Symbiote companion modal -->
+  <div id="symbiote-modal" class="hidden">
+    <div class="genome-inner codex-inner">
+      <div class="genome-head"><h2>🐛 SYMBIOTE</h2><button id="symbiote-close" class="ghost">✕ Close</button></div>
+      <p class="genome-hint" style="margin-top:10px">Feed your symbiote biomass to grow it through forms. Pick its <b>aura</b> for a permanent bonus. Stage: <b id="symbiote-stage">Larva</b> · fed <span id="symbiote-fed">0</span>.</p>
+      <div class="mutagen-bar"><div id="symbiote-fill"></div></div>
+      <button id="symbiote-feed" class="ghost" style="width:100%;margin:10px 0">🍖 Feed (10% of biomass)</button>
+      <div id="symbiote-auras"></div>
     </div>
   </div>
 
