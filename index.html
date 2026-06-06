@@ -73,6 +73,7 @@
       <footer id="panel-foot">
         <button id="save-btn" class="ghost">Save</button>
         <button id="wipe-btn" class="ghost danger">Wipe</button>
+        <button id="help-btn" class="ghost" title="How to play">❓</button>
         <button id="stats-btn" class="ghost">📊</button>
         <button id="settings-btn" class="ghost" title="Settings">⚙️</button>
         <button id="mute-btn" class="ghost" title="Toggle sound">🔊</button>
@@ -85,6 +86,44 @@
   <div id="fx-layer"></div>
   <!-- prestige flash overlay -->
   <div id="flash"></div>
+
+  <!-- how to play modal -->
+  <div id="help-modal" class="hidden">
+    <div class="genome-inner help-inner">
+      <div class="genome-head">
+        <h2>❓ HOW TO PLAY</h2>
+        <button id="help-close" class="ghost">✕ Got it</button>
+      </div>
+      <div class="help-body">
+        <p class="help-goal">Grow a single cell into an absurd mutant. Numbers go up. Each run looks different. There is no "end" — chase bigger numbers and weirder creatures.</p>
+
+        <h3>🖱️ Click &amp; grow</h3>
+        <p>Click the organism for <b>biomass</b> (your currency). Drag to spin it around.</p>
+
+        <h3>🧫 Organelles</h3>
+        <p>Buy organelles — they auto-produce biomass every second. <b>Spread across all five</b>: dumping everything into one has diminishing returns.</p>
+
+        <h3>🧬 Evolve &amp; mutations</h3>
+        <p>Hit <b>Evolve</b> to reset your run in exchange for <b>Evolution Points</b> (a permanent production boost) and a <b>draft of 3 mutations</b>. Mutations are permanent, stack together, and <b>physically reshape your creature</b> (eyes, spikes, tentacles, a maw…). Rarer = stronger.</p>
+
+        <h3>🧱 The Wall (Metabolic Pressure)</h3>
+        <p>Production has a soft ceiling. As you approach it, the <b>Metabolic Pressure</b> bar fills and your creature <b>strains red ("about to pop")</b>. Past the wall, more upgrades barely help — that's your cue to <b>Speciate</b>.</p>
+
+        <h3>🔬 Speciate &amp; the Genome Lab</h3>
+        <p>At the wall, <b>Speciate</b>: your whole build is banked as a permanent <b>Species card</b>, you earn <b>Genome</b>, and you reset deeper. In the <b>🧬 Genome Lab</b> you spend Genome on upgrades (raise the wall, auto-buy organelles, +draft cards) and <b>equip Species</b> for permanent bonuses — equipped species also layer ghostly onto your creature.</p>
+
+        <h3>✨ Mitogen Blooms &amp; Digest <span class="help-temp">(temporary boosts!)</span></h3>
+        <p>Now and then a <b>golden Bloom</b> grows on your creature — <b>click it</b> for a big <b>×4 production frenzy that lasts 20 seconds</b>. The <b>🍴 Digest</b> button spends 40% of your biomass for a similar temporary surge.</p>
+        <p class="help-tip">⚡ While a boost is active your <b>/sec turns gold with a ⚡ and a countdown</b>. When it ends, /sec drops back to normal — <b>that's the boost wearing off, not your upgrades breaking.</b></p>
+
+        <h3>🏆 Achievements &amp; 📊 Stats</h3>
+        <p>Achievements grant small <b>permanent bonuses</b>. Open <b>📊 Stats</b> to see your collection — 50 mutations and 15 achievements to discover.</p>
+
+        <h3>⚙️ Settings</h3>
+        <p>Pick a <b>music theme</b>, tune <b>screen shake</b> (or turn it off), and toggle <b>reduce motion</b>.</p>
+      </div>
+    </div>
+  </div>
 
   <!-- settings modal -->
   <div id="settings-modal" class="hidden">

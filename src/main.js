@@ -41,7 +41,7 @@ import {
   engorgePop,
 } from "./creature.js";
 import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
-         renderGenomeLab, genomeStatus } from "./ui.js";
+         renderGenomeLab, genomeStatus, openHelp } from "./ui.js";
 import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
@@ -212,6 +212,13 @@ setMusicTheme(state.musicTrack);
 applyShakeSetting(state.shake || "subtle");
 setReduceMotion(!!state.reduceMotion);
 
+// first-ever launch: pop the How-to-Play so players aren't lost
+if (!state.seenHelp) {
+  state.seenHelp = true;
+  setTimeout(openHelp, 500);
+  save();
+}
+
 // --- Mitogen Bloom: golden clickable spawn -> frenzy buff (active-play upside) ---
 setBloomCallback((sx, sy) => {
   state.bloomCaught = true;
@@ -221,8 +228,16 @@ setBloomCallback((sx, sy) => {
   burst(sx, sy, { count: 40, color: "#ffd76b", spread: 160, life: 900 });
   flashStatus("MITOGEN BLOOM! ×4 production for 20s (temporary)");
 });
-// ~one bloom per minute when none is active
-setInterval(() => { if (!hasBloom() && Math.random() < 0.5) spawnBloom(); }, 30000);
+// ~one bloom per minute when none is active; explain it the first time
+setInterval(() => {
+  if (hasBloom() || Math.random() >= 0.5) return;
+  spawnBloom();
+  if (!state.seenBloomHint) {
+    state.seenBloomHint = true;
+    flashStatus("✨ A golden Bloom grew on your cell — click it for a frenzy!");
+    save();
+  }
+}, 30000);
 
 // --- Digest button (opt-in biomass sink -> production surge) ---
 document.getElementById("digest-btn").addEventListener("click", () => {

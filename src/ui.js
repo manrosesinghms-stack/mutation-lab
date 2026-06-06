@@ -76,6 +76,10 @@ export function initUI(handlers) {
   el.setMute = document.getElementById("set-mute");
   document.getElementById("settings-btn").addEventListener("click", () => openSettings());
   document.getElementById("settings-close").addEventListener("click", () => el.settingsModal.classList.add("hidden"));
+  // help / how to play
+  el.helpModal = document.getElementById("help-modal");
+  document.getElementById("help-btn").addEventListener("click", () => el.helpModal.classList.remove("hidden"));
+  document.getElementById("help-close").addEventListener("click", () => el.helpModal.classList.add("hidden"));
   el.setVolume.addEventListener("input", () => handlers.onSetVolume(el.setVolume.value / 100));
   el.setShake.addEventListener("click", (e) => { const v = e.target.dataset.v; if (v) { handlers.onSetShake(v); renderSettings(); } });
   el.setReduce.addEventListener("change", () => { handlers.onSetReduce(el.setReduce.checked); renderSettings(); });
@@ -90,6 +94,10 @@ let uiHandlers = {};
 export function openGenomeLab() {
   renderGenomeLab();
   el.genomeModal.classList.remove("hidden");
+}
+
+export function openHelp() {
+  el.helpModal.classList.remove("hidden");
 }
 
 export function genomeStatus(msg) {

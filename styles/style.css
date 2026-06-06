@@ -209,13 +209,25 @@ html, body {
 .genome-open { width: 100%; margin-top: 8px; text-align: center; }
 .genome-open b { color: var(--accent2); }
 
-/* genome lab + stats + settings modals */
-#genome-modal, #stats-modal, #settings-modal {
+/* genome lab + stats + settings + help modals */
+#genome-modal, #stats-modal, #settings-modal, #help-modal {
   position: fixed; inset: 0; z-index: 100;
   display: flex; align-items: center; justify-content: center;
   background: rgba(4,7,11,.85); backdrop-filter: blur(6px); animation: fadeIn .2s ease;
 }
-#genome-modal.hidden, #stats-modal.hidden, #settings-modal.hidden { display: none; }
+#genome-modal.hidden, #stats-modal.hidden, #settings-modal.hidden, #help-modal.hidden { display: none; }
+
+/* how to play */
+.help-inner { width: min(640px, 94vw); }
+.help-body { margin-top: 14px; overflow-y: auto; line-height: 1.5; }
+.help-body p { margin: 0 0 12px; color: var(--ink); font-size: 13.5px; }
+.help-body b { color: #fff; }
+.help-body h3 { font-size: 14px; margin: 16px 0 6px; color: var(--accent); }
+.help-goal { background: var(--bg2); border: 1px solid var(--line); border-left: 3px solid var(--accent2);
+  border-radius: 8px; padding: 11px 13px; color: var(--ink) !important; }
+.help-temp { color: #ffd76b; font-size: 12px; }
+.help-tip { background: rgba(255,215,107,.08); border: 1px solid #4a3f1f; border-radius: 8px;
+  padding: 10px 12px; color: #ffe9b8 !important; font-size: 12.5px; }
 
 /* settings */
 .settings-inner { width: min(520px, 94vw); }

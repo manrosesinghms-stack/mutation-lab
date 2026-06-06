@@ -31,6 +31,8 @@ function freshState() {
     musicTrack: "lofi",    // selected music theme
     shake: "subtle",       // screen shake: off | subtle | full
     reduceMotion: false,   // disable creature tremble + extra motion
+    seenHelp: false,       // shown the How-to-Play once
+    seenBloomHint: false,  // shown the first-bloom hint once
     achievements: {},      // { achievementId: true } unlocked set
     discovered: {},        // { mutationId: true } every mutation ever drafted
     hitWall: false,        // ever reached the production wall (achievement)
