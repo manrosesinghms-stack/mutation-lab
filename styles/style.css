@@ -120,6 +120,8 @@ html, body {
   text-align: center;
   position: relative;
   overflow: hidden;
+  flex-shrink: 0; /* overflow:hidden makes a flex item shrinkable to 0 — pin it so
+                     the card keeps its real height and doesn't clip /sec + Digest */
 }
 /* biomass "tank" — a liquid that rises as you fill the current order of magnitude,
    then resets at each x10, so there's always visible growth behind the number */
