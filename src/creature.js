@@ -17,8 +17,39 @@ let raycaster, pointer;
 let partsGroup;
 let partIndex = 0;      // how many parts attached (also the anchor seed)
 let hueShift = 0;       // accumulates per mutation -> creature drifts color
+let stress = 0;         // 0..1 metabolic stress (near the production wall)
+let stressTarget = 0;
+let engorge = 0;        // transient swell from Digest
+let activeBloom = null; // the current Mitogen Bloom mesh (clickable)
+let onBloomCb = null;
 const BASE_HSL = { h: 0.42, s: 0.62, l: 0.55 };
 const UP = new THREE.Vector3(0, 1, 0);
+
+// Drive the "about to pop" look: desaturate + tremble + over-glow. 0..1.
+export function setStress(t) { stressTarget = Math.max(0, Math.min(1, t || 0)); }
+
+export function setBloomCallback(cb) { onBloomCb = cb; }
+export function hasBloom() { return !!activeBloom; }
+export function engorgePop() { engorge = 1; }
+
+// Spawn a golden Mitogen Bloom on the body — click it for a frenzy buff.
+export function spawnBloom() {
+  if (!partsGroup || activeBloom) return;
+  const dir = anchorDir(Math.floor(Math.random() * 32) + 1);
+  const g = new THREE.Group();
+  g.userData.isBloom = true;
+  g.userData.born = 0;
+  const core = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.2, 1),
+    new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffaa22, emissiveIntensity: 1.5, flatShading: true }));
+  g.add(core);
+  g.position.copy(dir).multiplyScalar(surfaceRadius(dir) + 0.12);
+  partsGroup.add(g);
+  activeBloom = g;
+}
+function removeBloom() {
+  if (activeBloom) { partsGroup.remove(activeBloom); activeBloom = null; }
+}
 
 const easeOutBack = (t) => {
   const c1 = 1.70158, c3 = c1 + 1;
@@ -115,16 +146,28 @@ export function initCreature(canvasEl, onClick) {
   window.addEventListener("resize", resize);
 }
 
+function bloomAncestor(obj) {
+  let o = obj;
+  while (o) { if (o.userData && o.userData.isBloom) return o; o = o.parent; }
+  return null;
+}
+
 function handlePointer(e) {
   const rect = canvas.getBoundingClientRect();
   pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
   const hit = raycaster.intersectObject(organism, true);
-  if (hit.length > 0) {
-    punch = 1; // trigger squash
-    if (onClickCb) onClickCb(e.clientX, e.clientY);
+  if (hit.length === 0) return;
+  // clicking the bloom triggers its reward instead of a normal click
+  const bloom = bloomAncestor(hit[0].object);
+  if (bloom) {
+    removeBloom();
+    if (onBloomCb) onBloomCb(e.clientX, e.clientY);
+    return;
   }
+  punch = 1; // trigger squash
+  if (onClickCb) onClickCb(e.clientX, e.clientY);
 }
 
 export function resize() {
@@ -169,8 +212,25 @@ export function renderCreature(dt, elapsed) {
     currentScale * stretch * breathe * (1 + Math.sin(elapsed * 1.9 + 2) * 0.022),
     currentScale * squash * breathe * (1 + Math.sin(elapsed * 2.6 + 4) * 0.022)
   );
+  // Digest swell
+  engorge += (0 - engorge) * Math.min(1, dt * 2);
+  if (engorge > 0.001) organism.scale.multiplyScalar(1 + engorge * 0.45);
   organism.rotation.y += dt * 0.35;
   organism.rotation.x = Math.sin(elapsed * 0.4) * 0.12;
+
+  // metabolic stress: desaturate, tremble, and over-glow as the wall approaches
+  stress += (stressTarget - stress) * Math.min(1, dt * 4);
+  {
+    const h = (BASE_HSL.h + hueShift) % 1;
+    organism.material.color.setHSL(h, BASE_HSL.s * (1 - 0.7 * stress), BASE_HSL.l + 0.05 * stress);
+    organism.material.emissiveIntensity = 0.55 + stress * 1.3;
+    const tr = stress * 0.035;
+    organism.position.set(
+      tr > 0.0001 ? (Math.random() * 2 - 1) * tr : 0,
+      tr > 0.0001 ? (Math.random() * 2 - 1) * tr : 0,
+      0,
+    );
+  }
 
   // shared gaze + chomp phases so all eyes/maws move together (reads as one mind)
   const gazeX = Math.sin(elapsed * 0.6) * 0.28;
@@ -196,6 +256,14 @@ export function renderCreature(dt, elapsed) {
         p.userData.jaw.lower.rotation.x = open;
       }
     }
+  }
+
+  // animate the Mitogen Bloom (pulse + spin); auto-despawn if ignored
+  if (activeBloom) {
+    activeBloom.userData.born += dt;
+    activeBloom.scale.setScalar(1 + Math.sin(elapsed * 6) * 0.18);
+    activeBloom.rotation.y += dt * 2.5;
+    if (activeBloom.userData.born > 12) removeBloom();
   }
 
   renderer.render(scene, camera);
@@ -390,4 +458,38 @@ export function rebuildVisuals(parts, totalMutations) {
 // Big squash on prestige.
 export function prestigeFlash() {
   punch = 1.8;
+}
+
+// Clear all mutation parts (used on Speciate — new lineage starts bald).
+export function resetParts() {
+  if (!partsGroup) return;
+  while (partsGroup.children.length) partsGroup.remove(partsGroup.children[0]);
+  partIndex = 0;
+  hueShift = 0;
+  applyHue();
+}
+
+// Ghost-chimera overlay: a faint translucent shell per equipped Species, tinted
+// by that species' part hue, layered around the body. The marquee viral asset.
+let ghostGroup;
+export function setEquippedGhosts(species) {
+  if (!organism) return;
+  if (!ghostGroup) { ghostGroup = new THREE.Group(); organism.add(ghostGroup); }
+  while (ghostGroup.children.length) ghostGroup.remove(ghostGroup.children[0]);
+  const list = (species || []).slice(0, 5);
+  list.forEach((sp, i) => {
+    const hue = (0.42 + (sp.parts ? sp.parts.length : i) * 0.11 + i * 0.07) % 1;
+    const shell = new THREE.Mesh(
+      makeOrganismGeometry(2, 1),
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color().setHSL(hue, 0.7, 0.55),
+        transparent: true, opacity: 0.16, flatShading: true,
+        emissive: new THREE.Color().setHSL(hue, 0.7, 0.3), emissiveIntensity: 0.6,
+        depthWrite: false,
+      }));
+    const s = 1.12 + i * 0.1;
+    shell.scale.setScalar(s);
+    shell.rotation.set(i * 0.6, i * 1.1, i * 0.3);
+    ghostGroup.add(shell);
+  });
 }

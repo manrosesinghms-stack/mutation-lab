@@ -110,4 +110,14 @@ Fixes the "player finishes in <1hr" problem. Plan: [docs/PROGRESSION.md](PROGRES
 - **Fix:** S must NOT grow with prestige count — only Genome (the Speciate currency) raises it; and the knee hardened (exp 0.5 → 0.22). New sim result: **429M lifetime / 15 prestiges / 473 EP at 60 min, curve bending (1e7→1e8 takes 13 min), first wall/Speciate-unlock at ~18 min.** Tamed.
 - Lesson baked into the plan: the softcaps stabilize a single run, but the EP/prestige META-accumulation is the true runaway — it MUST be bounded by the Speciate reset (Phase 2). Phase 0 stabilizes; Speciate completes the fix.
 
-## ▶️ Next: Progression Phase 1 (make the wall legible — Metabolic Pressure meter + creature stress) → then Phase 2 (Speciate). Consider a human playtest of the new pacing first. Also: lots uncommitted — commit milestone to git.
+## ✅ Progression Phases 1–3 + content + dev-server — DONE (2026-06-05)
+- **Phase 1 — Legible wall:** `Metabolic Pressure` meter (fill = raw/S) + "BODY MAXED — Speciate" banner; creature **stress** visuals (`setStress`): desaturate + tremble + over-glow as it nears the cap. Verified: meter maxes red, banner shows.
+- **Phase 2 — Speciate (2nd prestige):** `genome` currency, **Species cards** (auto-named snapshots of your build), 6-node **Genome Lab** grid (`wall_up` raises S, `equip_slot`, `ep_boost`, `draft_4`, `auto_gen`, `start_boost`), **equip** system (equipped species add sqrt-weighted bonus), **ghost-chimera** translucent overlays, **export/import** save string. Verified end-to-end: Speciate banks a card + Genome + wipes the Evolve layer; wall_up raises S 10k→25k; equip boosts production; save round-trips; modal renders 6 nodes.
+- **Phase 3 — Continuous hook:** **Mitogen Bloom** (golden clickable spawn → ×7 frenzy 20s), **Digest** sink (spend 40% → ×2–10 surge, creature engorges), expiry-aware `tempBuffs` at the single chokepoint. Verified: Digest ×7.6, bloom frenzy, expired buffs ignored + pruned.
+- **Phase 5 content:** mutation pool **14 → 30** (4 common / 6 rare / 4 legendary added; tradeoff & gen-specific & synergy effects). All 30 effects verified callable.
+- **Dev server:** `tools/devserver.py` (threaded, no-cache) replaces `http.server` — fixes silent stale-JS caching during dev. launch.json updated.
+
+### Anti-runaway status: COMPLETE
+Phase 0 walled production; Phase 2 (Speciate) now bounds the EP/prestige accumulation (Speciate wipes EP). The full sawtooth is in: sprint → wall (legible) → Speciate (reset EP, bank Species, gain Genome) → raise the wall with nodes → repeat. The "<1hr / 12.9B runaway" is fully resolved.
+
+## ▶️ Remaining = user-dependent: Phase 8 playtest (real humans), Phase 9 marketing (Steam page/trailer/wishlists), Phase 10 launch (itch + Steamworks). Buildable polish left: music (Phase 7), achievements/stats screen (Phase 6).

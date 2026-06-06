@@ -11,6 +11,16 @@ import {
   doPrestige,
   rollDraft,
   acquireMutation,
+  pressureLevel,
+  doSpeciate,
+  buyNode,
+  toggleEquip,
+  draftSize,
+  hasNode,
+  autoBuyGenerators,
+  doDigest,
+  pruneTempBuffs,
+  addTempBuff,
 } from "./economy.js";
 import {
   initCreature,
@@ -20,8 +30,16 @@ import {
   onMutationGained,
   prestigeFlash,
   rebuildVisuals,
+  setStress,
+  resetParts,
+  setEquippedGhosts,
+  setBloomCallback,
+  spawnBloom,
+  hasBloom,
+  engorgePop,
 } from "./creature.js";
-import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel } from "./ui.js";
+import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
+         renderGenomeLab, genomeStatus } from "./ui.js";
 import { formatNumber } from "./format.js";
 import { getMutation } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
@@ -66,7 +84,7 @@ initUI({
     const c = stageCenter();
     burst(c.x, c.y, { count: 60, color: "#b88cff", spread: 200, up: 0, life: 900 });
     flashStatus(`evolved! +${formatNumber(gained)} EP`);
-    showDraft(rollDraft(3), pickMutation);
+    showDraft(rollDraft(draftSize()), pickMutation);
     save();
   },
   onMute: () => {
@@ -75,7 +93,56 @@ initUI({
     setMuteLabel(m);
     save();
   },
+  onSpeciate: () => {
+    const res = doSpeciate();
+    if (!res) { flashStatus("can't speciate yet — reach the wall first"); return; }
+    resetParts();        // new lineage starts bald, re-grows as you draft
+    refreshGhosts();
+    audio.playEvolve();
+    flash("rgba(255,177,61,0.55)");
+    shake(22);
+    const c = stageCenter();
+    burst(c.x, c.y, { count: 80, color: "#ffd76b", spread: 240, up: 0, life: 1000 });
+    flashStatus(`SPECIATED: ${res.card.name} · +${formatNumber(res.gain)} Genome`);
+    save();
+  },
+  onBuyNode: (id) => {
+    if (buyNode(id)) { audio.playBuy(2); refreshGhosts(); renderGenomeLab(); genomeStatus("node upgraded"); save(); }
+    else genomeStatus("not enough Genome");
+  },
+  onToggleEquip: (sid) => {
+    if (toggleEquip(sid)) { refreshGhosts(); renderGenomeLab(); audio.playMutation("common"); save(); }
+    else genomeStatus("all equip slots full (buy Lineage Slots)");
+  },
+  onExport: () => exportSave(),
+  onImport: () => importSave(),
 });
+
+function refreshGhosts() {
+  setEquippedGhosts((state.equippedSpecies || [])
+    .map((id) => (state.species || []).find((s) => s.id === id))
+    .filter(Boolean));
+}
+
+function exportSave() {
+  try {
+    const str = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+    if (navigator.clipboard) navigator.clipboard.writeText(str);
+    genomeStatus("save copied to clipboard");
+  } catch (e) { genomeStatus("export failed"); }
+}
+
+function importSave() {
+  const str = prompt("Paste your exported save string:");
+  if (!str) return;
+  try {
+    const data = JSON.parse(decodeURIComponent(escape(atob(str.trim()))));
+    Object.assign(state, data);
+    save();
+    genomeStatus("imported — reloading");
+    setTimeout(() => location.reload(), 600);
+  } catch (e) { genomeStatus("invalid save string"); }
+}
 
 function pickMutation(id) {
   acquireMutation(id);
@@ -122,10 +189,34 @@ const savedParts = state.mutations
   .filter((d) => d && d.part)
   .map((d) => d.part);
 rebuildVisuals(savedParts, state.mutations.length);
+refreshGhosts(); // restore equipped-species ghost overlays
 
 // restore mute preference
 audio.setMuted(!!state.muted);
 setMuteLabel(!!state.muted);
+
+// --- Mitogen Bloom: golden clickable spawn -> frenzy buff (active-play upside) ---
+setBloomCallback((sx, sy) => {
+  addTempBuff({ id: "bloom", prodMult: 7, durationMs: 20000 });
+  audio.playMilestone();
+  flash("rgba(255,215,107,0.4)");
+  burst(sx, sy, { count: 40, color: "#ffd76b", spread: 160, life: 900 });
+  flashStatus("MITOGEN BLOOM! ×7 production for 20s");
+});
+// ~one bloom per minute when none is active
+setInterval(() => { if (!hasBloom() && Math.random() < 0.5) spawnBloom(); }, 30000);
+
+// --- Digest button (opt-in biomass sink -> production surge) ---
+document.getElementById("digest-btn").addEventListener("click", () => {
+  const res = doDigest();
+  if (!res) { flashStatus("not enough biomass to digest"); return; }
+  engorgePop();
+  audio.playBuy(3);
+  const c = stageCenter();
+  burst(c.x, c.y, { count: 24, color: "#b88cff", spread: 120 });
+  flashStatus(`digested → ×${res.mult.toFixed(1)} production for 15s`);
+  save();
+});
 
 // ---- offline progress welcome ----
 const offline = applyOfflineProgress();
@@ -155,6 +246,10 @@ function update() {
   const rate = productionPerSecond();
   if (rate > 0) addBiomass(rate * dt);
 
+  // Mitosis Engine node: auto-buy organelles
+  if (hasNode("auto_gen")) autoBuyGenerators();
+  pruneTempBuffs(); // drop expired blooms/Digest buffs
+
   // milestone ding on each new power-of-ten of lifetime biomass
   if (state.lifetimeBiomass >= 1000) {
     const exp = Math.floor(Math.log10(state.lifetimeBiomass));
@@ -170,6 +265,8 @@ function update() {
   // visuals (clamp the animation dt so squash/pop stay sane after long gaps)
   const visualDt = Math.min(dt, 0.1);
   setGrowthFromBiomass(state.biomass);
+  // metabolic stress ramps in from pressure 0.6 -> 1.2 (creature strains red)
+  setStress((pressureLevel() - 0.6) / 0.6);
   renderCreature(visualDt, elapsed);
   updateJuice(visualDt);
   renderUI(rate, visualDt);

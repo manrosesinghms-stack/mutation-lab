@@ -19,8 +19,14 @@ function freshState() {
     evolutionPoints: 0,    // prestige currency; EP payoff is softcapped (tunables.js)
     mutations: [],         // array of mutation ids (stacks = repeats), in draft order
     prestiges: 0,
-    genomeCapBonus: 1,     // raises the production softcap S (bought with Genome later)
+    genomeCapBonus: 1,     // raises the production softcap S (bought with Genome)
     tempBuffs: [],         // active temporary buffs (blooms/abilities); Phase 3
+    // --- Speciate layer (2nd prestige; persists across Evolve AND Speciate) ---
+    genome: 0,             // spendable meta-currency from Speciate
+    species: [],           // banked Species cards: {id,name,mutations,parts,strength}
+    equippedSpecies: [],   // ids of currently-equipped species (capped by nodes)
+    genomeNodes: {},       // { nodeId: level } purchased node grid
+    speciations: 0,        // how many times Speciated
     lastSeen: nowSeconds(), // for offline progress
   };
 }
@@ -55,6 +61,9 @@ export function load() {
       ...data,
       owned: { ...base.owned, ...(data.owned || {}) },
       mutations: Array.isArray(data.mutations) ? data.mutations : [],
+      species: Array.isArray(data.species) ? data.species : [],
+      equippedSpecies: Array.isArray(data.equippedSpecies) ? data.equippedSpecies : [],
+      genomeNodes: (data.genomeNodes && typeof data.genomeNodes === "object") ? data.genomeNodes : {},
     };
     // for an existing big save, start milestones at the current tier so we don't
     // dump a backlog of dings on load

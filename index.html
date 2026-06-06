@@ -36,6 +36,7 @@
         </div>
         <div class="rate"><span id="biomass-rate">0</span> /sec</div>
         <div class="rate small">+<span id="click-power">1</span> per click</div>
+        <button id="digest-btn" class="digest">🍴 Digest — spend 40% for a surge</button>
       </section>
 
       <section id="generators">
@@ -45,6 +46,13 @@
 
       <section id="evolution">
         <h2>Evolution</h2>
+        <div id="pressure">
+          <div class="pressure-head">
+            <span>Metabolic Pressure</span><span id="pressure-pct">0%</span>
+          </div>
+          <div class="pressure-bar"><div id="pressure-fill"></div></div>
+          <div id="pressure-warn" class="hidden">⚠ BODY MAXED — Speciate to grow further</div>
+        </div>
         <button id="evolve-btn" class="evolve" disabled>
           <span class="evolve-label">EVOLVE</span>
           <span class="evolve-gain" id="evolve-gain">+0 EP</span>
@@ -53,6 +61,11 @@
           <span><b id="ep-value">0</b> Evolution Points</span>
           <span><b id="prestige-count">0</b> evolutions</span>
         </div>
+        <button id="speciate-btn" class="speciate hidden">
+          <span class="evolve-label">SPECIATE</span>
+          <span class="evolve-gain" id="speciate-gain">+0 Genome</span>
+        </button>
+        <button id="genome-btn" class="ghost genome-open">🧬 Genome Lab · <b id="genome-value">0</b></button>
         <div id="mutation-collection"><!-- chips injected by ui.js --></div>
       </section>
 
@@ -69,6 +82,31 @@
   <div id="fx-layer"></div>
   <!-- prestige flash overlay -->
   <div id="flash"></div>
+
+  <!-- genome lab modal (nodes + species + save) -->
+  <div id="genome-modal" class="hidden">
+    <div class="genome-inner">
+      <div class="genome-head">
+        <h2>🧬 GENOME LAB</h2>
+        <button id="genome-close" class="ghost">✕ Close</button>
+      </div>
+      <div class="genome-cols">
+        <div class="genome-col">
+          <h3>Nodes · <span id="genome-value2">0</span> Genome available</h3>
+          <div id="node-list"></div>
+        </div>
+        <div class="genome-col">
+          <h3>Species · <span id="species-count">0</span> banked · <span id="equip-info">0/1 equipped</span></h3>
+          <div id="species-list"></div>
+        </div>
+      </div>
+      <div class="genome-foot">
+        <button id="export-btn" class="ghost">Export save</button>
+        <button id="import-btn" class="ghost">Import save</button>
+        <span id="genome-status"></span>
+      </div>
+    </div>
+  </div>
 
   <!-- mutation draft modal -->
   <div id="draft-modal" class="hidden">
