@@ -493,6 +493,22 @@ export function renderCreature(dt, elapsed) {
       organism.material.emissiveIntensity = skin.emi + stress * 1.3;
       organism.material.metalness = skin.metal;
       organism.material.roughness = skin.rough;
+      // premium "living" skin finishes — animated material, no shader risk
+      if (skin.anim && !reduceMotion) {
+        if (skin.anim === "galaxy") {
+          const gh = (skin.h + hueShift + elapsed * 0.04) % 1; // slow cosmic hue drift
+          organism.material.color.setHSL(gh, skin.s, skin.l);
+          organism.material.emissive.setHSL(gh, Math.min(1, skin.s * 0.8), 0.2);
+          organism.material.emissiveIntensity = skin.emi + Math.sin(elapsed * 1.5) * 0.4;
+        } else if (skin.anim === "molten") {
+          organism.material.emissiveIntensity = skin.emi + Math.sin(elapsed * 8) * 0.4 + Math.sin(elapsed * 13.3) * 0.2;
+        } else if (skin.anim === "shimmer") {
+          organism.material.emissiveIntensity = skin.emi + Math.sin(elapsed * 3) * 0.3;
+          organism.material.roughness = Math.max(0.02, skin.rough + Math.sin(elapsed * 4) * 0.05);
+        } else if (skin.anim === "pulse") {
+          organism.material.emissiveIntensity = skin.emi + Math.sin(elapsed * 2) * 0.35;
+        }
+      }
     }
     // wet membrane over-glows as the creature strains toward the wall
     if (rimMat) rimMat.uniforms.uIntensity.value = 0.6 + stress * 1.1 + Math.sin(elapsed * 1.6) * 0.05;
