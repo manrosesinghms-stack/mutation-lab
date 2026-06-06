@@ -28,6 +28,7 @@ import { creatureName } from "./data/names.js";
 
 const el = {};
 let onBuy = null;
+let sellMode = false;
 
 export function initUI(handlers) {
   onBuy = handlers.onBuy;
@@ -79,6 +80,12 @@ export function initUI(handlers) {
   el.muteBtn = document.getElementById("mute-btn");
   el.autobuyToggle = document.getElementById("autobuy-toggle");
   el.autobuyToggle.addEventListener("click", () => handlers.onToggleAutoBuy());
+  el.buysellToggle = document.getElementById("buysell-toggle");
+  el.buysellToggle.addEventListener("click", () => {
+    sellMode = !sellMode;
+    el.buysellToggle.textContent = sellMode ? "Mode: Sell" : "Mode: Buy";
+    el.buysellToggle.classList.toggle("off", sellMode);
+  });
 
   document.getElementById("save-btn").addEventListener("click", handlers.onSave);
   document.getElementById("wipe-btn").addEventListener("click", handlers.onWipe);
@@ -535,7 +542,10 @@ function buildGeneratorRows() {
       <div class="desc">${g.desc}</div>
       <div class="cost">${formatNumber(g.baseCost)}</div>
       <div class="owned">0</div>`;
-    row.addEventListener("click", () => onBuy && onBuy(g.id, row.getBoundingClientRect()));
+    row.addEventListener("click", () => {
+      if (sellMode) uiHandlers.onSell(g.id);
+      else if (onBuy) onBuy(g.id, row.getBoundingClientRect());
+    });
     el.genList.appendChild(row);
     el.genRows[g.id] = row;
   }

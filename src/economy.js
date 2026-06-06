@@ -268,6 +268,17 @@ export function canAfford(genId) {
   return state.biomass >= costOf(genId);
 }
 
+// Sell one back for 50% of what the last one cost (re-spec / fix mistakes).
+export function sellGenerator(genId) {
+  const owned = state.owned[genId] || 0;
+  if (owned <= 0) return 0;
+  const g = GEN_BY_ID[genId];
+  const refund = Math.floor(0.5 * g.baseCost * Math.pow(g.costGrowth, owned - 1));
+  state.owned[genId] = owned - 1;
+  state.biomass += refund;
+  return refund;
+}
+
 export function buy(genId) {
   if (challengeRule() === "noGenerators") return false; // Parasite challenge
   const cost = costOf(genId);

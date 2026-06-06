@@ -4,6 +4,7 @@ import { state, save, wipe } from "./state.js";
 import {
   click,
   buy,
+  sellGenerator,
   productionPerSecond,
   addBiomass,
   applyOfflineProgress,
@@ -105,6 +106,11 @@ initUI({
     } else {
       flashStatus("not enough biomass");
     }
+  },
+  onSell: (genId) => {
+    const refund = sellGenerator(genId);
+    if (refund > 0) { audio.playClick(0); flashStatus(`sold 1 → +${formatNumber(refund)} biomass`); save(); }
+    else flashStatus("none to sell");
   },
   onSave: () => flashStatus(save() ? "saved" : "save failed"),
   onWipe: () => {
