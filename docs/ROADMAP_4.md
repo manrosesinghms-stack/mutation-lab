@@ -90,3 +90,8 @@ Seasons, Ascension), Wikipedia, idle-design guides.
 
 Every system stays vanilla JS, offline, and **performance-gated**. Each phase is
 independently shippable and verifiable. We do them one at a time.
+
+
+---
+## STATUS: ALL PHASES SHIPPED ✅
+Phase 1 (1A sell-back, 1B Biomass Exchange) · Phase 2 (2A Mutagen, 2B organelle levels, 2C +5 organelles) · Phase 3 (3A Bloom types, 3B Leeches) · Phase 4 (4A Petri Garden, 4B Reactor, 4C Pantheon, 4D Symbiote) · Phase 5 (5A Seasons, 5B Upgrade expansion, 5C Achievements 151, 5D Aberration mode). All verified, performance-gated, offline-safe.
