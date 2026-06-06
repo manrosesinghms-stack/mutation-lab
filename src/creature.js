@@ -572,6 +572,7 @@ export function renderCreature(dt, elapsed) {
   updateHabitat(dt, elapsed);
   updateTierCrown(dt, elapsed);
   updateAuraParticles(elapsed);
+  updateVeins(elapsed);
 
   renderer.render(scene, camera);
 }
@@ -894,9 +895,9 @@ function updateAuraParticles(elapsed) {
 
 // ---- Graphics quality: trade premium effects for framerate ----
 const QUALITY_PRESETS = {
-  low:    { pixelRatio: 1.0,  maxParts: 12, motes: 14, aura: 0,  env: false, rim: false },
-  medium: { pixelRatio: 1.25, maxParts: 18, motes: 30, aura: 26, env: false, rim: false },
-  high:   { pixelRatio: 1.75, maxParts: 28, motes: 60, aura: 54, env: true,  rim: true },
+  low:    { pixelRatio: 1.0,  maxParts: 12, motes: 14, aura: 0,  env: false, rim: false, veins: false },
+  medium: { pixelRatio: 1.25, maxParts: 18, motes: 30, aura: 26, env: false, rim: false, veins: true },
+  high:   { pixelRatio: 1.75, maxParts: 28, motes: 60, aura: 54, env: true,  rim: true,  veins: true },
 };
 let QUALITY = QUALITY_PRESETS.medium;
 export function setQuality(level) {
@@ -906,6 +907,38 @@ export function setQuality(level) {
   applyRim(QUALITY.rim);
   if (habitatGroup) rebuildMotes(QUALITY.motes);
   buildAuraParticles(QUALITY.aura);
+  applyVeins(QUALITY.veins);
+}
+
+// Vein network — faint glowing strands across the body that flush RED as the
+// creature strains toward the metabolic wall. Thin additive lines (cheap).
+let veinGroup;
+function applyVeins(on) {
+  if (!organism) return;
+  if (on && !veinGroup) {
+    veinGroup = new THREE.Group();
+    organism.add(veinGroup);
+    for (let s = 0; s < 6; s++) {
+      const pts = [], tilt = (s / 6) * Math.PI, yaw = s * 1.3;
+      for (let a = 0; a <= Math.PI * 2 + 0.1; a += 0.16) {
+        const v = new THREE.Vector3(Math.cos(a), Math.sin(a) * Math.cos(tilt), Math.sin(a) * Math.sin(tilt));
+        v.applyAxisAngle(UP, yaw).normalize().multiplyScalar(surfaceRadius(v) * 1.02);
+        pts.push(v);
+      }
+      const g = new THREE.BufferGeometry().setFromPoints(pts);
+      const m = new THREE.LineBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.06, blending: THREE.AdditiveBlending, depthWrite: false });
+      veinGroup.add(new THREE.Line(g, m));
+    }
+  } else if (!on && veinGroup) {
+    organism.remove(veinGroup);
+    veinGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    veinGroup = null;
+  }
+}
+function updateVeins(elapsed) {
+  if (!veinGroup) return;
+  const op = 0.05 + stress * 0.6 + (stress > 0.1 ? Math.sin(elapsed * 6) * 0.12 * stress : 0);
+  for (const l of veinGroup.children) l.material.opacity = Math.max(0, op);
 }
 export function maxParts() { return QUALITY.maxParts; }
 
