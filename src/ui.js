@@ -584,11 +584,8 @@ export function renderUI(rate, dt = 0.016) {
   el.pressureWrap.classList.toggle("maxed", maxed);
   el.pressureWarn.classList.toggle("hidden", !maxed);
   if (maxed) {
-    // Early on, point players at EVOLVE (the core loop: +EP + a mutation). Only
-    // once they've evolved several times is Speciate (the bigger reset) the move.
-    el.pressureWarn.textContent = (state.prestiges || 0) >= 5
-      ? "⚠ Production capped — Speciate to raise the ceiling"
-      : "⚠ Production capped — EVOLVE for a permanent boost + a mutation";
+    // gentle, optional nudge — never an alarm. Production keeps growing past here.
+    el.pressureWarn.textContent = "Production is leveling off — Evolve or Speciate for a fresh multiplier";
   }
 
   // speciate availability + genome readout

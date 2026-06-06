@@ -17,13 +17,14 @@ export const TUN = {
   // S rises ONLY via Genome (the Speciate currency), so the wall is the invitation
   // to Speciate. The knee is hard (low exp) so stacking past the wall does little.
   prodSoftcap: {
-    base: 1e8,               // S before any Genome upgrades — high enough that a
-                             // fresh creature has a LONG runway (click → buy →
-                             // Evolve for mutations many times) before the wall
-                             // ever bites. The wall is a LATE invitation to
-                             // Speciate, not a 5-minute brick wall.
+    base: 1e11,              // S before any Genome upgrades. Set FAR out so normal
+                             // play (click → buy → Evolve → upgrades) almost never
+                             // sees a "capped" message — production grows freely
+                             // like a real clicker. Speciate is now a player CHOICE
+                             // (unlocked by evolving), not forced by a wall.
     growthPerPrestige: 1.0,  // NO growth from Evolve-prestige (Genome raises S instead)
-    exp: 0.30,               // soft-ish knee so crossing it isn't an instant brick wall
+    exp: 0.50,               // gentle diminishing returns, not a brick wall — past
+                             // S, production still climbs noticeably (sqrt-ish)
   },
 
   // Per-generator saturation — discourages dumping everything into one organelle.

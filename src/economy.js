@@ -430,9 +430,9 @@ export function genomeForSpeciate() {
 
 // Speciate unlocks once you hit the wall (pressure ~maxed) and it'd grant >=1 Genome.
 export function canSpeciate() {
-  // must EVOLVE (and draft mutations) a few times before the big reset is offered,
-  // so a bare creature is never shoved toward Speciate
-  return (state.prestiges || 0) >= 3 && pressureLevel() >= 0.9 && genomeForSpeciate() >= 1;
+  // Speciate is a CHOICE you unlock by evolving — never forced by a production cap.
+  // Available once you've Evolved enough this lineage and it'd bank real Genome.
+  return (state.prestiges || 0) >= 5 && genomeForSpeciate() >= 1;
 }
 
 export function doSpeciate() {
