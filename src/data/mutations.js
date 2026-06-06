@@ -163,6 +163,20 @@ export const MUTATIONS = [
     effect: (m, i) => { m.prodMult *= 1 + 0.09 * i.totalGenerators; } },
   { id: "omega", name: "Omega Cell", rarity: "legendary", desc: "×4 production & ×4 click",
     effect: (m) => { m.prodMult *= 4; m.clickMult *= 4; } },
+
+  // ---- genetic defects (high-risk "cursed" cards) ----
+  { id: "blind", name: "Blind", rarity: "rare", defect: true,
+    desc: "−90% click power, but ×6 production",
+    effect: (m) => { m.clickMult *= 0.1; m.prodMult *= 6; } },
+  { id: "glass_cell", name: "Glass Cell", rarity: "rare", defect: true,
+    desc: "×6 click power, but −70% production",
+    effect: (m) => { m.clickMult *= 6; m.prodMult *= 0.3; } },
+  { id: "savant", name: "Idiot Savant", rarity: "legendary", defect: true,
+    desc: "×9 production, but −60% Evolution Points",
+    effect: (m) => { m.prodMult *= 9; m.epMult *= 0.4; } },
+  { id: "tumor", name: "Runaway Tumor", rarity: "legendary", defect: true, part: "body",
+    desc: "+20% production per mutation owned, but ×0.3 click",
+    effect: (m, i) => { m.prodMult *= 1 + 0.20 * i.totalMutations; m.clickMult *= 0.3; } },
 ];
 
 export const MUT_BY_ID = Object.fromEntries(MUTATIONS.map((m) => [m.id, m]));

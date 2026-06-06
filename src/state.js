@@ -27,6 +27,7 @@ function freshState() {
     equippedSpecies: [],   // ids of currently-equipped species (capped by nodes)
     genomeNodes: {},       // { nodeId: level } purchased node grid
     speciations: 0,        // how many times Speciated
+    rerolls: 0,            // draft reroll tokens
     musicVolume: 0.5,      // 0..1 ambient music volume
     musicTrack: "lofi",    // selected music theme
     background: "aurora",  // selected animated background

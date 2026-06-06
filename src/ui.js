@@ -69,6 +69,7 @@ export function initUI(handlers) {
   document.getElementById("genome-close").addEventListener("click", () => el.genomeModal.classList.add("hidden"));
   document.getElementById("export-btn").addEventListener("click", handlers.onExport);
   document.getElementById("import-btn").addEventListener("click", handlers.onImport);
+  document.getElementById("fuse-btn").addEventListener("click", handlers.onFuse);
   el.statsModal = document.getElementById("stats-modal");
   el.statsBody = document.getElementById("stats-body");
   document.getElementById("stats-btn").addEventListener("click", () => openStats());
@@ -422,26 +423,38 @@ function renderMutationChips() {
   }
 }
 
-// Show the 3-card mutation draft. Calls onPick(id) when a card is chosen.
-export function showDraft(ids, onPick) {
+// Show the mutation draft. onPick(id) when chosen; onReroll() if a reroll token is spent.
+export function showDraft(ids, onPick, onReroll) {
   el.draftCards.innerHTML = "";
   for (const id of ids) {
     const def = getMutation(id);
     if (!def) continue;
     const r = RARITY[def.rarity];
     const card = document.createElement("div");
-    card.className = "draft-card";
-    card.style.setProperty("--rarity", r.color);
+    card.className = "draft-card" + (def.defect ? " defect" : "");
+    card.style.setProperty("--rarity", def.defect ? "#ff6b6b" : r.color);
     card.innerHTML = `
-      <div class="rarity">${r.label}</div>
+      <div class="rarity">${def.defect ? "⚠ CURSED" : r.label}</div>
       <div class="mname">${def.name}</div>
       ${def.part ? `<div class="part-tag">＋ grows a ${def.part}</div>` : ""}
       <div class="mdesc">${def.desc}</div>`;
-    card.addEventListener("click", () => {
-      el.draftModal.classList.add("hidden");
-      onPick(id);
-    });
+    card.addEventListener("click", () => { el.draftModal.classList.add("hidden"); onPick(id); });
     el.draftCards.appendChild(card);
+  }
+  // reroll button (spends a token)
+  let rr = document.getElementById("draft-reroll");
+  if (!rr) {
+    rr = document.createElement("button");
+    rr.id = "draft-reroll";
+    rr.className = "ghost";
+    document.querySelector(".draft-inner").appendChild(rr);
+  }
+  if (onReroll && (state.rerolls || 0) > 0) {
+    rr.style.display = "";
+    rr.textContent = `🎲 Reroll (${state.rerolls})`;
+    rr.onclick = () => onReroll();
+  } else {
+    rr.style.display = "none";
   }
   el.draftModal.classList.remove("hidden");
 }

@@ -24,6 +24,9 @@ import {
   checkAchievements,
   checkTraits,
   rollVariant,
+  grantReroll,
+  useReroll,
+  fuseMutations,
 } from "./economy.js";
 import {
   initCreature,
@@ -93,7 +96,7 @@ initUI({
     const c = stageCenter();
     burst(c.x, c.y, { count: 60, color: "#b88cff", spread: 200, up: 0, life: 900 });
     flashStatus(`evolved! +${formatNumber(gained)} EP`);
-    showDraft(rollDraft(draftSize()), pickMutation);
+    openDraft();
     rollAndApplyVariant();
     save();
   },
@@ -120,6 +123,7 @@ initUI({
     const c = stageCenter();
     burst(c.x, c.y, { count: 80, color: "#ffd76b", spread: 240, up: 0, life: 1000 });
     flashStatus(`SPECIATED: ${res.card.name} · +${formatNumber(res.gain)} Genome`);
+    grantReroll(1);
     rollAndApplyVariant();
     save();
   },
@@ -133,7 +137,27 @@ initUI({
   },
   onExport: () => exportSave(),
   onImport: () => importSave(),
+  onFuse: () => {
+    const pick = fuseMutations();
+    if (!pick) { genomeStatus("need 3 mutations + 2 Genome"); return; }
+    resetParts();
+    const parts = state.mutations.map((id) => getMutation(id)).filter((d) => d && d.part).map((d) => d.part);
+    rebuildVisuals(parts, state.mutations.length);
+    refreshGhosts();
+    renderGenomeLab();
+    audio.playMutation("legendary");
+    genomeStatus(`fused → ${pick.name}!`);
+    save();
+  },
 });
+
+// open the mutation draft with reroll support
+function openDraft() {
+  showDraft(rollDraft(draftSize()), pickMutation, () => {
+    if (useReroll()) openDraft();
+    else flashStatus("no reroll tokens");
+  });
+}
 
 function refreshGhosts() {
   setEquippedGhosts((state.equippedSpecies || [])
@@ -340,10 +364,11 @@ document.getElementById("boss-cell").addEventListener("pointerdown", (e) => {
     flash("rgba(86,227,159,.45)"); shake(14);
     burst(c.x, c.y, { count: 60, color: "#56e39f", spread: 200, up: 0, life: 1000 });
     audio.playMilestone();
+    grantReroll(1);
     flashStatus(`💥 ${boss.name} destroyed! +${reward} Genome + a free mutation`);
     boss = null;
     bossEl.classList.add("hidden");
-    showDraft(rollDraft(draftSize()), pickMutation);
+    openDraft();
     save();
   }
 });

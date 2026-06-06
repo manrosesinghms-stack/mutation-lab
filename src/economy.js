@@ -378,6 +378,31 @@ export function acquireMutation(id) {
   }
 }
 
+// ---- rerolls + fusion (build-crafting) ----
+export function grantReroll(n = 1) { state.rerolls = (state.rerolls || 0) + n; }
+export function useReroll() {
+  if ((state.rerolls || 0) <= 0) return false;
+  state.rerolls -= 1;
+  return true;
+}
+
+const RW = { common: 1, rare: 2, legendary: 3 };
+// Reactor: sacrifice your 3 lowest-rarity mutations for 1 random rarer one (costs Genome).
+export function fuseMutations() {
+  if (state.mutations.length < 3 || (state.genome || 0) < 2) return null;
+  const sorted = [...state.mutations].sort((a, b) => (RW[MUT_BY_ID[a] && MUT_BY_ID[a].rarity] || 1) - (RW[MUT_BY_ID[b] && MUT_BY_ID[b].rarity] || 1));
+  for (const id of sorted.slice(0, 3)) {
+    const i = state.mutations.indexOf(id);
+    if (i >= 0) state.mutations.splice(i, 1);
+  }
+  state.genome -= 2;
+  const pool = MUTATIONS.filter((m) => m.rarity !== "common" && !m.defect);
+  const pick = pool[(Math.random() * pool.length) | 0];
+  state.mutations.push(pick.id);
+  state.discovered[pick.id] = true;
+  return pick;
+}
+
 // Apply offline progress on load. Returns biomass earned while away.
 export function applyOfflineProgress() {
   const now = nowSeconds();
