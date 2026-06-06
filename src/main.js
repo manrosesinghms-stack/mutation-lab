@@ -58,6 +58,7 @@ import {
   setHabitat,
   setSpeciesTier,
   setBodyShape,
+  setQuality,
   setBloomCallback,
   spawnBloom,
   hasBloom,
@@ -134,6 +135,16 @@ initUI({
   onSetTheme: (id) => { state.musicTrack = id; setMusicTheme(id); startMusic(); save(); },
   onSetShake: (v) => { state.shake = v; applyShakeSetting(v); save(); },
   onSetReduce: (b) => { state.reduceMotion = b; setReduceMotion(b); setJuiceReduceMotion(b); save(); },
+  onSetGraphics: (v) => {
+    state.graphics = v;
+    setQuality(v);
+    // re-seat parts so the new part-cap takes effect immediately
+    resetParts();
+    const parts = state.mutations.map((id) => getMutation(id)).filter((d) => d && d.part).map((d) => d.part);
+    rebuildVisuals(parts, state.mutations.length);
+    flashStatus(`graphics: ${v}`);
+    save();
+  },
   onSetNaming: (v) => { state.namingStyle = v; save(); },
   onSetBackground: (v) => { state.background = v; setBackground(v); save(); },
   onSpeciate: () => {
@@ -409,6 +420,7 @@ initCinematic();
 
 // restore creature parts from a saved game (visual mutations only)
 if (state.runShapeSeed == null) state.runShapeSeed = 1;
+setQuality(state.graphics || "medium"); // apply graphics quality (part cap, resolution, effects)
 setBodyShape(state.speciations || 0, state.runShapeSeed); // shape the body BEFORE seating parts
 const savedParts = state.mutations
   .map((id) => getMutation(id))

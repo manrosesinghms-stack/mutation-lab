@@ -250,7 +250,13 @@ function buildHabitat() {
   pad.position.y = -2.28;
   habitatGroup.add(pad);
 
-  // drifting ambient motes (bubbles / embers / spores depending on biome)
+  buildMotes();
+}
+
+// drifting ambient motes (bubbles / embers / spores). Count is quality-driven.
+function buildMotes() {
+  if (!habitatGroup) return;
+  if (motes) { habitatGroup.remove(motes); motes.geometry.dispose(); motes.material.dispose(); motes = null; }
   const geo = new THREE.BufferGeometry();
   const pos = new Float32Array(moteCount * 3);
   moteSpeeds = new Float32Array(moteCount);
@@ -267,6 +273,7 @@ function buildHabitat() {
     transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
   habitatGroup.add(motes);
 }
+function rebuildMotes(n) { moteCount = n; buildMotes(); }
 
 // Recolour the habitat to match the run's biome.
 export function setHabitat(biomeId) {
@@ -720,11 +727,9 @@ function buildPart(type) {
 }
 
 // Attach one part at the next anchor on the actual body surface; it animates in.
-const MAX_PARTS = 18; // hard cap — beyond this the body is already busy, and more
-                      // multi-mesh parts just tank the framerate for no visual gain
 export function addMutationPart(type) {
   if (!partsGroup || !type) return;
-  if (partIndex >= MAX_PARTS) { partIndex++; return; } // count it, but don't render more meshes
+  if (partIndex >= QUALITY.maxParts) { partIndex++; return; } // quality-capped; count but don't render more meshes
   const dir = anchorDir(partIndex);
   const part = buildPart(type);
   // align the part's +Y to point outward from the body
@@ -774,6 +779,64 @@ let glowLight, rimMesh, rimMat;
 export function setAura(hex, intensity = 0.8) {
   if (glowLight) { glowLight.color.setHex(hex); glowLight.intensity = intensity; }
   if (rimMat) rimMat.uniforms.uColor.value.setHex(hex);
+}
+
+// ---- Graphics quality: trade premium effects for framerate ----
+const QUALITY_PRESETS = {
+  low:    { pixelRatio: 1.0,  maxParts: 12, motes: 14, env: false, rim: false },
+  medium: { pixelRatio: 1.25, maxParts: 18, motes: 30, env: false, rim: false },
+  high:   { pixelRatio: 1.75, maxParts: 28, motes: 60, env: true,  rim: true },
+};
+let QUALITY = QUALITY_PRESETS.medium;
+export function setQuality(level) {
+  QUALITY = QUALITY_PRESETS[level] || QUALITY_PRESETS.medium;
+  if (renderer) renderer.setPixelRatio(Math.min(window.devicePixelRatio, QUALITY.pixelRatio));
+  applyEnvMap(QUALITY.env);
+  applyRim(QUALITY.rim);
+  if (habitatGroup) rebuildMotes(QUALITY.motes);
+}
+export function maxParts() { return QUALITY.maxParts; }
+
+// Environment map (metallic reflections) — only on at High quality.
+let envTex = null;
+function applyEnvMap(on) {
+  if (!renderer || !scene) return;
+  if (on && !envTex) {
+    try {
+      const ec = document.createElement("canvas"); ec.width = 16; ec.height = 64;
+      const ex = ec.getContext("2d");
+      const eg = ex.createLinearGradient(0, 0, 0, 64);
+      eg.addColorStop(0, "#a9c3e6"); eg.addColorStop(0.5, "#41566f"); eg.addColorStop(1, "#0a0f16");
+      ex.fillStyle = eg; ex.fillRect(0, 0, 16, 64);
+      const t = new THREE.CanvasTexture(ec); t.mapping = THREE.EquirectangularReflectionMapping;
+      const p = new THREE.PMREMGenerator(renderer);
+      envTex = p.fromEquirectangular(t).texture; t.dispose(); p.dispose();
+    } catch (e) { envTex = null; }
+  }
+  scene.environment = on ? envTex : null;
+}
+
+// Fresnel subsurface-glow shell — only on at High quality (full-body overdraw).
+function applyRim(on) {
+  if (!organism) return;
+  if (on && !rimMesh) {
+    rimMat = new THREE.ShaderMaterial({
+      transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+      uniforms: { uColor: { value: new THREE.Color(0x66ffcc) }, uPower: { value: 2.6 }, uIntensity: { value: 0.6 } },
+      vertexShader: `varying vec3 vN; varying vec3 vView;
+        void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); vView = normalize(-mv.xyz);
+        vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform vec3 uColor; uniform float uPower; uniform float uIntensity; varying vec3 vN; varying vec3 vView;
+        void main(){ float f = pow(1.0 - max(dot(normalize(vN), normalize(vView)), 0.0), uPower);
+        gl_FragColor = vec4(uColor * f * uIntensity, f * uIntensity); }`,
+    });
+    rimMesh = new THREE.Mesh(organism.geometry, rimMat);
+    organism.add(rimMesh);
+  } else if (!on && rimMesh) {
+    organism.remove(rimMesh);
+    if (rimMat) rimMat.dispose();
+    rimMesh = null; rimMat = null; // geometry is shared with the body — don't dispose
+  }
 }
 
 // Render a shareable PNG: the creature + a caption bar (name + mutation count).

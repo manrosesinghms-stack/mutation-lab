@@ -84,6 +84,7 @@ export function initUI(handlers) {
   el.setVolume = document.getElementById("set-volume");
   el.setThemes = document.getElementById("set-themes");
   el.setShake = document.getElementById("set-shake");
+  el.setGraphics = document.getElementById("set-graphics");
   el.setReduce = document.getElementById("set-reduce");
   el.setMute = document.getElementById("set-mute");
   el.setBg = document.getElementById("set-bg");
@@ -105,6 +106,7 @@ export function initUI(handlers) {
   document.getElementById("chal-close").addEventListener("click", () => el.chalModal.classList.add("hidden"));
   el.setVolume.addEventListener("input", () => handlers.onSetVolume(el.setVolume.value / 100));
   el.setShake.addEventListener("click", (e) => { const v = e.target.dataset.v; if (v) { handlers.onSetShake(v); renderSettings(); } });
+  el.setGraphics.addEventListener("click", (e) => { const v = e.target.dataset.v; if (v) { handlers.onSetGraphics(v); renderSettings(); } });
   el.setReduce.addEventListener("change", () => { handlers.onSetReduce(el.setReduce.checked); renderSettings(); });
   el.setMute.addEventListener("click", () => { handlers.onMute(); renderSettings(); });
   el.setNaming.addEventListener("click", (e) => { const v = e.target.dataset.v; if (v) { handlers.onSetNaming(v); renderSettings(); el._mutSig = null; } });
@@ -250,6 +252,9 @@ function renderSettings() {
   }
   for (const b of el.setShake.querySelectorAll("button")) {
     b.classList.toggle("active", b.dataset.v === (state.shake || "subtle"));
+  }
+  for (const b of el.setGraphics.querySelectorAll("button")) {
+    b.classList.toggle("active", b.dataset.v === (state.graphics || "medium"));
   }
   for (const b of el.setNaming.querySelectorAll("button")) {
     b.classList.toggle("active", b.dataset.v === (state.namingStyle || "scientific"));
