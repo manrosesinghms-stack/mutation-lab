@@ -49,6 +49,7 @@ button, .gen, .node, #creature-canvas, .draft-card, .species-card { touch-action
   content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3;
   background: radial-gradient(125% 100% at 50% 44%, transparent 52%, rgba(2,5,8,.5) 100%);
 }
+#bg-gl { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
 #bg-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
 #creature-canvas { position: relative; z-index: 1; display: block; width: 100%; height: 100%; cursor: pointer; }
 #creature-hint {
