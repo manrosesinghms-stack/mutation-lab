@@ -16,7 +16,9 @@ let microbes = [];
 let microbeTarget = 0;
 const MICROBE_COLORS = ["#7be3b0", "#9fe8ff", "#b8f5cf", "#ffd0a6"];
 export function setMicrobeCount(n) {
-  microbeTarget = Math.max(0, Math.min(54, n | 0));
+  n = Math.max(0, Math.min(54, n | 0));
+  if (n === microbeTarget && microbes.length === n) return; // steady state — skip churn
+  microbeTarget = n;
   const w = W || 1200, h = H || 700;
   while (microbes.length < microbeTarget) microbes.push({
     x: Math.random() * w, y: Math.random() * h, r: 1.4 + Math.random() * 3.2,

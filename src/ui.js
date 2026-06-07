@@ -54,6 +54,7 @@ const el = {};
 let onBuy = null;
 let sellMode = false;
 let buyAmt = 1; // bulk-buy amount: 1 | 10 | 100 | "max"
+let _genHeavyAt = 0, _bdCache = null; // throttle the expensive cost-label/tooltip recompute
 // resolve how many to buy from the selector + click modifiers (Shift=10, Ctrl=100)
 function amountFor(e, genId) {
   let n = buyAmt;
@@ -1256,7 +1257,12 @@ export function renderUI(rate, dt = 0.016) {
     }
   }
 
-  const _bd = productionBreakdown(); // per-organelle /sec + share for tooltips
+  // The cost labels + tooltips need a full production breakdown + (in Max mode)
+  // an affordability scan per organelle — too heavy for 60fps, so recompute them
+  // at ~5Hz. Cheap per-frame work (locked/affordable highlight, owned count) stays.
+  const heavy = Date.now() - _genHeavyAt > 200;
+  if (heavy) { _genHeavyAt = Date.now(); _bdCache = productionBreakdown(); }
+  const _bd = _bdCache || { per: {}, each: {}, total: 0 };
   for (const g of GENERATORS) {
     const row = el.genRows[g.id];
     const unlocked = isUnlocked(g.id);
@@ -1265,24 +1271,25 @@ export function renderUI(rate, dt = 0.016) {
       continue;
     }
     row.classList.remove("locked");
-    const affordable = canAfford(g.id); // can buy at least one
-    row.classList.toggle("affordable", affordable);
-    // cost label reflects the bulk-buy amount (×1 / ×10 / ×100 / Max)
-    let costLabel;
-    if (buyAmt === "max") {
-      const m = maxAffordable(g.id);
-      costLabel = m >= 1 ? `Max ${m} · ${formatNumber(costForN(g.id, m))}` : formatNumber(costOf(g.id));
-    } else if (buyAmt === 1) {
-      costLabel = formatNumber(costOf(g.id));
-    } else {
-      costLabel = `×${buyAmt} · ${formatNumber(costForN(g.id, buyAmt))}`;
-    }
-    row.querySelector(".cost").textContent = costLabel;
+    row.classList.toggle("affordable", canAfford(g.id)); // can buy at least one (cheap, per-frame)
     row.querySelector(".owned").textContent = `×${state.owned[g.id] || 0}`;
-    // hover tooltip: exact /sec each + share of total production (CC-style detail)
-    const share = _bd.total > 0 ? (_bd.per[g.id] / _bd.total * 100) : 0;
-    row.title = `${researchName(g.id) || g.name}\n+${formatNumber(_bd.each[g.id] || 0)}/sec each` +
-      (state.owned[g.id] ? ` · ${share.toFixed(share < 10 ? 1 : 0)}% of production` : " (none owned yet)");
+    if (heavy) {
+      // cost label reflects the bulk-buy amount (×1 / ×10 / ×100 / Max)
+      let costLabel;
+      if (buyAmt === "max") {
+        const m = maxAffordable(g.id);
+        costLabel = m >= 1 ? `Max ${m} · ${formatNumber(costForN(g.id, m))}` : formatNumber(costOf(g.id));
+      } else if (buyAmt === 1) {
+        costLabel = formatNumber(costOf(g.id));
+      } else {
+        costLabel = `×${buyAmt} · ${formatNumber(costForN(g.id, buyAmt))}`;
+      }
+      row.querySelector(".cost").textContent = costLabel;
+      // hover tooltip: exact /sec each + share of total production (CC-style detail)
+      const share = _bd.total > 0 ? (_bd.per[g.id] / _bd.total * 100) : 0;
+      row.title = `${researchName(g.id) || g.name}\n+${formatNumber(_bd.each[g.id] || 0)}/sec each` +
+        (state.owned[g.id] ? ` · ${share.toFixed(share < 10 ? 1 : 0)}% of production` : " (none owned yet)");
+    }
     // research: rename the organelle to its current tier + show next milestone
     const rName = researchName(g.id);
     if (rName) {
