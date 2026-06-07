@@ -973,8 +973,44 @@ function buildGeneratorRows() {
   }
 }
 
+// ---- Progressive unlock: don't dump 25 buttons on a new player. Start with the
+// core loop only; reveal one system at a time as it's earned. The weakest /
+// most-confusing "list-in-a-modal" systems are cut entirely. ----
+const CUT_BTNS = ["splice-btn", "market-btn", "reactor-btn", "pantheon-btn", "symbiote-btn", "garden-btn"];
+const GATED_BTNS = [
+  { id: "stats-btn",    name: "Stats",            when: (s) => (s.lifetimeBiomass || 0) >= 500 },
+  { id: "codex-btn",    name: "Codex",            when: (s) => (s.prestiges || 0) >= 1 || Object.keys(s.discovered || {}).length >= 1 },
+  { id: "photo-btn",    name: "Photo Mode",       when: (s) => (s.prestiges || 0) >= 1 },
+  { id: "paths-btn",    name: "Evolution Path",   when: (s) => (s.evolutionRank || 0) >= 5 },
+  { id: "machines-btn", name: "Automation Bay",   when: (s) => (s.prestiges || 0) >= 3 || (s.speciations || 0) >= 1 },
+  { id: "mutagen-btn",  name: "Mutagen",          when: (s) => (s.speciations || 0) >= 1 },
+  { id: "colony-btn",   name: "Colonization Map", when: (s) => (s.speciations || 0) >= 1 },
+  { id: "museum-btn",   name: "Species Museum",   when: (s) => ((s.museum || []).length) >= 1 },
+  { id: "chal-btn",     name: "Challenges",       when: (s) => (s.speciations || 0) >= 2 },
+];
+let _unlockInit = false;
+const _announced = new Set();
+function updateUnlocks() {
+  if (!_unlockInit) {
+    _unlockInit = true;
+    for (const id of CUT_BTNS) { const el = document.getElementById(id); if (el) el.style.display = "none"; }
+    for (const g of GATED_BTNS) if (g.when(state)) _announced.add(g.id); // already-earned: don't toast on load
+  }
+  for (const g of GATED_BTNS) {
+    const el = document.getElementById(g.id);
+    if (!el) continue;
+    const on = g.when(state);
+    el.style.display = on ? "" : "none";
+    if (on && !_announced.has(g.id)) {
+      _announced.add(g.id);
+      flashStatus(`🔓 Unlocked: ${g.name}! (see the menu below)`);
+    }
+  }
+}
+
 // Called every frame (cheap DOM writes only). dt (seconds) drives count-up tween.
 export function renderUI(rate, dt = 0.016) {
+  updateUnlocks();
   // smooth count-up: ease the displayed biomass toward the real value
   if (el._dispBiomass === undefined) el._dispBiomass = state.biomass;
   el._dispBiomass += (state.biomass - el._dispBiomass) * Math.min(1, dt * 8);
