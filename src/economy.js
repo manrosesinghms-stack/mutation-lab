@@ -52,17 +52,34 @@ function epPayoffMult(ep) {
 const GEN_BY_ID = Object.fromEntries(GENERATORS.map((g) => [g.id, g]));
 
 // ---- mutation / prestige modifiers ----
-// Run a list of mutation ids into a modifier bag (shared by the live build and
-// by equipped Species which carry a frozen mutation list).
+// Run a list of mutation ids into a modifier bag. CRITICAL BALANCE FIX: mutations
+// now stack ADDITIVELY, not multiplicatively. Each mutation's effect is run on a
+// fresh unit bag, and its (mult − 1) is summed into a shared bonus pool — so a
+// "×2" mutation contributes +100%, and 10 mutations give ~×5 instead of ×87,000.
+// This keeps the exponential cost wall meaningful (the game's actual progression
+// engine) instead of a runaway multiplier trivializing it. Works for every
+// existing mutation with no per-mutation rewrite.
 function applyMutationEffects(mods, mutList) {
   const counts = {};
   for (const id of mutList) counts[id] = (counts[id] || 0) + 1;
   const totalGenerators = GENERATORS.reduce((s, g) => s + (state.owned[g.id] || 0), 0);
   const info = { counts, totalMutations: mutList.length, totalGenerators };
+  let prodB = 0, clickB = 0, epB = 0;
+  const genB = {};
   for (const id of mutList) {
     const def = MUT_BY_ID[id];
-    if (def && def.effect) def.effect(mods, info);
+    if (!def || !def.effect) continue;
+    const u = { clickMult: 1, prodMult: 1, epMult: 1, genMult: {} };
+    def.effect(u, info);
+    prodB += u.prodMult - 1;
+    clickB += u.clickMult - 1;
+    epB += u.epMult - 1;
+    for (const k in u.genMult) genB[k] = (genB[k] || 0) + (u.genMult[k] - 1);
   }
+  mods.prodMult *= Math.max(0.1, 1 + prodB);
+  mods.clickMult *= Math.max(0.1, 1 + clickB);
+  mods.epMult *= Math.max(0.1, 1 + epB);
+  for (const k in genB) mods.genMult[k] = (mods.genMult[k] || 1) * Math.max(0.1, 1 + genB[k]);
 }
 
 // Build the full modifier bag: live mutations + EP + equipped Species + temp buffs.
@@ -404,12 +421,13 @@ export function researchTiers(genId) {
   for (const t of RESEARCH_TIERS) if (o >= t.at) n++;
   return n;
 }
-// Compounding ×multiplier from all unlocked tiers.
+// ADDITIVE bonus from all unlocked tiers (each tier's mult−1 is summed, not
+// compounded) so research can't run away: 7 tiers of 1.5 → +3.5 → ×4.5 maxed.
 export function researchMult(genId) {
   const o = state.owned[genId] || 0;
-  let m = 1;
-  for (const t of RESEARCH_TIERS) if (o >= t.at) m *= t.mult;
-  return m;
+  let bonus = 0;
+  for (const t of RESEARCH_TIERS) if (o >= t.at) bonus += t.mult - 1;
+  return 1 + bonus;
 }
 // Current escalating name (Ribosome → Molecular Forge → …).
 export function researchName(genId) {

@@ -19,11 +19,23 @@ function getModifiers(s) {
   for (const id of s.mutations) counts[id] = (counts[id] || 0) + 1;
   const totalGenerators = GENERATORS.reduce((a, g) => a + (s.owned[g.id] || 0), 0);
   const info = { counts, totalMutations: s.mutations.length, totalGenerators };
+  // ADDITIVE mutation stacking (matches src/economy.js applyMutationEffects)
+  let prodB = 0, clickB = 0, epB = 0; const genB = {};
   for (const id of s.mutations) {
     const d = MUT_BY_ID[id];
-    if (d && d.effect) d.effect(mods, info);
+    if (!d || !d.effect) continue;
+    const u = { clickMult: 1, prodMult: 1, epMult: 1, genMult: {} };
+    d.effect(u, info);
+    prodB += u.prodMult - 1; clickB += u.clickMult - 1; epB += u.epMult - 1;
+    for (const k in u.genMult) genB[k] = (genB[k] || 0) + (u.genMult[k] - 1);
   }
+  mods.prodMult *= Math.max(0.1, 1 + prodB);
+  mods.clickMult *= Math.max(0.1, 1 + clickB);
+  for (const k in genB) mods.genMult[k] = (mods.genMult[k] || 1) * Math.max(0.1, 1 + genB[k]);
   mods.prodMult *= epPayoffMult(s.evolutionPoints || 0);
+  // global soft-cap on the combined permanent multiplier (matches economy)
+  mods.prodMult = softknee(mods.prodMult, TUN.multSoftcap.base, TUN.multSoftcap.exp);
+  mods.clickMult = softknee(mods.clickMult, TUN.multSoftcap.base, TUN.multSoftcap.exp);
   return mods;
 }
 
@@ -98,7 +110,9 @@ function run({ minutes = 60, dt = 1, clicksPerSec = 6, label = "" } = {}) {
     const t = step * dt;
     let mods = getModifiers(s);
     const prod = production(s, mods);
-    const clickInc = clicksPerSec * mods.clickMult; // base click power = 1
+    // new click model: clickMult × base(1) + flat share of production/sec
+    const clickPower = 1 * mods.clickMult + prod * ((TUN.click && TUN.click.prodShare) || 0);
+    const clickInc = clicksPerSec * clickPower;
     const gain = (prod + clickInc) * dt;
     s.biomass += gain; s.runBiomass += gain; s.lifetimeBiomass += gain;
 
