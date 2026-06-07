@@ -109,6 +109,7 @@ export function getModifiers() {
     mods.prodMult *= Math.sqrt(Math.max(1, sm.prodMult));
     mods.clickMult *= Math.sqrt(Math.max(1, sm.clickMult));
   }
+  mods.prodMult *= lineageBonus(); // Tree of Life: dynasty diversity bonus
   // temporary buffs (blooms / Digest): collect now, but APPLY at the very end so
   // they burst ON TOP of the soft-capped permanent multiplier (a Frenzy should
   // still feel like a real ×4, not get swallowed by the cap).
@@ -893,6 +894,27 @@ export function draftHint(id) {
   return null;
 }
 
+// ---- Tree of Life lineage bonus ----
+function rootIdOf(sp, byId) {
+  let cur = sp, guard = 0;
+  while (cur && cur.parentId && byId[cur.parentId] && guard++ < 64) cur = byId[cur.parentId];
+  return cur ? cur.id : sp.id;
+}
+// Building a diverse evolutionary tree (many species, distinct lineages, deep
+// branches) grants a permanent production bonus — rewards growing a DYNASTY, not
+// just one strong species. Contributions are capped and also pass through the
+// global mult softcap, so it boosts steadily without ever running away.
+export function lineageBonus() {
+  const sp = state.species || [];
+  if (!sp.length) return 1;
+  const byId = Object.fromEntries(sp.map((s) => [s.id, s]));
+  const roots = new Set(sp.map((s) => rootIdOf(s, byId)));
+  const maxDepth = sp.reduce((m, s) => Math.max(m, s.gen || 0), 0);
+  return 1 + 0.015 * Math.min(sp.length, 20)   // breadth: species count
+           + 0.04 * Math.min(roots.size, 6)    // diversity: distinct lineages
+           + 0.03 * Math.min(maxDepth, 10);    // depth: longest branch
+}
+
 // A single legible number summarizing how strong/spicy the current build is.
 // Production is LOG-scaled so the score can never explode the way raw production
 // once did; synergies, completed sets, legendaries, rank and speciations add flat
@@ -1069,6 +1091,15 @@ export function doSpeciate() {
       .map((d) => d.part),
     strength: speciesStrength(state.mutations),
   };
+  // Tree of Life lineage: the new species descends from the species you had
+  // equipped (your "active lineage"), else the most recent one, else it's a new
+  // root. gen = depth in the tree. Drives the Tree of Life view + lineage bonus.
+  const parentSp = (state.equippedSpecies && state.equippedSpecies[0])
+    ? (state.species || []).find((s) => s.id === state.equippedSpecies[0])
+    : (state.species || [])[(state.species || []).length - 1];
+  card.parentId = parentSp ? parentSp.id : null;
+  card.gen = parentSp ? (parentSp.gen || 0) + 1 : 0;
+  card.bornRank = state.evolutionRank || 0;
   // declutter: drop worthless empty cards (0 mutations, not equipped) — these
   // come from rushing the wall on generators alone and just flood the lab.
   state.species = (state.species || []).filter(

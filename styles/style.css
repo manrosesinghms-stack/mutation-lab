@@ -420,7 +420,7 @@ html, body {
 #genome-modal, #stats-modal, #settings-modal, #help-modal, #codex-modal,
 #colony-modal, #garden-modal, #reactor-modal, #pantheon-modal, #symbiote-modal,
 #mutagen-modal, #market-modal, #upgrades-modal, #machines-modal, #paths-modal, #museum-modal,
-#helix-modal, #splice-modal, #chal-modal, #card-modal {
+#helix-modal, #splice-modal, #chal-modal, #card-modal, #tree-modal {
   position: fixed; inset: 0; z-index: 100;
   display: flex; align-items: center; justify-content: center;
   background: rgba(4,7,11,.85); backdrop-filter: blur(6px); animation: fadeIn .2s ease;
@@ -428,7 +428,19 @@ html, body {
 #genome-modal.hidden, #stats-modal.hidden, #settings-modal.hidden, #help-modal.hidden, #codex-modal.hidden,
 #colony-modal.hidden, #garden-modal.hidden, #reactor-modal.hidden, #pantheon-modal.hidden, #symbiote-modal.hidden,
 #mutagen-modal.hidden, #market-modal.hidden, #upgrades-modal.hidden, #machines-modal.hidden, #paths-modal.hidden, #museum-modal.hidden,
-#helix-modal.hidden, #splice-modal.hidden, #chal-modal.hidden, #card-modal.hidden { display: none; }
+#helix-modal.hidden, #splice-modal.hidden, #chal-modal.hidden, #card-modal.hidden, #tree-modal.hidden { display: none; }
+
+/* Tree of Life */
+#tree-canvas-wrap { margin-top: 12px; overflow: auto; max-height: 70vh; border: 1px solid var(--line); border-radius: 12px; background: radial-gradient(120% 100% at 50% 0%, #101b16, #0a0e13); }
+#tree-svg { display: block; }
+#tree-svg .tl-link { stroke: #2f4a3e; stroke-width: 2; fill: none; }
+#tree-svg .tl-node { cursor: pointer; }
+#tree-svg .tl-node circle { fill: #16202c; stroke: #56e39f; stroke-width: 2; transition: fill .15s; }
+#tree-svg .tl-node.equipped circle { fill: #1c3a2c; stroke: #ffd76b; stroke-width: 3; }
+#tree-svg .tl-node:hover circle { fill: #1f2e3c; }
+#tree-svg .tl-label { fill: #cfe0ee; font: 600 12px 'Segoe UI', system-ui, sans-serif; }
+#tree-svg .tl-sub { fill: #7e93a8; font: 11px 'Segoe UI', system-ui, sans-serif; }
+#tree-svg .tl-eq { fill: #ffd76b; font: 700 10px 'Segoe UI', system-ui, sans-serif; }
 
 /* Specimen Card modal */
 .card-inner {

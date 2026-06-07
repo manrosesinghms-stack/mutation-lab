@@ -267,8 +267,9 @@
           <div id="node-list"></div>
         </div>
         <div class="genome-col">
-          <h3>Species · <span id="species-count">0</span> banked · <span id="equip-info">0/1 equipped</span></h3>
-          <p class="genome-hint">Each Speciation banks a Species card. Equip them for permanent bonuses (more slots via the “Lineage Slots” upgrade).</p>
+          <h3>Species · <span id="species-count">0</span> banked · <span id="equip-info">0/1 equipped</span>
+            <button id="tree-btn" class="ghost" style="float:right;font-size:12px;padding:3px 10px">🌳 Tree of Life</button></h3>
+          <p class="genome-hint">Each Speciation banks a Species card. Equip them for permanent bonuses (more slots via the “Lineage Slots” upgrade). Build a diverse tree for a lineage bonus.</p>
           <div id="species-list"></div>
         </div>
       </div>
@@ -422,6 +423,18 @@
         <button id="card-share" class="ghost hidden">📤 Share</button>
         <button id="card-dna" class="ghost">🧬 Copy DNA code</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Tree of Life: your evolutionary dynasty of banked species -->
+  <div id="tree-modal" class="hidden">
+    <div class="genome-inner codex-inner">
+      <div class="genome-head">
+        <h2>🌳 TREE OF LIFE</h2>
+        <button id="tree-close" class="ghost">✕ Close</button>
+      </div>
+      <p class="genome-hint" id="tree-hint" style="margin-top:8px">Every species you Speciate branches from your active lineage. Tap a node to equip it. A wider, deeper tree grants a bigger lineage bonus.</p>
+      <div id="tree-canvas-wrap"><svg id="tree-svg"></svg></div>
     </div>
   </div>
 

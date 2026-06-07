@@ -23,7 +23,7 @@ import {
   atlasFamilies, masteriesComplete,
   cultureMult, cultureCount,
   digestActive,
-  currentArchetype, buildScore, draftHint,
+  currentArchetype, buildScore, draftHint, lineageBonus,
 } from "./economy.js";
 import { RESEARCH_TIERS } from "./data/research.js";
 import { COLONY_NODES } from "./data/colony.js";
@@ -132,6 +132,8 @@ export function initUI(handlers) {
   document.getElementById("helix-close").addEventListener("click", () => el.helixModal.classList.add("hidden"));
   el.upgradesBtn.addEventListener("click", () => openUpgrades());
   document.getElementById("upgrades-close").addEventListener("click", () => el.upgradesModal.classList.add("hidden"));
+  document.getElementById("tree-btn").addEventListener("click", () => openTreeOfLife());
+  document.getElementById("tree-close").addEventListener("click", () => document.getElementById("tree-modal").classList.add("hidden"));
   document.getElementById("splice-btn").addEventListener("click", () => openSplicer());
   document.getElementById("market-btn").addEventListener("click", () => openMarket());
   document.getElementById("market-close").addEventListener("click", () => el.marketModal.classList.add("hidden"));
@@ -947,6 +949,71 @@ export function renderGenomeLab() {
     el.speciesList.appendChild(card);
   }
 }
+
+// ---- Tree of Life: render banked species as an evolutionary dynasty (SVG) ----
+function tlEsc(s) { return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+function layoutTree(species) {
+  const byId = Object.fromEntries(species.map((s) => [s.id, s]));
+  const children = {}, roots = [];
+  for (const s of species) {
+    const pid = (s.parentId && byId[s.parentId]) ? s.parentId : null;
+    if (pid) (children[pid] = children[pid] || []).push(s); else roots.push(s);
+  }
+  const byStr = (a, b) => (b.strength || 1) - (a.strength || 1);
+  roots.sort(byStr); for (const k in children) children[k].sort(byStr);
+  const pos = {}; let row = 0;
+  const dfs = (node, depth) => {
+    const kids = children[node.id] || [];
+    if (!kids.length) { pos[node.id] = { x: depth, y: row++ }; return pos[node.id].y; }
+    const ys = kids.map((k) => dfs(k, depth + 1));
+    pos[node.id] = { x: depth, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
+    return pos[node.id].y;
+  };
+  for (const r of roots) dfs(r, 0);
+  return { pos, rows: Math.max(1, row) };
+}
+export function renderTreeOfLife() {
+  const svg = document.getElementById("tree-svg");
+  const species = state.species || [];
+  const bonusPct = Math.round((lineageBonus() - 1) * 100);
+  const hint = document.getElementById("tree-hint");
+  if (hint) hint.textContent = `${species.length} species across your dynasty · lineage bonus: +${bonusPct}% production. Tap a node to equip it.`;
+  if (!species.length) {
+    svg.setAttribute("width", 460); svg.setAttribute("height", 90);
+    svg.innerHTML = `<text x="24" y="48" class="tl-sub">No species yet — hit the wall and Speciate to grow your first branch.</text>`;
+    return;
+  }
+  const { pos, rows } = layoutTree(species);
+  const colW = 220, rowH = 64, padX = 70, padY = 38;
+  const maxDepth = species.reduce((m, s) => Math.max(m, pos[s.id].x), 0);
+  const W = padX * 2 + maxDepth * colW + 170;
+  const H = padY * 2 + rows * rowH;
+  const X = (d) => padX + d * colW, Y = (r) => padY + r * rowH;
+  const equipped = new Set(state.equippedSpecies || []);
+  let out = "";
+  for (const s of species) { // links first (behind nodes)
+    if (s.parentId && pos[s.parentId]) {
+      const x1 = X(pos[s.parentId].x) + 20, y1 = Y(pos[s.parentId].y);
+      const x2 = X(pos[s.id].x) - 20, y2 = Y(pos[s.id].y), mx = (x1 + x2) / 2;
+      out += `<path class="tl-link" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"/>`;
+    }
+  }
+  for (const s of species) {
+    const cx = X(pos[s.id].x), cy = Y(pos[s.id].y), eq = equipped.has(s.id);
+    const mult = formatNumber(Math.sqrt(Math.max(1, s.strength || 1)));
+    out += `<g class="tl-node${eq ? " equipped" : ""}" data-id="${s.id}">
+      <circle cx="${cx}" cy="${cy}" r="20"/>
+      ${eq ? `<text class="tl-eq" x="${cx}" y="${cy + 4}" text-anchor="middle">✓</text>` : ""}
+      <text class="tl-label" x="${cx + 30}" y="${cy - 2}">${tlEsc(s.name)}</text>
+      <text class="tl-sub" x="${cx + 30}" y="${cy + 14}">${(s.mutations || []).length} mut · ×${mult} equipped</text>
+    </g>`;
+  }
+  svg.setAttribute("width", W); svg.setAttribute("height", H);
+  svg.innerHTML = out;
+  svg.querySelectorAll(".tl-node").forEach((n) =>
+    n.addEventListener("click", () => { uiHandlers.onToggleEquip(n.dataset.id); renderTreeOfLife(); }));
+}
+export function openTreeOfLife() { renderTreeOfLife(); document.getElementById("tree-modal").classList.remove("hidden"); }
 
 export function setMuteLabel(muted) {
   if (!el.muteBtn) return;
