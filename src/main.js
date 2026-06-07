@@ -83,6 +83,7 @@ import {
   cinematicPulse,
   pulse,
   setStage,
+  setSwarm,
   rebuildVisuals,
   setStress,
   resetParts,
@@ -1151,6 +1152,7 @@ function update() {
   if (cm && !cm.classList.contains("hidden")) renderColony();
   const mac = document.getElementById("machines-modal");
   if (mac && !mac.classList.contains("hidden")) renderMachines();
+  setSwarm(state.owned); // organelles you own manifest as a living orbiting swarm (cached; only rebuilds when visible counts change)
   autoTick(dt); // Helix auto-evolve / auto-speciate
   pruneTempBuffs(); // drop expired blooms/Digest buffs
 

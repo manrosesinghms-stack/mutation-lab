@@ -325,6 +325,91 @@ function updateOrbiters(dt, elapsed) {
   }
 }
 
+// ---- Organelle Swarm: every organelle you OWN appears as a little body
+// orbiting the creature (like Cookie Clicker's cursors around the cookie). The
+// more you own, the denser the swarm — so the screen fills with the life you've
+// built instead of being a blob + a text list. ----
+let swarmGroup;
+// per-organelle visual identity: colour + a tiny low-poly shape
+const ORG_VIS = {
+  ribosome:    { color: 0xbfe6ff, shape: "ico" },
+  mitochondria:{ color: 0xff8a3d, shape: "capsule" },
+  nucleus:     { color: 0x9f7bff, shape: "nucleus" },
+  flagellum:   { color: 0x6fe0c0, shape: "tail" },
+  vacuole:     { color: 0x8fd6ff, shape: "bubble" },
+  lysosome:    { color: 0xff6b8a, shape: "ico" },
+  chloroplast: { color: 0x7be36b, shape: "disc" },
+  golgi:       { color: 0xffd76b, shape: "rings" },
+  centriole:   { color: 0xc9d4e0, shape: "rod" },
+  nucleolus:   { color: 0xffa6f0, shape: "bubble" },
+};
+const ORG_ORDER = Object.keys(ORG_VIS);
+// how many bodies to show for an owned count (gentle cbrt growth, capped)
+function swarmVisibleCount(owned, cap) {
+  if (owned <= 0) return 0;
+  return Math.min(cap, Math.ceil(Math.cbrt(owned)));
+}
+function buildSwarmMesh(type) {
+  const v = ORG_VIS[type] || { color: 0x9fb3c8, shape: "ico" };
+  const col = new THREE.Color(v.color);
+  const mat = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.6, roughness: 0.35, metalness: 0.1, flatShading: true });
+  const g = new THREE.Group();
+  let m;
+  switch (v.shape) {
+    case "capsule": m = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), mat); m.scale.set(1, 1.8, 1); break;
+    case "nucleus": { m = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), mat);
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), new THREE.MeshStandardMaterial({ color: 0x2a1c4a, roughness: .5 })); dot.position.set(.03, .03, .05); m.add(dot); break; }
+    case "tail": m = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.22, 5), mat); break;
+    case "bubble": m = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 10), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.4, roughness: 0.2, transparent: true, opacity: 0.6 })); break;
+    case "disc": m = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.03, 8), mat); break;
+    case "rings": m = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.022, 6, 12), mat); break;
+    case "rod": m = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.18, 6), mat); break;
+    default: m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.07, 0), mat);
+  }
+  g.add(m);
+  return g;
+}
+// signature so we only rebuild when the VISIBLE counts change (not every buy)
+let _swarmKey = "";
+export function setSwarm(owned) {
+  if (!scene) return;
+  const cap = QUALITY.maxParts <= 12 ? 0 : (QUALITY.maxParts <= 18 ? 4 : 6);
+  if (!swarmGroup) { swarmGroup = new THREE.Group(); scene.add(swarmGroup); }
+  const counts = ORG_ORDER.map((id) => swarmVisibleCount((owned && owned[id]) || 0, cap));
+  const key = cap + ":" + counts.join(",");
+  if (key === _swarmKey) return;
+  _swarmKey = key;
+  while (swarmGroup.children.length) {
+    const c = swarmGroup.children[0]; swarmGroup.remove(c);
+    c.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); });
+  }
+  let idx = 0;
+  ORG_ORDER.forEach((type, ti) => {
+    const n = counts[ti];
+    for (let i = 0; i < n; i++) {
+      const mesh = buildSwarmMesh(type);
+      mesh.userData.ang = (idx * 2.39996); // golden-angle spread
+      mesh.userData.rad = 2.0 + (ti % 4) * 0.32 + (i % 2) * 0.18; // type-banded orbit
+      mesh.userData.tilt = ((ti * 7 + i * 3) % 10) / 10 * 1.4 - 0.7;
+      mesh.userData.spd = 0.12 + ((ti + i) % 5) * 0.04;
+      mesh.userData.spin = 0.5 + (i % 3) * 0.4;
+      mesh.scale.setScalar(0.0001); mesh.userData.grow = 0;
+      swarmGroup.add(mesh);
+      idx++;
+    }
+  });
+}
+function updateSwarm(dt, elapsed) {
+  if (!swarmGroup) return;
+  for (const c of swarmGroup.children) {
+    if (c.userData.grow < 1) { c.userData.grow = Math.min(1, c.userData.grow + dt * 2.2); c.scale.setScalar(easeOutBack(c.userData.grow)); }
+    const a = c.userData.ang + elapsed * c.userData.spd;
+    const rad = c.userData.rad * currentScale;
+    c.position.set(Math.cos(a) * rad, Math.sin(a * 0.8 + c.userData.tilt) * 0.9 * currentScale, Math.sin(a) * rad);
+    if (!reduceMotion) { c.rotation.x += dt * c.userData.spin; c.rotation.y += dt * c.userData.spin * 0.8; }
+  }
+}
+
 function updateTierCrown(dt, elapsed) {
   if (!tierGroup) return;
   const rad = currentScale * 1.55;
@@ -780,6 +865,7 @@ export function renderCreature(dt, elapsed) {
   updateScenery(dt, elapsed);
   updateTierCrown(dt, elapsed);
   updateOrbiters(dt, elapsed);
+  updateSwarm(dt, elapsed);
   updateAuraParticles(elapsed);
   updateVeins(elapsed);
   if (skinShellMat) skinShellMat.uniforms.uTime.value = elapsed;
