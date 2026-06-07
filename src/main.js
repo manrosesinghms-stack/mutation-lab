@@ -1411,6 +1411,53 @@ function crewReact(kind) {
 }
 updateLabCrew(); // restore the crew on boot (no toasts)
 
+// ---- Lab Bulletin: a rotating, context-aware news ticker (Cookie Clicker's news
+// feed, themed to our lab). Headlines escalate with the creature's macro-stage and
+// reference live state (name, biomass, latest mutation, crew size) for charm. ----
+function pickBulletin() {
+  const idx = evolutionStage().index;
+  const name = creatureName(state.mutations, state.namingStyle || "scientific");
+  const bio = formatNumber(state.lifetimeBiomass || 0);
+  const crew = Object.keys(state.labCrew || {}).length;
+  const last = state.mutations.length ? (getMutation(state.mutations[state.mutations.length - 1]) || {}).name : null;
+  const POOLS = [
+    [ `Scientists baffled: a single cell is now worth ${bio} biomass.`,
+      `Lab intern asks whether "${name}" is "supposed to wiggle like that."`,
+      `Ethics board "looking into" the ${bio}-biomass petri dish.`,
+      `Op-ed: is clicking one cell this many times a personality trait?` ],
+    [ `"${name}" forms a colony; neighbouring microbes file noise complaints.`,
+      `Facility expands to ${crew} staff to contain the growing specimen.`,
+      `Mutation watch: "${last || "something"}" is spreading through the culture.`,
+      `Colony tops ${bio} biomass; the night shift requests hazard pay.` ],
+    [ `WARNING: "${name}" has developed a taste for things that move.`,
+      `Residents near the lab advised to "stay indoors, probably."`,
+      `Predator-class specimen passes ${bio} biomass; funding quietly doubled.` ],
+    [ `"${name}" declared apex organism of the facility — possibly the county.`,
+      `Unmarked observers seen near the lab. No comment given.`,
+      `Apex specimen at ${bio} biomass; the fire exits have been "reconsidered."` ],
+    [ `"${name}" is now visible from orbit. Astronomers are "concerned."`,
+      `Planetary biomass reserves hit ${bio}; tide schedules rewritten.`,
+      `"${name}" grows a moon. The actual Moon is reportedly nervous.` ],
+    [ `"${name}" reshapes local spacetime; calendars are now optional.`,
+      `Cosmic entity reaches ${bio} biomass; nearby stars file for relocation.`,
+      `Physicists confirm "${name}" has opinions about the speed of light.` ],
+  ];
+  const pool = POOLS[Math.min(idx, POOLS.length - 1)];
+  return "📰 " + pool[(Math.random() * pool.length) | 0];
+}
+let _lastBulletin = "";
+function rotateBulletin() {
+  const el = document.getElementById("lab-bulletin");
+  if (!el) return;
+  let h, guard = 0;
+  do { h = pickBulletin(); } while (h === _lastBulletin && guard++ < 5);
+  _lastBulletin = h;
+  el.textContent = h;
+  if (!state.reduceMotion) { el.classList.remove("bull-in"); void el.offsetWidth; el.classList.add("bull-in"); }
+}
+setInterval(rotateBulletin, 9000);
+rotateBulletin();
+
 let _unlockAt = 0; // shared throttle timer for the coach + lab crew updates
 
 // ---- offline progress welcome ----
