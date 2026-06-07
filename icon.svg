@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+      <stop offset="0%" stop-color="#16242f"/>
+      <stop offset="100%" stop-color="#0a0e13"/>
+    </radialGradient>
+    <radialGradient id="cell" cx="42%" cy="38%" r="70%">
+      <stop offset="0%" stop-color="#9bf5cf"/>
+      <stop offset="55%" stop-color="#56e39f"/>
+      <stop offset="100%" stop-color="#2f9e74"/>
+    </radialGradient>
+    <radialGradient id="nuc" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#7be3ff"/>
+      <stop offset="100%" stop-color="#2a6c8f"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- lumpy cell body -->
+  <path fill="url(#cell)" d="M256 96
+    c54 0 92 22 120 58
+    c26 33 44 56 44 104
+    c0 56 -28 96 -72 124
+    c-34 22 -58 34 -92 34
+    c-50 0 -96 -22 -124 -64
+    c-22 -33 -28 -58 -28 -98
+    c0 -56 26 -104 68 -134
+    c30 -21 50 -24 84 -24 z"/>
+  <!-- organelle dots -->
+  <circle cx="190" cy="200" r="16" fill="#bfe6ff" opacity="0.9"/>
+  <circle cx="330" cy="180" r="13" fill="#ff8a3d" opacity="0.9"/>
+  <circle cx="350" cy="300" r="14" fill="#ffd76b" opacity="0.9"/>
+  <circle cx="180" cy="320" r="12" fill="#ff6b8a" opacity="0.9"/>
+  <!-- nucleus -->
+  <circle cx="262" cy="258" r="58" fill="url(#nuc)"/>
+  <circle cx="246" cy="242" r="16" fill="#0a2233" opacity="0.55"/>
+</svg>

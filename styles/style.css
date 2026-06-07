@@ -21,7 +21,16 @@ html, body {
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   overflow: hidden;
   user-select: none;
+  /* mobile: kill the 300ms tap delay + double-tap-zoom, stop pull-to-refresh,
+     remove the grey tap flash — essential for a tap-heavy clicker */
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
+button, .gen, .node, #creature-canvas, .draft-card, .species-card { touch-action: manipulation; }
+/* respect device safe areas (notches) so the HUD isn't clipped on phones */
+#app { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 
 #app {
   display: grid;
@@ -87,6 +96,18 @@ html, body {
 #app.photo-mode #panel { display: none; }
 #app.photo-mode #creature-hint { display: none; }
 @keyframes pulse { 0%,100% { opacity:.35 } 50% { opacity:.9 } }
+
+/* ---------- Mobile: stack the creature on top, scrollable panel below ---------- */
+@media (max-width: 760px) {
+  #app { display: flex; flex-direction: column; }
+  #stage { flex: 0 0 44vh; height: 44vh; min-height: 260px; }
+  #panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #app.photo-mode #stage { flex: 1 1 auto; height: auto; }
+  #creature-name { font-size: 17px; top: 12px; }
+  #archetype-badge { top: 44px; }
+  #lab-crew { max-height: 26%; }
+  .gen { padding: 12px 12px; } /* roomier tap targets on touch */
+}
 
 /* ---------- Panel ---------- */
 #panel {

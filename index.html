@@ -2,8 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mutation Lab — prototype</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Mutation Lab</title>
+  <!-- PWA: installable, offline-capable, mobile-friendly -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0d1622" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Mutation Lab" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
   <link rel="stylesheet" href="styles/style.css" />
   <!-- Three.js via import map (browser-native ES modules, no bundler) -->
   <script type="importmap">
@@ -492,5 +501,11 @@
   </div>
 
   <script type="module" src="src/main.js"></script>
+  <script>
+    // register the PWA service worker (offline + installable); harmless if unsupported
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+    }
+  </script>
 </body>
 </html>
