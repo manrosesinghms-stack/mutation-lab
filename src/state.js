@@ -38,6 +38,9 @@ function freshState() {
     evoPath: null,         // chosen Evolution Path id (predator|neural|crystal|parasite).
                            // PERMANENT — defines the creature's identity + a build bonus.
     pathPrompted: false,   // have we shown the "choose your path" prompt yet
+    museum: [],            // Species Museum — a specimen recorded EVERY Speciation.
+                           // PERMANENT — never wiped by any reset. Resets become a
+                           // growing lineage (Gen 1 Cell → Gen 129 Cosmic Entity).
     helixNodes: {},        // { nodeId: level } purchased Helix meta-tree
     catalyst: 60,          // Reactor spell pool (regenerates over time)
     catalystAt: 0,         // ms timestamp basis for catalyst regen
@@ -141,6 +144,7 @@ export function load() {
       automators: (data.automators && typeof data.automators === "object") ? data.automators : {},
       autoToggles: (data.autoToggles && typeof data.autoToggles === "object") ? data.autoToggles : {},
       factoryBuf: (data.factoryBuf && typeof data.factoryBuf === "object") ? data.factoryBuf : { reagent: 0, catalyst: 0, mutagen: 0 },
+      museum: Array.isArray(data.museum) ? data.museum : [],
     };
     // for an existing big save, start milestones at the current tier so we don't
     // dump a backlog of dings on load

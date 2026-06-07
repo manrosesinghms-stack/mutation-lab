@@ -319,6 +319,31 @@ export function evolutionStage() {
   return { rank, index, stage, name, blurb: stage.blurb, color, nextRank: next, progress, isMax: next == null, path: state.evoPath || null, pathData: p };
 }
 
+// ---- Species Museum (permanent lineage archive) ----
+// A specimen is recorded every Speciation and NEVER reset. The museum is your
+// growing family tree — resets become collecting.
+export function museumList() { return state.museum || []; }
+export function museumCount() { return (state.museum || []).length; }
+function archiveSpecimen(card) {
+  state.museum = state.museum || [];
+  const evo = evolutionStage();
+  state.museum.push({
+    gen: state.museum.length + 1,
+    name: card.name,
+    stage: evo.name,
+    stageIndex: evo.index,
+    path: evo.path || null,
+    pathIcon: evo.pathData ? evo.pathData.icon : "",
+    color: evo.color,
+    muts: (card.mutations || []).length,
+    parts: (card.parts || []).slice(0, 10),
+    strength: card.strength || 1,
+    rank: evo.rank,
+    lifetime: Math.floor(state.lifetimeBiomass || 0),
+  });
+  if (state.museum.length > 500) state.museum = state.museum.slice(-500); // safety cap
+}
+
 // ---- Evolution Paths (chosen lineage / build) ----
 export function evoPathId() { return state.evoPath || null; }
 export function evoPathData() { return state.evoPath ? PATH_BY_ID[state.evoPath] : null; }
@@ -867,6 +892,7 @@ export function doSpeciate() {
   state.genome = (state.genome || 0) + gain;
   state.speciations = (state.speciations || 0) + 1;
   addEvolutionRank(3); // permanent — a Speciation is a bigger leap than an Evolve
+  archiveSpecimen(card); // record this generation in the permanent Museum (after the rank bump)
   // wipe the entire Evolve layer (EP + mutations + generators); Species cards persist
   state.evolutionPoints = 0;
   state.mutations = [];

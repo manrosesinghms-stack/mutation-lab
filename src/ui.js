@@ -18,6 +18,7 @@ import {
   machineLevel, machineCost, dronesClicksPerSec, dronesPerSec,
   automatorOwned, automatorOn,
   evolutionStage, evoPathId,
+  museumList, museumCount,
 } from "./economy.js";
 import { COLONY_NODES } from "./data/colony.js";
 import { DRONES, AUTOMATORS, FACTORY } from "./data/machines.js";
@@ -91,6 +92,7 @@ export function initUI(handlers) {
   el.colonyModal = document.getElementById("colony-modal");
   el.machinesModal = document.getElementById("machines-modal");
   el.pathsModal = document.getElementById("paths-modal");
+  el.museumModal = document.getElementById("museum-modal");
   el.genomeModal = document.getElementById("genome-modal");
   el.nodeList = document.getElementById("node-list");
   el.speciesList = document.getElementById("species-list");
@@ -145,6 +147,8 @@ export function initUI(handlers) {
   document.getElementById("machines-close").addEventListener("click", () => el.machinesModal.classList.add("hidden"));
   document.getElementById("paths-btn").addEventListener("click", () => openPaths());
   document.getElementById("paths-close").addEventListener("click", () => el.pathsModal.classList.add("hidden"));
+  document.getElementById("museum-btn").addEventListener("click", () => openMuseum());
+  document.getElementById("museum-close").addEventListener("click", () => el.museumModal.classList.add("hidden"));
   document.getElementById("evo-rank").addEventListener("click", () => openPaths()); // rank strip opens the path picker
   document.getElementById("splice-close").addEventListener("click", () => el.spliceModal.classList.add("hidden"));
   document.getElementById("splice-go").addEventListener("click", () => {
@@ -328,6 +332,41 @@ export function renderPaths() {
       <div class="path-stages">${p.stages.map((s, i) => `<span${i === evo.index ? ' class="now"' : ""}>${s}</span>`).join(" → ")}</div>`;
     card.addEventListener("click", () => uiHandlers.onChoosePath(p.id));
     list.appendChild(card);
+  }
+}
+
+// ---- Species Museum (permanent lineage of every creature you've evolved) ----
+const PART_EMOJI = { eye: "👁️", tentacle: "🌿", spike: "🔻", jaw: "🦷", frond: "🍃", cilia: "〰️", body: "⬡" };
+export function openMuseum() { renderMuseum(); el.museumModal.classList.remove("hidden"); }
+export function renderMuseum() {
+  const list = museumList();
+  document.getElementById("museum-count").textContent = list.length;
+  const cur = evolutionStage();
+  document.getElementById("museum-sub").textContent = list.length
+    ? `Every creature you've ever evolved, preserved forever. Currently embodying Generation ${list.length + 1} — ${cur.pathData ? cur.pathData.icon + " " : ""}${cur.name}.`
+    : "Your lineage is empty. Each time you Speciate, the creature you became is preserved here forever.";
+  const wrap = document.getElementById("museum-list");
+  wrap.innerHTML = "";
+  if (!list.length) {
+    wrap.innerHTML = `<div class="museum-empty">No specimens yet — reach the wall and <b>Speciate</b> to archive your first creature.</div>`;
+    return;
+  }
+  // newest first so your latest evolutions are on top
+  for (let i = list.length - 1; i >= 0; i--) {
+    const sp = list[i];
+    const col = "#" + (sp.color || 0x66ffcc).toString(16).padStart(6, "0");
+    const parts = (sp.parts || []).map((p) => PART_EMOJI[p] || "•").join(" ");
+    const card = document.createElement("div");
+    card.className = "specimen";
+    card.style.setProperty("--sc", col);
+    card.innerHTML = `
+      <div class="spec-emblem" style="background:${col}">${sp.pathIcon || "🧬"}</div>
+      <div class="spec-body">
+        <div class="spec-top"><span class="spec-gen">GEN ${sp.gen}</span> <span class="spec-name">${sp.name}</span></div>
+        <div class="spec-stage">${sp.stage}${sp.path ? "" : " · base form"} · Rank ${sp.rank}</div>
+        <div class="spec-parts">${parts || "<span class='spec-bald'>no mutations</span>"} <span class="spec-muts">${sp.muts} mutation${sp.muts === 1 ? "" : "s"}</span></div>
+      </div>`;
+    wrap.appendChild(card);
   }
 }
 
