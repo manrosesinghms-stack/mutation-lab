@@ -1649,8 +1649,11 @@ function update() {
     const c = stageCenter();
     burst(c.x, c.y, { count: 70, color: "#b88cff", spread: 220, up: 0, life: 1100 });
   }
-  // music intensity grows with total progress; stress = wall heartbeat; danger = boss
-  setMusicIntensity(Math.min(1, Math.log10((state.lifetimeBiomass || 0) + 10) / 16));
+  // music intensity grows with total progress, and SWELLS during a Bloom/Frenzy
+  // (any active production temp-buff) so catching a bloom has an audio payoff.
+  const nowMs = Date.now();
+  const frenzyOn = (state.tempBuffs || []).some((b) => (!b.expiresAt || b.expiresAt > nowMs) && (b.prodMult || 1) > 1);
+  setMusicIntensity(Math.min(1, Math.log10((state.lifetimeBiomass || 0) + 10) / 16 + (frenzyOn ? 0.3 : 0)));
   setMusicStress((pressure - 0.6) / 0.5);
   setMusicDanger(!!boss);
   if (state._auraN !== state.mutations.length) { state._auraN = state.mutations.length; updateAura(); }
