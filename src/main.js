@@ -34,6 +34,7 @@ import {
   evolutionStage,
   researchTiers,
   researchName,
+  masteriesComplete,
   chooseEvoPath,
   pathChoiceDue,
   buyMachine,
@@ -556,6 +557,7 @@ function importSave() {
 }
 
 function pickMutation(id) {
+  const masteriesBefore = masteriesComplete();
   acquireMutation(id);
   const def = getMutation(id);
   onMutationGained(def && def.part); // hue drift + squash + grow a part
@@ -584,6 +586,14 @@ function pickMutation(id) {
     burst(c.x, c.y, { count: isRare ? 44 : 24, color, spread: isRare ? 180 : 130, up: 0, life: isRare ? 900 : 750 });
   }
   flashStatus(`mutation gained: ${def ? def.name : id}`);
+  // Genome Atlas: completing a mastery family is a permanent, celebrated milestone
+  if (masteriesComplete() > masteriesBefore) {
+    audio.playMilestone(); audio.playRoar(); cinematicPulse();
+    flash("rgba(120,220,255,.45)"); shake(20);
+    burst(c.x, c.y, { count: 90, color: "#7be3ff", spread: 260, up: 0, life: 1200 });
+    playCinematic("🧬 MASTERY UNLOCKED", "A Genome Atlas family is complete — permanent bonus!", "#7be3ff");
+    flashStatus("🧬 GENOME MASTERY COMPLETE — permanent bonus unlocked! (see Codex)");
+  }
   if (state.mutations.length >= 14 && !state.instabilityResolved) triggerInstability();
   save();
 }

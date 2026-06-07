@@ -20,6 +20,7 @@ import {
   evolutionStage, evoPathId,
   museumList, museumCount,
   researchName, researchTiers, nextResearch,
+  atlasFamilies, masteriesComplete,
 } from "./economy.js";
 import { RESEARCH_TIERS } from "./data/research.js";
 import { COLONY_NODES } from "./data/colony.js";
@@ -703,12 +704,24 @@ function renderCodex() {
       : `<span class="mut-pill locked">???</span>`;
   }).join("");
 
+  // Genome Atlas — permanent Masteries (completed mutation families)
+  const fams = atlasFamilies();
+  const bonusLabel = (b) => `${b.kind === "click" ? "click" : b.kind === "ep" ? "EP" : "production"} ×${b.mult}`;
+  const atlasHtml = fams.map((f) => `
+    <div class="trait ${f.complete ? "got" : ""}">
+      <div class="tn">${f.complete ? "⭐ " : ""}${f.icon} ${f.name} ${f.complete ? `— ${bonusLabel(f.bonus)}` : ""}</div>
+      <div class="tf">${f.flavor}</div>
+      <div class="tp">${f.found} / ${f.total}${f.complete ? " ✓" : ` · unlocks ${bonusLabel(f.bonus)}`}</div>
+    </div>`).join("");
+
   const tCount = SYNERGIES.filter((s) => dt[s.id]).length;
   const fossils = state.fossils || [];
   const fossilHtml = fossils.length
     ? fossils.map((f) => `<span class="mut-pill" style="border-color:#caa46a;color:#caa46a">🦴 ${f}</span>`).join("")
     : `<span class="mut-pill locked">no fossils yet — beat bosses to find them</span>`;
   el.codexBody.innerHTML = `
+    <h3>🧬 Genome Atlas · ${masteriesComplete()} / ${fams.length} masteries · <span style="color:var(--muted)">permanent — never resets</span></h3>
+    ${atlasHtml}
     <h3>⭐ Species Traits · ${tCount} / ${SYNERGIES.length} discovered</h3>
     ${traits}
     <h3>🧩 Set Forms</h3>

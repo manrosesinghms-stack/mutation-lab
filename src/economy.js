@@ -22,6 +22,7 @@ import { DRONES, AUTOMATORS, FACTORY, DRONE_BY_ID, AUTOMATOR_BY_ID, FACTORY_BY_I
 import { EVO_STAGES, STAGE_COUNT, stageForRank, nextStageRank } from "./data/stages.js";
 import { EVO_PATHS, PATH_BY_ID } from "./data/paths.js";
 import { RESEARCH_TIERS, ORG_NAMES } from "./data/research.js";
+import { ATLAS_FAMILIES } from "./data/atlas.js";
 
 // buy (if needed) + equip a cosmetic skin; returns the skin or null
 export function buySkin(id) {
@@ -171,6 +172,11 @@ export function getModifiers() {
     const rm = researchMult(g.id);
     if (rm > 1) mods.genMult[g.id] = (mods.genMult[g.id] || 1) * rm;
   }
+  // Genome Atlas — permanent Mastery bonuses from completed mutation families
+  const atlas = atlasMods();
+  mods.prodMult *= atlas.prod;
+  mods.clickMult *= atlas.click;
+  mods.epMult *= atlas.ep;
   return mods;
 }
 
@@ -324,6 +330,36 @@ export function evolutionStage() {
   const color = p ? p.color : stage.color;
   return { rank, index, stage, name, blurb: stage.blurb, color, nextRank: next, progress, isMax: next == null, path: state.evoPath || null, pathData: p };
 }
+
+// ---- Genome Atlas (permanent mutation-mastery collection) ----
+// A family is complete when every member is in state.discovered. Completed
+// families grant permanent multipliers. Cached by discovered-count so the
+// hot getModifiers() path stays cheap.
+let _atlasCache = { n: -1, prod: 1, click: 1, ep: 1 };
+export function atlasMods() {
+  const n = Object.keys(state.discovered || {}).length;
+  if (n === _atlasCache.n) return _atlasCache;
+  let prod = 1, click = 1, ep = 1;
+  const disc = state.discovered || {};
+  for (const f of ATLAS_FAMILIES) {
+    if (f.members.every((id) => disc[id])) {
+      if (f.bonus.kind === "prod") prod *= f.bonus.mult;
+      else if (f.bonus.kind === "click") click *= f.bonus.mult;
+      else if (f.bonus.kind === "ep") ep *= f.bonus.mult;
+    }
+  }
+  _atlasCache = { n, prod, click, ep };
+  return _atlasCache;
+}
+// For the Codex UI: each family with its discovered/total + complete flag.
+export function atlasFamilies() {
+  const disc = state.discovered || {};
+  return ATLAS_FAMILIES.map((f) => {
+    const found = f.members.filter((id) => disc[id]).length;
+    return { id: f.id, name: f.name, icon: f.icon, flavor: f.flavor, bonus: f.bonus, found, total: f.members.length, complete: found >= f.members.length };
+  });
+}
+export function masteriesComplete() { return atlasFamilies().filter((f) => f.complete).length; }
 
 // ---- Organelle Research (auto-unlocked ownership-milestone tiers) ----
 // How many research tiers an organelle has unlocked (by current owned count).
