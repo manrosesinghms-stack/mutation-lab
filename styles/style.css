@@ -242,10 +242,10 @@ html, body {
   background: linear-gradient(90deg, var(--accent), #ffd76b);
   transition: width .2s ease, background .3s ease;
 }
-#pressure.maxed #pressure-fill { background: linear-gradient(90deg, #ff8a3d, var(--danger)); }
-#pressure.maxed #pressure-pct { color: var(--danger); }
+#pressure.maxed #pressure-fill { background: linear-gradient(90deg, var(--accent2), var(--accent)); }
+#pressure.maxed #pressure-pct { color: var(--accent2); }
 #pressure-warn {
-  margin-top: 7px; font-size: 11px; font-weight: 700; color: var(--danger);
+  margin-top: 7px; font-size: 11px; font-weight: 700; color: var(--accent2);
   letter-spacing: .03em; text-align: center;
   animation: warnPulse 1.3s ease-in-out infinite;
 }
@@ -396,7 +396,7 @@ html, body {
 #genome-modal, #stats-modal, #settings-modal, #help-modal, #codex-modal,
 #colony-modal, #garden-modal, #reactor-modal, #pantheon-modal, #symbiote-modal,
 #mutagen-modal, #market-modal, #upgrades-modal, #machines-modal, #paths-modal, #museum-modal,
-#helix-modal, #splice-modal {
+#helix-modal, #splice-modal, #chal-modal {
   position: fixed; inset: 0; z-index: 100;
   display: flex; align-items: center; justify-content: center;
   background: rgba(4,7,11,.85); backdrop-filter: blur(6px); animation: fadeIn .2s ease;
@@ -404,7 +404,7 @@ html, body {
 #genome-modal.hidden, #stats-modal.hidden, #settings-modal.hidden, #help-modal.hidden, #codex-modal.hidden,
 #colony-modal.hidden, #garden-modal.hidden, #reactor-modal.hidden, #pantheon-modal.hidden, #symbiote-modal.hidden,
 #mutagen-modal.hidden, #market-modal.hidden, #upgrades-modal.hidden, #machines-modal.hidden, #paths-modal.hidden, #museum-modal.hidden,
-#helix-modal.hidden, #splice-modal.hidden { display: none; }
+#helix-modal.hidden, #splice-modal.hidden, #chal-modal.hidden { display: none; }
 
 /* codex */
 .codex-inner { width: min(720px, 94vw); }

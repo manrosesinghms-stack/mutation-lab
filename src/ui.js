@@ -992,16 +992,19 @@ export function renderUI(rate, dt = 0.016) {
   el.evolveBtn.classList.toggle("ready", ready);
   el.evolveGain.textContent = `+${formatNumber(gain)} EP`;
 
-  // metabolic pressure meter (the legible wall)
+  // metabolic pressure meter — fills toward the soft-cap, then reads SATURATED
+  // (calm, not an alarm: production keeps growing past here, just diminished).
   const pressure = pressureLevel();
   el.pressureFill.style.width = Math.min(100, pressure * 100).toFixed(1) + "%";
-  el.pressurePct.textContent = Math.round(Math.min(999, pressure * 100)) + "%";
   const maxed = pressure >= 1;
+  el.pressurePct.textContent = maxed ? "SATURATED" : Math.round(pressure * 100) + "%";
   el.pressureWrap.classList.toggle("maxed", maxed);
   el.pressureWarn.classList.toggle("hidden", !maxed);
   if (maxed) {
-    // gentle, optional nudge — never an alarm. Production keeps growing past here.
-    el.pressureWarn.textContent = "Production is leveling off — Evolve or Speciate for a fresh multiplier";
+    // honest, optional nudge — explains WHY and what the two choices give you
+    el.pressureWarn.textContent = canSpeciate()
+      ? "Past the soft-cap — extra production is diminished. SPECIATE for a permanent multiplier."
+      : "Past the soft-cap — extra production is diminished. EVOLVE to bank EP and grow faster.";
   }
 
   // speciate availability + genome readout
