@@ -32,6 +32,8 @@ import {
   harvestPlot,
   claimColonyNode,
   evolutionStage,
+  chooseEvoPath,
+  pathChoiceDue,
   buyMachine,
   buyAutomator,
   toggleAutomator,
@@ -67,6 +69,7 @@ import {
 } from "./economy.js";
 import { SKIN_BY_ID } from "./data/skins.js";
 import { speciesTier, speciesTierColor } from "./data/tiers.js";
+import { PATH_BY_ID } from "./data/paths.js";
 import {
   initCreature,
   renderCreature,
@@ -103,7 +106,7 @@ import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabe
          renderGenomeLab, genomeStatus, openHelp, showChoice, renderChallenges,
          renderHelix, renderSplicer, spliceResult, renderUpgrades, renderMarket,
          renderMutagen, renderReactor, renderPantheon, renderSymbiote, renderGarden,
-         renderColony, renderMachines } from "./ui.js";
+         renderColony, renderMachines, renderPaths, openPaths } from "./ui.js";
 import { SPELLS } from "./data/spells.js";
 import { SEASON_BY_ID } from "./data/seasons.js";
 import { formatNumber } from "./format.js";
@@ -196,6 +199,22 @@ initUI({
   onToggleAutomator: (id) => {
     const on = toggleAutomator(id);
     audio.playClick(0); renderMachines(); flashStatus(on ? "⚙️ automator ON" : "○ automator paused"); save();
+  },
+  onChoosePath: (id) => {
+    if (!chooseEvoPath(id)) return;
+    const ev = evolutionStage();
+    setStage(ev.index, state.runShapeSeed, state.evoPath); // re-shape into the chosen lineage
+    applyCreatureSkin(); // recolor the body to the path's palette
+    const parts = state.mutations.map((mid) => getMutation(mid)).filter((d) => d && d.part).map((d) => d.part);
+    rebuildVisuals(parts, state.mutations.length);
+    const col = "#" + ev.color.toString(16).padStart(6, "0");
+    audio.playEvolve(); cinematicPulse(); flash(col + "99"); shake(24);
+    const c = stageCenter();
+    burst(c.x, c.y, { count: 110, color: col, spread: 300, life: 1300 });
+    playCinematic(`${ev.pathData.icon} ${ev.pathData.name.toUpperCase()} LINEAGE`, ev.pathData.blurb, col);
+    flashStatus(`${ev.pathData.icon} Path chosen: ${ev.pathData.name} — ${ev.pathData.bonusText}`);
+    renderPaths();
+    save();
   },
   onSave: () => flashStatus(save() ? "saved" : "save failed"),
   onWipe: () => {
@@ -483,7 +502,11 @@ function updatePressureVignette(pressure) {
 function applyCreatureSkin() {
   const id = state.skin || "default";
   const cosmetic = id !== "default" ? SKIN_BY_ID[id] : null;
-  setSkin(cosmetic || speciesTier(state.speciations || 0).skin);
+  // base body colour: a cosmetic skin wins; otherwise the chosen Evolution Path
+  // (so a Crystal creature is cyan, a Predator is molten) — falling back to the
+  // species-tier skin only before a path is picked.
+  const pathSkin = (!cosmetic && state.evoPath && PATH_BY_ID[state.evoPath]) ? PATH_BY_ID[state.evoPath].skin : null;
+  setSkin(cosmetic || pathSkin || speciesTier(state.speciations || 0).skin);
   // premium GLSL shader transformation (Crystal refraction / Galaxy starfield)
   setSkinShader(cosmetic && cosmetic.shader ? cosmetic.shader : null, cosmetic ? hslHex(cosmetic.h, cosmetic.s, cosmetic.l) : 0xffffff);
 }
@@ -665,7 +688,7 @@ initCinematic();
 // restore creature parts from a saved game (visual mutations only)
 if (state.runShapeSeed == null) state.runShapeSeed = 1;
 setQuality(state.graphics || "medium"); // apply graphics quality (part cap, resolution, effects)
-setStage(evolutionStage().index, state.runShapeSeed); // permanent evolution stage drives the body BEFORE seating parts
+setStage(evolutionStage().index, state.runShapeSeed, state.evoPath); // permanent evolution stage (+ chosen path) drives the body BEFORE seating parts
 const savedParts = state.mutations
   .map((id) => getMutation(id))
   .filter((d) => d && d.part)
@@ -693,6 +716,7 @@ setHabitat(state.biome); // theme the 3D habitat to the run's biome
 setVariant(state.variant); // apply any rare run variant
 applyCreatureSkin();       // base body = cosmetic skin, else current species tier
 // (crown/aura/orbiters already restored by setStage() above — driven by permanent rank)
+if (pathChoiceDue() && !state.pathPrompted) { state.pathPrompted = true; setTimeout(() => openPaths(), 1500); }
 
 const BIOME_ICON = { ocean: "🌊", volcanic: "🌋", verdant: "🌿", glacial: "❄️", abyssal: "🌌", voidrift: "🕳️" };
 function startNewRun(silent) {
@@ -704,7 +728,7 @@ function startNewRun(silent) {
   // stage (drives body + crown + aura + orbiters). Rank never resets, so the
   // creature keeps its evolved form across every prestige instead of going blob.
   state.runShapeSeed = Math.floor(Math.random() * 100000);
-  setStage(evolutionStage().index, state.runShapeSeed);
+  setStage(evolutionStage().index, state.runShapeSeed, state.evoPath);
   const parts = state.mutations.map((id) => getMutation(id)).filter((d) => d && d.part).map((d) => d.part);
   rebuildVisuals(parts, state.mutations.length);
   if (!silent) flashStatus(`${BIOME_ICON[biome.id] || "🌍"} ${biome.name} — ${biome.desc}`);
@@ -726,6 +750,16 @@ function maybeStageUp(prevStageIdx) {
   audio.playRoar();
   playCinematic(`✦ STAGE ${ns.index + 1}: ${ns.name.toUpperCase()} ✦`, ns.blurb, col);
   setTimeout(() => flashStatus(`✦ NEW STAGE — your creature is now a ${ns.name}! (Evolution Rank ${ns.rank})`), 30);
+  maybePromptPath();
+}
+
+// First time the creature reaches the Colony stage with no lineage chosen, open
+// the path picker — the moment the creature gets its identity. Shown once.
+function maybePromptPath() {
+  if (!pathChoiceDue() || state.pathPrompted) return;
+  state.pathPrompted = true;
+  save();
+  setTimeout(() => openPaths(), 900); // let the stage cinematic land first
 }
 
 function rollAndApplyVariant(silent) {

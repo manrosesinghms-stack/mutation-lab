@@ -261,6 +261,26 @@ html, body {
 .evo-rank-next { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
 .evo-rank-bar { margin-top: 7px; height: 7px; border-radius: 999px; background: rgba(255,255,255,.07); overflow: hidden; }
 #evo-rank-fill { height: 100%; width: 0; border-radius: 999px; background: var(--accent); transition: width .3s ease, background .4s ease; box-shadow: 0 0 10px -2px currentColor; }
+#evo-rank { cursor: pointer; transition: border-color .15s ease; }
+#evo-rank:hover { border-color: var(--accent2); }
+
+/* ---- Evolution Path cards ---- */
+#paths-list { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; overflow-y: auto; }
+.path-card {
+  border: 1px solid var(--line); border-left: 4px solid var(--pc, var(--accent));
+  border-radius: 12px; padding: 12px 14px; cursor: pointer;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--pc) 9%, transparent), transparent);
+  transition: transform .07s ease, border-color .15s ease;
+}
+.path-card:hover { transform: translateY(-1px); border-color: var(--pc, var(--accent)); }
+.path-card.chosen { border-color: var(--pc); box-shadow: 0 0 0 1px var(--pc) inset; }
+.path-top { display: flex; justify-content: space-between; align-items: baseline; }
+.path-name { font-size: 15px; font-weight: 800; color: var(--pc, var(--ink)); letter-spacing: .02em; }
+.path-cur { font-size: 10.5px; font-weight: 700; color: var(--pc); }
+.path-blurb { font-size: 12px; color: var(--ink); opacity: .9; margin-top: 4px; }
+.path-bonus { font-size: 11.5px; font-weight: 700; color: var(--accent); margin-top: 6px; }
+.path-stages { font-size: 10.5px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+.path-stages .now { color: var(--pc); font-weight: 700; }
 
 .evolve {
   width: 100%;
@@ -348,14 +368,14 @@ html, body {
 /* genome lab + stats + settings + help modals */
 #genome-modal, #stats-modal, #settings-modal, #help-modal, #codex-modal,
 #colony-modal, #garden-modal, #reactor-modal, #pantheon-modal, #symbiote-modal,
-#mutagen-modal, #market-modal, #upgrades-modal, #machines-modal {
+#mutagen-modal, #market-modal, #upgrades-modal, #machines-modal, #paths-modal {
   position: fixed; inset: 0; z-index: 100;
   display: flex; align-items: center; justify-content: center;
   background: rgba(4,7,11,.85); backdrop-filter: blur(6px); animation: fadeIn .2s ease;
 }
 #genome-modal.hidden, #stats-modal.hidden, #settings-modal.hidden, #help-modal.hidden, #codex-modal.hidden,
 #colony-modal.hidden, #garden-modal.hidden, #reactor-modal.hidden, #pantheon-modal.hidden, #symbiote-modal.hidden,
-#mutagen-modal.hidden, #market-modal.hidden, #upgrades-modal.hidden, #machines-modal.hidden { display: none; }
+#mutagen-modal.hidden, #market-modal.hidden, #upgrades-modal.hidden, #machines-modal.hidden, #paths-modal.hidden { display: none; }
 
 /* codex */
 .codex-inner { width: min(720px, 94vw); }

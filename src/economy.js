@@ -20,6 +20,7 @@ import { SEASON_BY_ID } from "./data/seasons.js";
 import { COLONY_NODES, COLONY_BY_ID } from "./data/colony.js";
 import { DRONES, AUTOMATORS, FACTORY, DRONE_BY_ID, AUTOMATOR_BY_ID, FACTORY_BY_ID, LEVELED_BY_ID } from "./data/machines.js";
 import { EVO_STAGES, STAGE_COUNT, stageForRank, nextStageRank } from "./data/stages.js";
+import { EVO_PATHS, PATH_BY_ID } from "./data/paths.js";
 
 // buy (if needed) + equip a cosmetic skin; returns the skin or null
 export function buySkin(id) {
@@ -134,6 +135,16 @@ export function getModifiers() {
   if (state.colony) for (const id in state.colony) {
     const n = COLONY_BY_ID[id];
     if (n) { mods.prodMult *= 1 + n.prod; mods.clickMult *= 1 + n.click; }
+  }
+  // Evolution Path — your chosen lineage's build bonus, scaling with macro-stage
+  if (state.evoPath && PATH_BY_ID[state.evoPath]) {
+    const p = PATH_BY_ID[state.evoPath];
+    const st = stageForRank(state.evolutionRank || 0);
+    const b = 1 + p.bonus.per * st;
+    if (p.bonus.kind === "click") mods.clickMult *= b;
+    else if (p.bonus.kind === "prod") mods.prodMult *= b;
+    else if (p.bonus.kind === "ep") mods.epMult *= b;
+    else if (p.bonus.kind === "prodclick") { mods.prodMult *= b; mods.clickMult *= b; }
   }
   // Petri Garden — mature plots give passive buffs
   if (state.garden && state.garden.plots) {
@@ -294,6 +305,7 @@ export function addEvolutionRank(n) {
   return { rank: state.evolutionRank, stageIndex: after, gainedStage: after > before };
 }
 // Everything the UI / creature need about the current stage in one call.
+// Path-aware: once a path is chosen, the stage NAME / COLOR come from the path.
 export function evolutionStage() {
   const rank = state.evolutionRank || 0;
   const index = stageForRank(rank);
@@ -301,7 +313,24 @@ export function evolutionStage() {
   const next = nextStageRank(rank);
   const curMin = stage.minRank;
   const progress = next == null ? 1 : Math.max(0, Math.min(1, (rank - curMin) / (next - curMin)));
-  return { rank, index, stage, name: stage.name, blurb: stage.blurb, color: stage.color, nextRank: next, progress, isMax: next == null };
+  const p = state.evoPath ? PATH_BY_ID[state.evoPath] : null;
+  const name = p ? p.stages[index] : stage.name;
+  const color = p ? p.color : stage.color;
+  return { rank, index, stage, name, blurb: stage.blurb, color, nextRank: next, progress, isMax: next == null, path: state.evoPath || null, pathData: p };
+}
+
+// ---- Evolution Paths (chosen lineage / build) ----
+export function evoPathId() { return state.evoPath || null; }
+export function evoPathData() { return state.evoPath ? PATH_BY_ID[state.evoPath] : null; }
+export function chooseEvoPath(id) {
+  if (!PATH_BY_ID[id]) return false;
+  state.evoPath = id;
+  state.pathPrompted = true;
+  return true;
+}
+// Should we prompt the player to pick a path? (reached the Colony stage, none chosen)
+export function pathChoiceDue() {
+  return !state.evoPath && stageForRank(state.evolutionRank || 0) >= 1;
 }
 
 // ---- Automation Bay (drones + automators + factory) ----

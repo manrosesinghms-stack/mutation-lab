@@ -35,6 +35,9 @@ function freshState() {
                            // creature's 6 dramatic macro-stages (Cell→Cosmic). This is
                            // what makes resets feel like collecting, not losing.
     peakRank: 0,           // highest rank ever (== evolutionRank, kept for clarity/stats)
+    evoPath: null,         // chosen Evolution Path id (predator|neural|crystal|parasite).
+                           // PERMANENT — defines the creature's identity + a build bonus.
+    pathPrompted: false,   // have we shown the "choose your path" prompt yet
     helixNodes: {},        // { nodeId: level } purchased Helix meta-tree
     catalyst: 60,          // Reactor spell pool (regenerates over time)
     catalystAt: 0,         // ms timestamp basis for catalyst regen

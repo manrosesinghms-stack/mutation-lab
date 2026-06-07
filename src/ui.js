@@ -17,11 +17,12 @@ import {
   colonyNodes, colonyCount,
   machineLevel, machineCost, dronesClicksPerSec, dronesPerSec,
   automatorOwned, automatorOn,
-  evolutionStage,
+  evolutionStage, evoPathId,
 } from "./economy.js";
 import { COLONY_NODES } from "./data/colony.js";
 import { DRONES, AUTOMATORS, FACTORY } from "./data/machines.js";
 import { EVO_STAGES } from "./data/stages.js";
+import { EVO_PATHS } from "./data/paths.js";
 import { SEEDS, SEED_BY_ID } from "./data/garden.js";
 import { HELIX_NODES } from "./data/helix.js";
 import { SPELLS } from "./data/spells.js";
@@ -89,6 +90,7 @@ export function initUI(handlers) {
   el.gardenModal = document.getElementById("garden-modal");
   el.colonyModal = document.getElementById("colony-modal");
   el.machinesModal = document.getElementById("machines-modal");
+  el.pathsModal = document.getElementById("paths-modal");
   el.genomeModal = document.getElementById("genome-modal");
   el.nodeList = document.getElementById("node-list");
   el.speciesList = document.getElementById("species-list");
@@ -141,6 +143,9 @@ export function initUI(handlers) {
   document.getElementById("colony-close").addEventListener("click", () => el.colonyModal.classList.add("hidden"));
   document.getElementById("machines-btn").addEventListener("click", () => openMachines());
   document.getElementById("machines-close").addEventListener("click", () => el.machinesModal.classList.add("hidden"));
+  document.getElementById("paths-btn").addEventListener("click", () => openPaths());
+  document.getElementById("paths-close").addEventListener("click", () => el.pathsModal.classList.add("hidden"));
+  document.getElementById("evo-rank").addEventListener("click", () => openPaths()); // rank strip opens the path picker
   document.getElementById("splice-close").addEventListener("click", () => el.spliceModal.classList.add("hidden"));
   document.getElementById("splice-go").addEventListener("click", () => {
     if (spliceSelA && spliceSelB) uiHandlers.onSplice(spliceSelA, spliceSelB);
@@ -297,6 +302,32 @@ export function renderMachines() {
       <div class="node-desc">${f.desc} <i>(${f.unit})</i></div>`;
     if (aff) row.addEventListener("click", () => uiHandlers.onBuyMachine(f.id));
     fl.appendChild(row);
+  }
+}
+
+// ---- Evolution Paths (choose your lineage / build) ----
+export function openPaths() { renderPaths(); el.pathsModal.classList.remove("hidden"); }
+export function renderPaths() {
+  const cur = evoPathId();
+  const evo = evolutionStage();
+  document.getElementById("paths-sub").textContent = cur
+    ? `Current lineage: ${evo.pathData.icon} ${evo.pathData.name}. Pick another to re-specialize — your rank & creature carry over.`
+    : "Choose your creature's lineage. This defines what it BECOMES at every stage, plus a build bonus that grows as you ascend.";
+  const list = document.getElementById("paths-list");
+  list.innerHTML = "";
+  for (const p of EVO_PATHS) {
+    const card = document.createElement("div");
+    card.className = "path-card" + (cur === p.id ? " chosen" : "");
+    const col = "#" + p.color.toString(16).padStart(6, "0");
+    card.style.setProperty("--pc", col);
+    card.innerHTML = `
+      <div class="path-top"><span class="path-name">${p.icon} ${p.name}</span>
+        ${cur === p.id ? '<span class="path-cur">● ACTIVE</span>' : ""}</div>
+      <div class="path-blurb">${p.blurb}</div>
+      <div class="path-bonus">⚡ ${p.bonusText}</div>
+      <div class="path-stages">${p.stages.map((s, i) => `<span${i === evo.index ? ' class="now"' : ""}>${s}</span>`).join(" → ")}</div>`;
+    card.addEventListener("click", () => uiHandlers.onChoosePath(p.id));
+    list.appendChild(card);
   }
 }
 
@@ -870,7 +901,8 @@ export function renderUI(rate, dt = 0.016) {
   const rn = document.getElementById("evo-rank-num");
   if (rn) {
     rn.textContent = "RANK " + formatNumber(evo.rank);
-    const sn = document.getElementById("evo-stage-name"); if (sn) sn.textContent = evo.name;
+    const sn = document.getElementById("evo-stage-name");
+    if (sn) sn.textContent = (evo.pathData ? evo.pathData.icon + " " : "") + evo.name;
     const nx = document.getElementById("evo-rank-next");
     if (nx) nx.textContent = evo.isMax ? "FINAL STAGE — apex of evolution" : `next: ${EVO_STAGES[evo.index + 1].name} at Rank ${evo.nextRank}`;
     const f = document.getElementById("evo-rank-fill");

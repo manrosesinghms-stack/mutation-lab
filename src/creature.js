@@ -6,6 +6,7 @@
 import * as THREE from "three";
 import { speciesTier } from "./data/tiers.js";
 import { EVO_STAGES } from "./data/stages.js";
+import { PATH_BY_ID } from "./data/paths.js";
 
 let renderer, scene, camera, organism, light;
 let canvas;
@@ -229,22 +230,26 @@ export function setSpeciesTier(n) {
 // so each stage reads as a genuine transformation, not a recolor. `seed` adds
 // per-run silhouette jitter so two creatures at the same stage still differ.
 let stageIndex = 0, orbiterGroup;
-export function setStage(idx, seed = 0) {
+export function setStage(idx, seed = 0, pathId = null) {
   stageIndex = Math.max(0, Math.min(EVO_STAGES.length - 1, idx | 0));
   const s = EVO_STAGES[stageIndex];
-  // body silhouette
-  shapeProfile = { ...s.profile };
+  const p = pathId ? PATH_BY_ID[pathId] : null;
+  // surface CHARACTER comes from the chosen path (spiky/lobed/faceted/writhing),
+  // amplified by stage so the form grows more extreme as you ascend; falls back
+  // to the generic stage profile before a path is chosen.
+  const base = p ? p.profile : s.profile;
+  const amp = 1 + stageIndex * 0.13;
+  shapeProfile = { ...base, a1: base.a1 * amp, lobe: (base.lobe || 0) * amp, spike: (base.spike || 0) * amp };
   shapeSeed = seed * 0.137;
-  bodyDetail = s.detail;
+  bodyDetail = p ? p.detail : s.detail; // faceted (low) vs organic (high)
   const j = (k) => 1 + Math.sin(seed * 12.9898 + k) * 0.5 * 0.14; // deterministic per-run jitter
   bodyScale.set(s.scale[0] * j(1), s.scale[1] * j(2), s.scale[2] * j(3));
   rebuildBody();
-  // crown + halo rings
-  buildCrown(s.crown, s.rings, s.color);
-  // aura colour + intensity
-  setAura(s.auraColor, s.auraI);
-  // orbiting bodies: detached organs (planetary) / stars (cosmic)
-  buildOrbiters(s.orbits, s.color);
+  // colour identity: path colour if chosen, else the generic stage colour
+  const col = p ? p.color : s.color;
+  buildCrown(s.crown, s.rings, col);          // grandeur ladder (shards + rings)
+  setAura(col, s.auraI);                        // glow + orbiting aura particles
+  buildOrbiters(s.orbits, col);                 // detached organs / orbiting stars
   return true; // caller should re-seat parts (rebuildVisuals)
 }
 
