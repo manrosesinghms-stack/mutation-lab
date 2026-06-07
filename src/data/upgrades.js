@@ -7,7 +7,7 @@
 
 import { GENERATORS } from "./generators.js";
 
-const ROMAN = ["I", "II", "III", "IV", "V"];
+const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII"];
 // at: own this many of the organelle to unlock · c: cost = baseCost x this
 const GEN_TIERS = [
   { n: 10, c: 60 },
@@ -40,7 +40,7 @@ GENERATORS.forEach((g) => {
   GEN_TIERS.forEach((t, i) => {
     UPGRADES.push({
       id: `${g.id}_x2_${t.n}`,
-      name: `${g.name} ${ROMAN[i] || "V" + (i - 4)}`,
+      name: `${g.name} ${ROMAN[i] || i + 1}`,
       desc: `${g.name} output ×2.`,
       flavor: TIER_FLAVOR[i] || TIER_FLAVOR[TIER_FLAVOR.length - 1],
       cond: `Own ${t.n} ${g.name}`,

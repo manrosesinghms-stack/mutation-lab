@@ -67,17 +67,19 @@ function applyMutationEffects(mods, mutList, editions) {
   const ed = editions || null; // edition map (live run only); species use base
   let prodB = 0, clickB = 0, epB = 0;
   const genB = {};
+  const cursedDone = new Set(); // flat Cursed click-penalty applies ONCE per id, not per stacked copy
   for (const id of mutList) {
     const def = MUT_BY_ID[id];
     if (!def || !def.effect) continue;
     const u = { clickMult: 1, prodMult: 1, epMult: 1, genMult: {} };
     def.effect(u, info);
     // editions amplify the WHOLE effect by `power` (Foil/Prismatic/Cursed); Cursed
-    // adds a flat click penalty as its risk/reward cost.
+    // adds a flat click penalty as its risk/reward cost (charged once per mutation).
     const edDef = ed && ed[id] ? EDITIONS[ed[id]] : null;
     const p = edDef ? edDef.power : 1;
     prodB += (u.prodMult - 1) * p;
-    clickB += (u.clickMult - 1) * p - (edDef && edDef.clickPenalty ? edDef.clickPenalty : 0);
+    clickB += (u.clickMult - 1) * p;
+    if (edDef && edDef.clickPenalty && !cursedDone.has(id)) { clickB -= edDef.clickPenalty; cursedDone.add(id); }
     epB += (u.epMult - 1) * p;
     for (const k in u.genMult) genB[k] = (genB[k] || 0) + (u.genMult[k] - 1) * p;
   }

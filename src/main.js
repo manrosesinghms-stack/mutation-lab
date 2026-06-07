@@ -483,7 +483,8 @@ function openDraft() {
   const ids = rollDraft(draftSize());
   // First-ever draft: guarantee at least one body-part mutation so the creature
   // VISIBLY transforms on the first Evolve (the payoff that hooks new players).
-  if ((state.prestiges || 0) === 0 && (state.mutations || []).length === 0 && !ids.some((id) => (getMutation(id) || {}).part)) {
+  // Skipped during daily runs so the seeded draws stay identical for everyone.
+  if (!state.dailyActive && (state.prestiges || 0) === 0 && (state.mutations || []).length === 0 && !ids.some((id) => (getMutation(id) || {}).part)) {
     const parts = MUTATIONS.filter((m) => m.part && m.rarity !== "legendary" && !m.alien && !m.defect);
     if (parts.length) ids[0] = parts[(Math.random() * parts.length) | 0].id;
   }
@@ -586,11 +587,28 @@ function exportSave() {
   } catch (e) { genomeStatus("export failed"); }
 }
 
+// Validate + repair an externally-sourced save (import string or cloud) before we
+// merge it over state — never let malformed data corrupt the game or crash views.
+function sanitizeSave(obj) {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return null;
+  for (const k of ["biomass", "runBiomass", "lifetimeBiomass", "evolutionPoints", "genome", "prestiges", "speciations", "evolutionRank"]) {
+    if (k in obj && !Number.isFinite(obj[k])) obj[k] = 0;
+  }
+  if (typeof obj.owned !== "object" || !obj.owned || Array.isArray(obj.owned)) obj.owned = {};
+  if (!Array.isArray(obj.mutations)) obj.mutations = [];
+  if (!Array.isArray(obj.species)) obj.species = [];
+  // drop dangling/self parentId refs so the Tree of Life can't form a broken graph
+  const ids = new Set(obj.species.map((s) => s && s.id).filter(Boolean));
+  for (const s of obj.species) if (s && (s.parentId === s.id || !ids.has(s.parentId))) s.parentId = null;
+  return obj;
+}
+
 function importSave() {
   const str = prompt("Paste your exported save string:");
   if (!str) return;
   try {
-    const data = JSON.parse(decodeURIComponent(escape(atob(str.trim()))));
+    const data = sanitizeSave(JSON.parse(decodeURIComponent(escape(atob(str.trim())))));
+    if (!data) { genomeStatus("invalid save string"); return; }
     Object.assign(state, data);
     save();
     genomeStatus("imported — reloading");
@@ -618,7 +636,8 @@ async function cloudDownload() {
   const data = await cloudGetSave(code.trim());
   if (!data) { genomeStatus("no save found for that code"); return; }
   try {
-    const obj = JSON.parse(decodeURIComponent(escape(atob(data))));
+    const obj = sanitizeSave(JSON.parse(decodeURIComponent(escape(atob(data)))));
+    if (!obj) { genomeStatus("cloud save was corrupt"); return; }
     Object.assign(state, obj);
     save();
     genomeStatus("☁ loaded — reloading");

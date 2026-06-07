@@ -135,6 +135,7 @@ export function initUI(handlers) {
   if (amtBox) amtBox.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
     buyAmt = b.dataset.amt === "max" ? "max" : parseInt(b.dataset.amt, 10);
     amtBox.querySelectorAll("button").forEach((x) => x.classList.toggle("active", x === b));
+    _genHeavyAt = 0; // refresh cost labels immediately, don't wait for the next throttle tick
   }));
 
   document.getElementById("save-btn").addEventListener("click", handlers.onSave);
@@ -998,7 +999,11 @@ function layoutTree(species) {
   const byStr = (a, b) => (b.strength || 1) - (a.strength || 1);
   roots.sort(byStr); for (const k in children) children[k].sort(byStr);
   const pos = {}; let row = 0;
+  const seen = new Set(); // guard against parentId cycles in corrupt/imported saves
   const dfs = (node, depth) => {
+    if (pos[node.id]) return pos[node.id].y; // already placed (cycle / diamond)
+    if (seen.has(node.id)) { pos[node.id] = { x: depth, y: row++ }; return pos[node.id].y; }
+    seen.add(node.id);
     const kids = children[node.id] || [];
     if (!kids.length) { pos[node.id] = { x: depth, y: row++ }; return pos[node.id].y; }
     const ys = kids.map((k) => dfs(k, depth + 1));
@@ -1006,6 +1011,9 @@ function layoutTree(species) {
     return pos[node.id].y;
   };
   for (const r of roots) dfs(r, 0);
+  // place any species not reachable from a root (orphans / parentId cycles) so the
+  // renderer always has a position for every node and can't deref undefined
+  for (const s of species) if (!pos[s.id]) dfs(s, 0);
   return { pos, rows: Math.max(1, row) };
 }
 export function renderTreeOfLife() {
