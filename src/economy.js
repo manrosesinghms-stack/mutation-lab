@@ -92,12 +92,15 @@ export function getModifiers() {
     mods.prodMult *= Math.sqrt(Math.max(1, sm.prodMult));
     mods.clickMult *= Math.sqrt(Math.max(1, sm.clickMult));
   }
-  // temporary buffs (blooms / Digest) applied at ONE chokepoint, expiry-aware
+  // temporary buffs (blooms / Digest): collect now, but APPLY at the very end so
+  // they burst ON TOP of the soft-capped permanent multiplier (a Frenzy should
+  // still feel like a real ×4, not get swallowed by the cap).
   const now = Date.now();
+  let tempProd = 1, tempClick = 1;
   for (const b of state.tempBuffs || []) {
     if (b.expiresAt && b.expiresAt <= now) continue;
-    if (b.prodMult) mods.prodMult *= b.prodMult;
-    if (b.clickMult) mods.clickMult *= b.clickMult;
+    if (b.prodMult) tempProd *= b.prodMult;
+    if (b.clickMult) tempClick *= b.clickMult;
   }
   // permanent achievement bonuses
   const ach = state.achievements || {};
@@ -191,6 +194,18 @@ export function getModifiers() {
   mods.prodMult *= atlas.prod;
   mods.clickMult *= atlas.click;
   mods.epMult *= atlas.ep;
+
+  // ---- Global soft-cap on the PERMANENT multiplier stack ----
+  // Every system above multiplies together, so they compound to ×10^8+ within a
+  // handful of Evolves (mutations alone hit ×87k from 10), which makes any
+  // organelle purchase explode to billions instantly. Soft-knee the combined
+  // permanent multiplier: untouched below the threshold (early game feels normal),
+  // gentle power-curve above it so stacking always helps but never runs away.
+  mods.prodMult = softknee(mods.prodMult, TUN.multSoftcap.base, TUN.multSoftcap.exp);
+  mods.clickMult = softknee(mods.clickMult, TUN.multSoftcap.base, TUN.multSoftcap.exp);
+  // temp buffs (Frenzy / Digest) burst ON TOP of the capped permanent base
+  mods.prodMult *= tempProd;
+  mods.clickMult *= tempClick;
   return mods;
 }
 

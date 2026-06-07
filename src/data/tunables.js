@@ -37,6 +37,15 @@ export const TUN = {
     critMult: 5,      // a critical extraction pays 5× the click
   },
 
+  // Global soft-cap on the combined PERMANENT multiplier stack (mutations × EP ×
+  // helix × culture × paths × … all multiply, so they compound to ×10^8+ fast).
+  // Below `base` the product is untouched (early game normal); above it, it grows
+  // as base·(x/base)^exp — always rising, never exploding. Temp buffs apply after.
+  multSoftcap: {
+    base: 200,  // multipliers up to ×200 pass through unchanged
+    exp: 0.45,  // past ×200, diminishing power curve (×10^8 → ~×10^5)
+  },
+
   // Per-generator saturation — discourages dumping everything into one organelle.
   // Each generator's raw output is softcapped before the global mults apply.
   genSaturation: {
