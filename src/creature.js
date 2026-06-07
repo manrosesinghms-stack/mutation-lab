@@ -768,10 +768,12 @@ export function renderCreature(dt, elapsed) {
   // longest silhouette axis × a margin for bumps/spikes/parts — so tall, lobed
   // or spiky shapes pull the camera back enough to never overflow the screen.
   const maxAxis = Math.max(bodyScale.x, bodyScale.y, bodyScale.z);
-  const reach = currentScale * maxAxis * 1.45;
-  const targetZ = 5.2 + (reach - 1) * 5.4 - cineZoom;
+  const reach = currentScale * maxAxis * 1.28;
+  const targetZ = 4.4 + (reach - 1) * 4.8 - cineZoom;
   camera.position.z += (targetZ - camera.position.z) * Math.min(1, dt * 2.5);
-  camera.lookAt(0, 0, 0);
+  // compose the creature a touch high so it fills the frame and the empty floor
+  // below is cropped off the bottom edge instead of dominating the view
+  camera.lookAt(0, 0.55 * currentScale, 0);
 
   // squash impulse decays; gives a juicy click "pop"
   punch += (0 - punch) * Math.min(1, dt * 8);
