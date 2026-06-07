@@ -594,7 +594,10 @@ html, body {
   50% { box-shadow: 0 0 30px 2px var(--rarity), inset 0 0 26px -6px var(--rarity); }
 }
 
-#panel-foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#panel-foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; }
+/* footer buttons: icon + label so every action is self-explanatory */
+#panel-foot .ghost { display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; font-size: 11px; line-height: 1; }
+#panel-foot .ghost .ico { font-size: 14px; line-height: 1; }
 .ghost {
   background: transparent; color: var(--muted);
   border: 1px solid var(--line); border-radius: 9px;

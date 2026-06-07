@@ -827,7 +827,10 @@ export function renderGenomeLab() {
 }
 
 export function setMuteLabel(muted) {
-  if (el.muteBtn) el.muteBtn.textContent = muted ? "🔇" : "🔊";
+  if (!el.muteBtn) return;
+  const ico = el.muteBtn.querySelector(".ico");
+  if (ico) ico.textContent = muted ? "🔇" : "🔊";
+  else el.muteBtn.textContent = muted ? "🔇" : "🔊"; // fallback if structure changes
 }
 
 function buildGeneratorRows() {
