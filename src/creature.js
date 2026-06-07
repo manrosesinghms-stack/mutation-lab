@@ -477,21 +477,8 @@ function buildHabitat() {
   // depth fog — far edges of the tank dissolve into the gloom
   scene.fog = new THREE.Fog(habitat.fog, 9, 30);
 
-  // floor platform the creature rests above
-  floorMesh = new THREE.Mesh(
-    new THREE.CircleGeometry(16, 56),
-    new THREE.MeshStandardMaterial({ color: habitat.floor, emissive: habitat.floor, emissiveIntensity: 0.35, roughness: 0.95, metalness: 0.0 }));
-  floorMesh.rotation.x = -Math.PI / 2;
-  floorMesh.position.y = -2.3;
-  habitatGroup.add(floorMesh);
-
-  // a soft glowing pad directly under the creature (a specimen spotlight)
-  const pad = new THREE.Mesh(
-    new THREE.RingGeometry(1.4, 2.4, 56),
-    new THREE.MeshBasicMaterial({ color: habitat.mote, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }));
-  pad.rotation.x = -Math.PI / 2;
-  pad.position.y = -2.28;
-  habitatGroup.add(pad);
+  // (removed the flat floor slab + pad — the creature now floats in the biome
+  // atmosphere; the bottom dissolves into fog/background instead of a dark plane)
 
   buildMotes();
 }
