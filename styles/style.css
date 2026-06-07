@@ -35,6 +35,7 @@ button, .gen, .node, #creature-canvas, .draft-card, .species-card { touch-action
 #app {
   display: grid;
   grid-template-columns: 1fr 360px;
+  grid-template-rows: 100%; /* definite row height so the panel's flex tabs resolve (no global scroll) */
   height: 100%;
 }
 
@@ -877,8 +878,36 @@ button:focus-visible, .gen:focus-visible, input:focus-visible, [tabindex]:focus-
 /* affordable organelle: a gentle luminous wash so the next buy invites the eye */
 .gen.affordable { background: linear-gradient(100deg, rgba(86,227,159,.10), rgba(86,227,159,.02) 60%); }
 
+/* ===== No-scroll tabbed panel (Grow / Evolve / Lab) ===== */
+#panel { overflow: hidden; } /* the active tab owns any overflow, not the whole panel */
+#panel-tabs { display: flex; gap: 6px; margin: 12px 0 10px; flex: 0 0 auto; }
+.ptab {
+  flex: 1; position: relative; cursor: pointer; font-weight: 800; font-size: 12.5px;
+  padding: 9px 0; border-radius: 10px; color: var(--muted);
+  background: var(--bg2); border: 1px solid var(--line);
+  transition: color .12s, background .12s, border-color .12s, box-shadow .12s;
+}
+.ptab:hover { color: var(--ink); border-color: var(--accent); }
+.ptab.active { color: #08110d; background: var(--accent); border-color: var(--accent); box-shadow: 0 4px 16px -5px var(--accent); }
+.ptab-dot { position: absolute; top: 5px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 9px var(--danger); animation: pulse 1.3s ease-in-out infinite; }
+.ptab-dot.hidden { display: none; }
+.tabp { display: none; flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.tabp.active { display: flex; flex-direction: column; }
+#status { color: var(--muted); font-size: 11px; min-height: 15px; margin-top: 8px; flex: 0 0 auto; text-align: center; }
+/* Lab tab: a clean icon grid (Cell-to-Singularity style), not a wrapping list */
+#panel-foot {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0;
+}
+#panel-foot .ghost {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  padding: 11px 4px; font-size: 10px; line-height: 1.1; text-align: center; min-height: 58px; border-radius: 12px;
+}
+#panel-foot .ghost .ico { font-size: 20px; line-height: 1; }
+/* slightly compact organelle rows so a full set fits the Grow tab without scrolling */
+.gen { padding: 9px 11px; }
+
 #volume { width: 64px; accent-color: var(--accent); cursor: pointer; }
-#status { color: var(--muted); font-size: 11px; flex-basis: 100%; margin-top: 2px; }
+#status { color: var(--muted); font-size: 11px; flex: 0 0 auto; margin-top: 2px; }
 
 /* ---------- floating click fx ---------- */
 #fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 50; }

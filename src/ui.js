@@ -53,6 +53,7 @@ import { creatureName } from "./data/names.js";
 const el = {};
 let onBuy = null;
 let sellMode = false;
+let activeTab = "grow"; // which panel tab is showing (grow | evolve | lab)
 let buyAmt = 1; // bulk-buy amount: 1 | 10 | 100 | "max"
 let _genHeavyAt = 0, _bdCache = null; // throttle the expensive cost-label/tooltip recompute
 // resolve how many to buy from the selector + click modifiers (Shift=10, Ctrl=100)
@@ -136,6 +137,13 @@ export function initUI(handlers) {
     buyAmt = b.dataset.amt === "max" ? "max" : parseInt(b.dataset.amt, 10);
     amtBox.querySelectorAll("button").forEach((x) => x.classList.toggle("active", x === b));
     _genHeavyAt = 0; // refresh cost labels immediately, don't wait for the next throttle tick
+  }));
+  // Grow / Evolve / Lab tabs — keeps the panel to one screen, no scrolling
+  el.evolveDot = document.getElementById("evolve-dot");
+  document.querySelectorAll("#panel-tabs .ptab").forEach((b) => b.addEventListener("click", () => {
+    activeTab = b.dataset.tab;
+    document.querySelectorAll("#panel-tabs .ptab").forEach((x) => x.classList.toggle("active", x === b));
+    document.querySelectorAll("#panel .tabp").forEach((p) => p.classList.toggle("active", p.dataset.tab === activeTab));
   }));
 
   document.getElementById("save-btn").addEventListener("click", handlers.onSave);
@@ -1181,6 +1189,8 @@ export function renderUI(rate, dt = 0.016) {
   el.evolveBtn.disabled = !ready;
   el.evolveBtn.classList.toggle("ready", ready);
   el.evolveGain.textContent = `+${formatNumber(gain)} EP`;
+  // ping the Evolve tab when a reset is ready but the player is on another tab
+  if (el.evolveDot) el.evolveDot.classList.toggle("hidden", !((ready || (typeof canSpeciate === "function" && canSpeciate())) && activeTab !== "evolve"));
 
   // metabolic pressure meter — fills toward the soft-cap, then reads SATURATED
   // (calm, not an alarm: production keeps growing past here, just diminished).
@@ -1271,13 +1281,19 @@ export function renderUI(rate, dt = 0.016) {
   const heavy = Date.now() - _genHeavyAt > 200;
   if (heavy) { _genHeavyAt = Date.now(); _bdCache = productionBreakdown(); }
   const _bd = _bdCache || { per: {}, each: {}, total: 0 };
+  let lockedShown = 0;
   for (const g of GENERATORS) {
     const row = el.genRows[g.id];
     const unlocked = isUnlocked(g.id);
     if (!unlocked) {
-      if (!row.classList.contains("locked")) row.classList.add("locked");
+      row.classList.add("locked");
+      // show only the NEXT locked organelle as a teaser; hide the rest so the Grow
+      // tab stays scroll-free and the list reads as "what's next", not a wall.
+      lockedShown++;
+      row.style.display = lockedShown <= 1 ? "" : "none";
       continue;
     }
+    row.style.display = "";
     row.classList.remove("locked");
     row.classList.toggle("affordable", canAfford(g.id)); // can buy at least one (cheap, per-frame)
     row.querySelector(".owned").textContent = `×${state.owned[g.id] || 0}`;

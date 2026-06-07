@@ -76,6 +76,13 @@
         <div class="evo-rank-bar"><div id="evo-rank-fill"></div></div>
       </section>
 
+      <nav id="panel-tabs">
+        <button class="ptab active" data-tab="grow">🦠 Grow</button>
+        <button class="ptab" data-tab="evolve">🧬 Evolve<span id="evolve-dot" class="ptab-dot hidden"></span></button>
+        <button class="ptab" data-tab="lab">🔬 Lab</button>
+      </nav>
+
+      <div class="tabp active" data-tab="grow">
       <section id="generators">
         <h2>Organelles <button id="buysell-toggle" class="autobuy">Mode: Buy</button><button id="autobuy-toggle" class="autobuy hidden">Auto-buy: ON</button></h2>
         <div id="buy-amt" class="buy-amt" title="How many to buy per click (or hold Shift = ×10, Ctrl = ×100)">
@@ -90,7 +97,9 @@
         </div>
         <div id="generator-list"><!-- injected by ui.js --></div>
       </section>
+      </div><!-- /tab grow -->
 
+      <div class="tabp" data-tab="evolve">
       <section id="evolution">
         <h2>Evolution</h2>
         <div id="pressure">
@@ -120,7 +129,9 @@
         <button id="helix-btn" class="ghost genome-open hidden">🌀 Helix Tree · <b id="helix-value">0</b></button>
         <div id="mutation-collection"><!-- chips injected by ui.js --></div>
       </section>
+      </div><!-- /tab evolve -->
 
+      <div class="tabp" data-tab="lab">
       <footer id="panel-foot">
         <button id="save-btn" class="ghost">Save</button>
         <button id="wipe-btn" class="ghost danger">Wipe</button>
@@ -142,8 +153,10 @@
         <button id="settings-btn" class="ghost" title="Settings"><span class="ico">⚙️</span> Settings</button>
         <button id="photo-btn" class="ghost" title="Photo mode"><span class="ico">📸</span> Photo</button>
         <button id="mute-btn" class="ghost" title="Toggle sound"><span class="ico">🔊</span> Sound</button>
-        <span id="status"></span>
       </footer>
+      </div><!-- /tab lab -->
+
+      <div id="status"></div>
     </aside>
   </div>
 
