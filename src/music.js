@@ -67,7 +67,10 @@ const THEMES = {
 let theme = THEMES.lofi;
 
 export const MUSIC_THEMES = Object.keys(THEMES).map((id) => ({ id, name: THEMES[id].name }));
-export function setMusicTheme(id) { if (THEMES[id]) theme = THEMES[id]; }
+// per-theme "space" depth — ambient/dark themes get lush reverb, chip/pulse stay dry
+const REVERB = { lofi: 0.32, lullaby: 0.62, pulse: 0.16, bloom: 0.46, chiptune: 0.1, eldritch: 0.72 };
+let curThemeId = "lofi";
+export function setMusicTheme(id) { if (THEMES[id]) { theme = THEMES[id]; curThemeId = id; if (musicSend) musicSend.gain.value = REVERB[id] != null ? REVERB[id] : 0.4; } }
 export function getMusicTheme() { return Object.keys(THEMES).find((k) => THEMES[k] === theme); }
 export function hasTheme(id) { return !!THEMES[id]; }
 
@@ -81,6 +84,8 @@ export function setMusicVolume(v) {
 }
 export function getMusicVolume() { return volume; }
 
+let musicSend = null; // wet "space" bus (feedback delay → lowpass) for depth/character
+
 export function startMusic() {
   if (started) return;
   const ctx = getContext();
@@ -89,6 +94,17 @@ export function startMusic() {
   musicGain = ctx.createGain();
   musicGain.gain.value = volume * 0.22;
   musicGain.connect(getMaster());
+  // reverb-ish space: a filtered feedback delay melodic voices send into, so the
+  // music has air and depth instead of dry beeps. Per-theme depth differentiates moods.
+  musicSend = ctx.createGain(); musicSend.gain.value = REVERB[curThemeId] != null ? REVERB[curThemeId] : 0.4;
+  const d1 = ctx.createDelay(1.0); d1.delayTime.value = 0.27;
+  const d2 = ctx.createDelay(1.0); d2.delayTime.value = 0.41;
+  const fb = ctx.createGain(); fb.gain.value = 0.34;
+  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2400;
+  const wet = ctx.createGain(); wet.gain.value = 0.5;
+  musicSend.connect(d1); musicSend.connect(d2);
+  d1.connect(lp); d2.connect(lp); lp.connect(fb); fb.connect(d1); fb.connect(d2);
+  lp.connect(wet); wet.connect(musicGain);
   nextStepTime = ctx.currentTime + 0.15;
   step = 0;
   setInterval(scheduler, 40);
@@ -112,7 +128,8 @@ function tone(t, freq, type, gain, dur, attack = 0.01, release = 0.12) {
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(Math.max(0.0003, gain), t + attack);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur + release);
-  o.connect(g).connect(musicGain);
+  o.connect(g); g.connect(musicGain);          // dry
+  if (musicSend) g.connect(musicSend);          // wet (space) — melodic voices only
   o.start(t); o.stop(t + dur + release + 0.02);
 }
 
