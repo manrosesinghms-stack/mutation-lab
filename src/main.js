@@ -1278,6 +1278,44 @@ if (coachEl) document.getElementById("coach-dismiss").addEventListener("click", 
   state.coachDone = true; coachEl.classList.add("hidden"); save();
 });
 
+// ---- Lab Crew: scientists + equipment that visibly accumulate along the bottom
+// of the lab as you grow — our take on Cookie Clicker's building sprites filling
+// the screen (the "look at everything I've built" payoff). Each prop pops in once
+// at its milestone (sticky), with a one-time toast. Themed to a bio-lab, escalating
+// from a lone technician to an orbital uplink. Reuses the milestone metrics.
+const totalOwnedCount = (s) => Object.values(s.owned || {}).reduce((a, b) => a + b, 0);
+const LAB_CREW = [
+  { id: "tech",     icon: "🧑‍🔬", label: "A lab technician clocks in",  when: (s) => totalOwnedCount(s) >= 1 },
+  { id: "scope",    icon: "🔬",   label: "Microscope installed",        when: (s) => (s.lifetimeBiomass || 0) >= 500 },
+  { id: "rack",     icon: "🧫",   label: "Culture rack added",          when: (s) => (s.lifetimeBiomass || 0) >= 5e3 },
+  { id: "senior",   icon: "👩‍🔬", label: "A senior researcher joins",   when: (s) => (s.prestiges || 0) >= 1 },
+  { id: "terminal", icon: "🖥️",   label: "Data terminal online",        when: (s) => (s.lifetimeBiomass || 0) >= 5e4 },
+  { id: "dna",      icon: "🧬",   label: "Gene-sequencer wheeled in",   when: (s) => new Set(s.mutations).size >= 4 },
+  { id: "flask",    icon: "⚗️",   label: "Reagent station built",       when: (s) => (s.lifetimeBiomass || 0) >= 2.5e5 },
+  { id: "robot",    icon: "🦾",   label: "Robotic arm deployed",        when: (s) => (s.lifetimeBiomass || 0) >= 1e6 },
+  { id: "server",   icon: "🗄️",   label: "Server rack humming",         when: (s) => (s.lifetimeBiomass || 0) >= 5e7 },
+  { id: "director", icon: "🥼",   label: "Lab Director appointed",      when: (s) => (s.speciations || 0) >= 1 },
+  { id: "satellite",icon: "🛰️",   label: "Orbital lab uplink online",   when: (s) => (s.evolutionRank || 0) >= 60 },
+];
+const crewLayer = document.getElementById("lab-crew");
+function updateLabCrew() {
+  if (!crewLayer) return;
+  state.labCrew = state.labCrew || {};
+  const firstPass = !state.labCrewInit;
+  for (const p of LAB_CREW) {
+    if (state.labCrew[p.id]) continue;
+    if (!p.when(state)) continue;
+    state.labCrew[p.id] = true;
+    const el = document.createElement("span");
+    el.className = "crew"; el.textContent = p.icon; el.title = p.label;
+    el.style.animationDelay = "0s, " + (Math.random() * 2).toFixed(2) + "s"; // stagger the idle bob
+    crewLayer.appendChild(el);
+    if (!firstPass) { flashStatus(`🔬 ${p.label}`); audio.playMilestone(); }
+  }
+  if (firstPass) state.labCrewInit = true;
+}
+updateLabCrew(); // restore the crew on boot (no toasts)
+
 let _unlockAt = 0;
 function updateUnlocks() {
   state.unlocked = state.unlocked || {};
@@ -1459,7 +1497,7 @@ function update() {
   renderCreature(visualDt, elapsed);
   updateJuice(visualDt);
   renderUI(rate, visualDt);
-  if (now - _unlockAt > 750) { _unlockAt = now; updateUnlocks(); updateCoach(); } // reveal systems + coach as milestones hit
+  if (now - _unlockAt > 750) { _unlockAt = now; updateUnlocks(); updateCoach(); updateLabCrew(); } // reveal systems + coach + lab crew as milestones hit
 
   // autosave every 15s
   sinceSave += dt;

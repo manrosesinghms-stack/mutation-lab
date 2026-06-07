@@ -479,6 +479,23 @@ html, body {
 }
 /* progressive disclosure: a system button stays hidden until its milestone */
 .locked-feature { display: none !important; }
+/* Lab Crew: scientists + equipment that accumulate along the bench as you grow
+   (our version of Cookie Clicker's building sprites filling the screen) */
+#lab-crew {
+  position: absolute; left: 14px; right: 14px; bottom: 8px;
+  z-index: 6; pointer-events: none;
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 10px;
+  max-height: 38%; overflow: hidden;
+}
+.crew {
+  font-size: 30px; line-height: 1;
+  filter: drop-shadow(0 3px 5px rgba(0,0,0,.55));
+  transform-origin: bottom center;
+  animation: crewIn .5s cubic-bezier(.2,1.4,.4,1) both, crewBob 3.4s ease-in-out infinite;
+}
+@keyframes crewIn { 0% { transform: translateY(16px) scale(.2); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+@keyframes crewBob { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-4px) rotate(1deg); } }
+@media (max-width: 640px) { .crew { font-size: 22px; } }
 /* first-session coach: one gentle, dismissible next-step nudge at a time */
 #coach {
   position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
