@@ -910,6 +910,8 @@ function applyHue() {
   const h = (skin.h + hueShift) % 1;
   organism.material.color.setHSL(h, skin.s, skin.l);
   organism.material.emissive.setHSL(h, skin.s, 0.12);
+  // keep the bioluminescent rim-glow in sync with the body hue (brighter membrane)
+  if (rimMat) rimMat.uniforms.uColor.value.setHSL(h, Math.min(1, skin.s + 0.1), Math.min(0.85, skin.l + 0.3));
 }
 
 const glossy = (color, extra = {}) =>
@@ -1352,7 +1354,7 @@ function updateAuraParticles(elapsed) {
 // ---- Graphics quality: trade premium effects for framerate ----
 const QUALITY_PRESETS = {
   low:    { pixelRatio: 1.0,  maxParts: 12, motes: 14, aura: 0,  env: false, rim: false, veins: false },
-  medium: { pixelRatio: 1.25, maxParts: 18, motes: 30, aura: 26, env: false, rim: false, veins: true },
+  medium: { pixelRatio: 1.25, maxParts: 18, motes: 30, aura: 26, env: false, rim: true, veins: true },
   high:   { pixelRatio: 1.75, maxParts: 28, motes: 60, aura: 54, env: true,  rim: true,  veins: true },
 };
 let QUALITY = QUALITY_PRESETS.medium;
@@ -1469,7 +1471,7 @@ function applyRim(on) {
   if (on && !rimMesh) {
     rimMat = new THREE.ShaderMaterial({
       transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
-      uniforms: { uColor: { value: new THREE.Color(0x66ffcc) }, uPower: { value: 2.6 }, uIntensity: { value: 0.6 } },
+      uniforms: { uColor: { value: new THREE.Color(0x66ffcc) }, uPower: { value: 2.3 }, uIntensity: { value: 0.8 } },
       vertexShader: `varying vec3 vN; varying vec3 vView;
         void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); vView = normalize(-mv.xyz);
         vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * mv; }`,
@@ -1479,6 +1481,7 @@ function applyRim(on) {
     });
     rimMesh = new THREE.Mesh(organism.geometry, rimMat);
     organism.add(rimMesh);
+    applyHue(); // tint the fresh rim to the current body hue
   } else if (!on && rimMesh) {
     organism.remove(rimMesh);
     if (rimMat) rimMat.dispose();

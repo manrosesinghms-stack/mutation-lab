@@ -163,6 +163,19 @@ export function renderBackground(dt) {
   g.addColorStop(1, rgb(th.a));
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
+  // bioluminescent core glow — the world breathes light from where the specimen sits
+  {
+    const pulse = reduceMotion ? 1 : 1 + Math.sin(t * 0.45) * 0.09;
+    const col = th.p || "#56e39f";
+    const cg = ctx.createRadialGradient(W * 0.5, H * 0.46, 0, W * 0.5, H * 0.46, Math.min(W, H) * 0.6);
+    cg.addColorStop(0, hexA(col, 0.11 * pulse));
+    cg.addColorStop(0.5, hexA(col, 0.035));
+    cg.addColorStop(1, hexA(col, 0));
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = cg;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "source-over";
+  }
   // stars
   if (stars.length) {
     for (const s of stars) {
