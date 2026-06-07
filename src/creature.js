@@ -559,6 +559,11 @@ function buildPathScenery(pathId, stage) {
     sceneryGroup.remove(c);
     c.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); });
   }
+  // Floor scenery (spires/bones/mounds) is disabled: with the floor slab removed
+  // it just floated as clutter around the creature. Path identity still reads via
+  // the creature's body, signature parts, aura colour, and the recoloured fog/motes.
+  return;
+  /* eslint-disable no-unreachable */
   if (!pathId || (QUALITY && QUALITY.maxParts <= 12)) return; // skip heavy scenery on Low
   const n = Math.min(14, 7 + stage); // more props as the world matures
   const FLOOR_Y = -2.28;
