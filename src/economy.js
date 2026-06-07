@@ -820,8 +820,11 @@ export function productionPerSecond() {
 // out). Both halves scale with clickMult, so click upgrades/frenzies still bite.
 export function effectiveClickPower() {
   const share = (TUN.click && TUN.click.prodShare) || 0;
-  const base = state.clickPower + productionPerSecond() * share;
-  return base * getModifiers().clickMult;
+  // clickMult amplifies only the FLAT base click. The production-share is a flat
+  // % of /sec NOT multiplied by clickMult — otherwise a huge click multiplier
+  // makes a single click (and every auto-click) worth many seconds of production,
+  // and auto-clickers end up out-earning passive production by orders of magnitude.
+  return state.clickPower * getModifiers().clickMult + productionPerSecond() * share;
 }
 
 // A manual click. critMult multiplies the payout (combo "critical extraction").

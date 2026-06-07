@@ -32,7 +32,7 @@ export const TUN = {
   // real chunk even when passive multipliers dominate (Cookie-Clicker-style
   // "% of CpS per click"). Combo crits multiply the whole payout.
   click: {
-    prodShare: 0.03,  // each click also yields 3% of production/sec
+    prodShare: 0.015, // each click also yields 1.5% of production/sec (flat — not ×clickMult)
     critCombo: 12,    // chained clicks within 600ms to trigger a critical
     critMult: 5,      // a critical extraction pays 5× the click
   },
