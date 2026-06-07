@@ -527,6 +527,16 @@ button, .gen, .node, #creature-canvas, .draft-card, .species-card { touch-action
 @keyframes crewIn { 0% { transform: translateY(16px) scale(.2); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
 @keyframes crewBob { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-4px) rotate(1deg); } }
 @media (max-width: 640px) { .crew { font-size: 22px; } }
+/* crew reactions: cheer on Evolve, work during a Frenzy, duck during a Wrath */
+.crew.react-cheer { animation: crewCheer .7s cubic-bezier(.2,1.5,.4,1); }
+.crew.react-work  { animation: crewWork .24s ease-in-out 3; }
+.crew.react-duck  { animation: crewDuck .7s ease; }
+@keyframes crewCheer { 0%{transform:translateY(0)} 35%{transform:translateY(-18px) rotate(-8deg) scale(1.12)} 65%{transform:translateY(-3px) rotate(4deg)} 100%{transform:translateY(0)} }
+@keyframes crewWork  { 0%,100%{transform:translateY(0) rotate(-2deg)} 50%{transform:translateY(-7px) rotate(3deg)} }
+@keyframes crewDuck  { 0%{transform:translateY(0)} 30%{transform:translateY(7px) scale(.86)} 100%{transform:translateY(0)} }
+/* the lab grows into a facility as crew accumulate: a bench, then a back wall */
+#lab-crew.facility { padding-bottom: 6px; border-bottom: 2px solid rgba(86,227,159,.18); background: linear-gradient(0deg, rgba(86,227,159,.06), transparent 70%); border-radius: 0 0 10px 10px; }
+#lab-crew.facility-2 { background: linear-gradient(0deg, rgba(86,227,159,.10), rgba(123,227,255,.05) 50%, transparent 80%); box-shadow: inset 0 -1px 0 rgba(123,227,255,.18); }
 /* first-session coach: one gentle, dismissible next-step nudge at a time */
 #coach {
   position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);

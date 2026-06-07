@@ -10,6 +10,35 @@ export function setBackgroundReduceMotion(v) { reduceMotion = !!v; }
 let dnaStorm = false;
 export function setDnaStorm(on) { on = !!on; if (on !== dnaStorm) { dnaStorm = on; seed(); } }
 
+// Ambient pond life: tiny non-interactive microbes drifting in the background that
+// MULTIPLY as your colony grows — the world feels alive and populated, not empty.
+let microbes = [];
+let microbeTarget = 0;
+const MICROBE_COLORS = ["#7be3b0", "#9fe8ff", "#b8f5cf", "#ffd0a6"];
+export function setMicrobeCount(n) {
+  microbeTarget = Math.max(0, Math.min(54, n | 0));
+  const w = W || 1200, h = H || 700;
+  while (microbes.length < microbeTarget) microbes.push({
+    x: Math.random() * w, y: Math.random() * h, r: 1.4 + Math.random() * 3.2,
+    vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10,
+    ph: Math.random() * 6.28, col: MICROBE_COLORS[(Math.random() * MICROBE_COLORS.length) | 0],
+  });
+  if (microbes.length > microbeTarget) microbes.length = microbeTarget;
+}
+function drawMicrobes(dt) {
+  if (!microbes.length || reduceMotion) return;
+  for (const m of microbes) {
+    m.x += (m.vx + Math.sin(t * 0.8 + m.ph) * 4) * dt;
+    m.y += (m.vy + Math.cos(t * 0.6 + m.ph) * 4) * dt;
+    if (m.x < -8) m.x = W + 8; if (m.x > W + 8) m.x = -8;
+    if (m.y < -8) m.y = H + 8; if (m.y > H + 8) m.y = -8;
+    ctx.fillStyle = hexA(m.col, 0.5);
+    ctx.beginPath(); ctx.ellipse(m.x, m.y, m.r, m.r * 0.78, m.ph, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(6,18,14,0.5)";
+    ctx.beginPath(); ctx.arc(m.x + m.r * 0.25, m.y - m.r * 0.2, m.r * 0.38, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
 const THEMES = {
   aurora: { name: "Aurora", a: [16, 28, 40], b: [24, 64, 54], c: [46, 30, 80], p: "#56e39f", n: 40, stars: 0, kind: "ocean" },
   abyss: { name: "Deep Sea", a: [6, 12, 24], b: [10, 26, 46], c: [8, 36, 52], p: "#5aa0ff", n: 50, stars: 0, kind: "ocean" },
@@ -141,6 +170,7 @@ export function renderBackground(dt) {
     }
   }
   drawDecor(th, dt);
+  drawMicrobes(dt); // ambient pond life that multiplies with your colony
   // drifting bokeh
   ctx.globalCompositeOperation = "lighter";
   for (const p of parts) {

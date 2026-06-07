@@ -129,7 +129,7 @@ import * as audio from "./audio.js";
 import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme, hasTheme, setMusicStress, setMusicDanger } from "./music.js";
 import { initCinematic, playCinematic } from "./cinematic.js";
 import { initJuice, burst, shake, updateJuice, flash, setShakeScale, setJuiceReduceMotion, ripple, flyToCounter } from "./juice.js";
-import { initBackground, renderBackground, setBackground, setWorldStage, hasBackground, resizeBackground, setBackgroundReduceMotion, setDnaStorm } from "./background.js";
+import { initBackground, renderBackground, setBackground, setWorldStage, hasBackground, resizeBackground, setBackgroundReduceMotion, setDnaStorm, setMicrobeCount } from "./background.js";
 
 // screen-center of the 3D stage, for big bursts
 function stageCenter() {
@@ -259,6 +259,7 @@ initUI({
     const c = stageCenter();
     burst(c.x, c.y, { count: 60, color: "#b88cff", spread: 200, up: 0, life: 900 });
     flashStatus(`evolved! +${formatNumber(gained)} EP · Evolution Rank ${evolutionStage().rank}`);
+    crewReact("cheer");
     openDraft();
     startNewRun();
     maybeStageUp(prevStage);
@@ -796,6 +797,7 @@ function maybeStageUp(prevStageIdx) {
   const c = stageCenter();
   burst(c.x, c.y, { count: 130, color: col, spread: 340, up: 0, life: 1500 });
   audio.playRoar();
+  crewReact("cheer");
   playCinematic(`✦ STAGE ${ns.index + 1}: ${ns.name.toUpperCase()} ✦`, ns.blurb, col);
   setTimeout(() => flashStatus(`✦ NEW STAGE — your creature is now a ${ns.name}! (Evolution Rank ${ns.rank})`), 30);
   maybePromptPath();
@@ -893,6 +895,7 @@ setBloomCallback((sx, sy) => {
   burst(sx, sy, { count: 60 + bloomChain * 8, color, spread: 200 + bloomChain * 12, life: 1000 });
   playCinematic(label + chainTag, sub + comboTag, color);
   flashStatus(`${label}${chainTag}${comboTag} — ${sub}`);
+  crewReact(label.includes("WRATH") && sub.includes("halved") ? "duck" : "work");
   // chain continuation: a caught bloom can immediately sprout the next one
   const stormOn = nowT < stormUntil;
   const contP = stormOn ? 1 : Math.max(0.15, 0.62 - bloomChain * 0.06);
@@ -1327,7 +1330,11 @@ const LAB_CREW = [
   { id: "robot",    icon: "🦾",   label: "Robotic arm deployed",        when: (s) => (s.lifetimeBiomass || 0) >= 1e6 },
   { id: "server",   icon: "🗄️",   label: "Server rack humming",         when: (s) => (s.lifetimeBiomass || 0) >= 5e7 },
   { id: "director", icon: "🥼",   label: "Lab Director appointed",      when: (s) => (s.speciations || 0) >= 1 },
+  // biome/stage-matched crew — they suit up for where the creature now lives
+  { id: "diver",    icon: "🤿",   label: "A diver suits up for the deep", when: (s) => (s.evolutionRank || 0) >= 15 },
   { id: "satellite",icon: "🛰️",   label: "Orbital lab uplink online",   when: (s) => (s.evolutionRank || 0) >= 60 },
+  { id: "scope2",   icon: "🔭",   label: "An astronomer joins the lab", when: (s) => (s.evolutionRank || 0) >= 60 },
+  { id: "astronaut",icon: "🧑‍🚀", label: "An astronaut boards the lab", when: (s) => (s.evolutionRank || 0) >= 120 },
 ];
 const crewLayer = document.getElementById("lab-crew");
 function updateLabCrew() {
@@ -1344,7 +1351,20 @@ function updateLabCrew() {
     crewLayer.appendChild(el);
     if (!firstPass) { flashStatus(`🔬 ${p.label}`); audio.playMilestone(); }
   }
+  // the lab visibly grows into a facility as the crew accumulates
+  const n = crewLayer.children.length;
+  crewLayer.classList.toggle("facility", n >= 5);
+  crewLayer.classList.toggle("facility-2", n >= 9);
   if (firstPass) state.labCrewInit = true;
+}
+// Make the whole crew react together (cheer on Evolve, work during a Frenzy, duck
+// during a Wrath) — gives the lab life beyond the idle bob. Skipped if reduce-motion.
+function crewReact(kind) {
+  if (!crewLayer || state.reduceMotion) return;
+  const cls = "react-" + kind;
+  crewLayer.querySelectorAll(".crew").forEach((n, i) => {
+    setTimeout(() => { n.classList.add(cls); setTimeout(() => n.classList.remove(cls), 720); }, i * 45);
+  });
 }
 updateLabCrew(); // restore the crew on boot (no toasts)
 
@@ -1514,7 +1534,12 @@ function update() {
   renderCreature(visualDt, elapsed);
   updateJuice(visualDt);
   renderUI(rate, visualDt);
-  if (now - _unlockAt > 750) { _unlockAt = now; updateCoach(); updateLabCrew(); } // coach + lab crew as milestones hit (button gating lives in ui.js)
+  if (now - _unlockAt > 750) {
+    _unlockAt = now;
+    updateCoach(); updateLabCrew(); // button gating lives in ui.js
+    // ambient pond microbes multiply with colony size + macro-stage
+    setMicrobeCount(state.reduceMotion ? 0 : Math.min(54, Math.round(totalOwnedCount(state) * 0.12) + evolutionStage().index * 6 + (state.prestiges || 0)));
+  }
 
   // autosave every 15s
   sinceSave += dt;
