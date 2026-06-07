@@ -395,14 +395,16 @@ html, body {
 /* genome lab + stats + settings + help modals */
 #genome-modal, #stats-modal, #settings-modal, #help-modal, #codex-modal,
 #colony-modal, #garden-modal, #reactor-modal, #pantheon-modal, #symbiote-modal,
-#mutagen-modal, #market-modal, #upgrades-modal, #machines-modal, #paths-modal, #museum-modal {
+#mutagen-modal, #market-modal, #upgrades-modal, #machines-modal, #paths-modal, #museum-modal,
+#helix-modal, #splice-modal {
   position: fixed; inset: 0; z-index: 100;
   display: flex; align-items: center; justify-content: center;
   background: rgba(4,7,11,.85); backdrop-filter: blur(6px); animation: fadeIn .2s ease;
 }
 #genome-modal.hidden, #stats-modal.hidden, #settings-modal.hidden, #help-modal.hidden, #codex-modal.hidden,
 #colony-modal.hidden, #garden-modal.hidden, #reactor-modal.hidden, #pantheon-modal.hidden, #symbiote-modal.hidden,
-#mutagen-modal.hidden, #market-modal.hidden, #upgrades-modal.hidden, #machines-modal.hidden, #paths-modal.hidden, #museum-modal.hidden { display: none; }
+#mutagen-modal.hidden, #market-modal.hidden, #upgrades-modal.hidden, #machines-modal.hidden, #paths-modal.hidden, #museum-modal.hidden,
+#helix-modal.hidden, #splice-modal.hidden { display: none; }
 
 /* codex */
 .codex-inner { width: min(720px, 94vw); }
@@ -551,7 +553,8 @@ html, body {
 .ach .ad { color: var(--muted); font-size: 11px; }
 .ach .ab { color: var(--accent); font-size: 10px; font-weight: 700; }
 .genome-inner {
-  width: min(880px, 94vw); max-height: 88vh; overflow: hidden;
+  width: min(880px, 94vw); max-height: 88vh;
+  overflow-y: auto; overflow-x: hidden; /* scroll tall content instead of clipping it (was overflow:hidden, which made many modals unscrollable on short windows) */
   background: linear-gradient(180deg, #121a24, #0a0e13);
   border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px;
   display: flex; flex-direction: column;
