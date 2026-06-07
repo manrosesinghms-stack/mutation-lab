@@ -828,16 +828,33 @@ if (!state.seenHelp) {
 }
 
 // --- Mitogen Bloom: golden clickable spawn -> frenzy buff (active-play upside) ---
+// Blooms CHAIN (catching one can immediately sprout the next, escalating the
+// reward "CHAIN ×N") and combo (stacked buffs multiply), and a rare Mutagen Storm
+// floods the cell with blooms — our take on Cookie Clicker's golden-cookie combos.
+let bloomChain = 0;
+let lastBloomAt = 0;
+let stormUntil = 0;
+const CHAIN_WINDOW = 14000; // ms gap that breaks a chain
+function activeBuffCount() {
+  const now = Date.now();
+  return (state.tempBuffs || []).filter((b) => (!b.expiresAt || b.expiresAt > now) && ((b.prodMult || 1) > 1 || (b.clickMult || 1) > 1)).length;
+}
 setBloomCallback((sx, sy) => {
   state.bloomCaught = true;
   const prod = productionPerSecond();
+  const nowT = Date.now();
+  if (nowT - lastBloomAt > CHAIN_WINDOW) bloomChain = 0; // chain broke
+  lastBloomAt = nowT;
+  bloomChain = Math.min(bloomChain + 1, 9);
+  const chainMult = 1 + (bloomChain - 1) * 0.5;     // lumps grow with the chain
+  const chainTag = bloomChain > 1 ? ` · CHAIN ×${bloomChain}` : "";
   const r = Math.random();
   let label, sub, color = "#ffd76b";
   if (r < 0.42) {                       // Frenzy
     addTempBuff({ id: "bloom", prodMult: 4, durationMs: 20000 });
     label = "⚡ MITOGEN FRENZY"; sub = "×4 production · 20s";
   } else if (r < 0.66) {                // Lucky — instant biomass lump
-    const lump = Math.max(50, Math.floor(prod * 600 + state.biomass * 0.10));
+    const lump = Math.max(50, Math.floor((prod * 600 + state.biomass * 0.10) * chainMult));
     addBiomass(lump); color = "#56e39f";
     label = "🍀 LUCKY!"; sub = `+${formatNumber(lump)} biomass`;
   } else if (r < 0.84) {                // Click Frenzy
@@ -848,7 +865,7 @@ setBloomCallback((sx, sy) => {
     label = "🌌 COSMIC BLOOM"; sub = "×7 production · 25s";
   } else {                              // Wrath — risky 60/40
     if (Math.random() < 0.6) {
-      const jackpot = Math.max(100, Math.floor(prod * 1800 + state.biomass * 0.25));
+      const jackpot = Math.max(100, Math.floor((prod * 1800 + state.biomass * 0.25) * chainMult));
       addBiomass(jackpot); color = "#ff6b6b";
       label = "💀 WRATH → JACKPOT"; sub = `+${formatNumber(jackpot)} biomass`;
     } else {
@@ -857,13 +874,35 @@ setBloomCallback((sx, sy) => {
       label = "💀 WRATH"; sub = "backfired — production halved 12s";
     }
   }
+  // combo readout when buffs are stacking on top of each other
+  const buffs = activeBuffCount();
+  const comboTag = buffs >= 2 ? ` · 🔥 COMBO ×${buffs}` : "";
   audio.playMilestone();
   cinematicPulse();
   flash(color + "88"); // hex8: ~53% alpha tint
-  burst(sx, sy, { count: 60, color, spread: 200, life: 1000 });
-  playCinematic(label, sub, color);
-  flashStatus(`${label} — ${sub}`);
+  burst(sx, sy, { count: 60 + bloomChain * 8, color, spread: 200 + bloomChain * 12, life: 1000 });
+  playCinematic(label + chainTag, sub + comboTag, color);
+  flashStatus(`${label}${chainTag}${comboTag} — ${sub}`);
+  // chain continuation: a caught bloom can immediately sprout the next one
+  const stormOn = nowT < stormUntil;
+  const contP = stormOn ? 1 : Math.max(0.15, 0.62 - bloomChain * 0.06);
+  if (bloomChain < 9 && Math.random() < contP) {
+    setTimeout(() => { if (!hasBloom()) spawnBloom(); }, stormOn ? 350 : 500 + Math.random() * 700);
+  }
 });
+// Mutagen Storm: a rare flurry — catch as many as you can for a runaway chain.
+function mutagenStorm() {
+  stormUntil = Date.now() + 9000;
+  bloomChain = 0; lastBloomAt = Date.now();
+  audio.playMilestone(); flash("#ffd76b88");
+  playCinematic("🌪️ MUTAGEN STORM", "catch every bloom — chain them!", "#ffd76b");
+  flashStatus("🌪️ MUTAGEN STORM — catch them all!");
+  let n = 0;
+  const iv = setInterval(() => {
+    if (n++ >= 16 || Date.now() > stormUntil) { clearInterval(iv); return; }
+    if (!hasBloom()) spawnBloom();
+  }, 650);
+}
 // ---- Leeches (parasites that drain production; pop for a refund + interest) ----
 const leechStage = document.getElementById("stage");
 let leeches = [];
@@ -902,7 +941,10 @@ setInterval(() => {
 
 // ~one bloom per minute when none is active; explain it the first time
 setInterval(() => {
-  if (hasBloom() || Math.random() >= 0.5) return;
+  if (hasBloom() || Date.now() < stormUntil) return;
+  // rare Mutagen Storm once the player is established (mid-game+)
+  if (((state.prestiges || 0) >= 1 || (state.speciations || 0) >= 1) && Math.random() < 0.04) { mutagenStorm(); return; }
+  if (Math.random() >= 0.5) return;
   spawnBloom();
   if (!state.seenBloomHint) {
     state.seenBloomHint = true;
@@ -1526,7 +1568,7 @@ window.addEventListener("beforeunload", save);
 // has no console cheat surface. Add ?debug=1 to the URL to enable it for testing.
 if (typeof window !== "undefined" &&
     new URLSearchParams(location.search).has("debug")) {
-  window.ML = { state, save, productionPerSecond };
+  window.ML = { state, save, productionPerSecond, spawnBloom, collectBloom, mutagenStorm };
   console.log("[debug] window.ML enabled (cheat handle).");
 }
 
