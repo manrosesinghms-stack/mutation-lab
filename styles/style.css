@@ -477,6 +477,8 @@ html, body {
   background: rgba(255,215,107,.1); border: 1px solid rgba(255,215,107,.4);
   border-radius: 8px; padding: 4px 8px;
 }
+/* progressive disclosure: a system button stays hidden until its milestone */
+.locked-feature { display: none !important; }
 #card-img { width: 100%; border-radius: 12px; border: 1px solid var(--line); display: block; }
 .card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; justify-content: center; }
 .card-actions button { flex: 1 1 auto; min-width: 130px; }

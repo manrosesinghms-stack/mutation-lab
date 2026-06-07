@@ -1231,6 +1231,44 @@ setInterval(() => {
   if (mm && !mm.classList.contains("hidden")) renderMarket();
 }, 4000);
 
+// ---- Progressive disclosure: deeper systems stay hidden until they're relevant,
+// so a new player's first minutes are clean (click → organelle → Evolve → draft)
+// instead of a wall of 16 buttons. Unlocks are STICKY (once shown, always shown —
+// they don't re-lock after a Speciate wipe) and fire a one-time "unlocked!" toast.
+const FEATURE_UNLOCKS = [
+  { id: "digest-btn",   when: (s) => (s.lifetimeBiomass || 0) >= 150,  label: "Digest" },
+  { id: "codex-btn",    when: (s) => (s.prestiges || 0) >= 1 || new Set(s.mutations).size >= 1, label: "Codex" },
+  { id: "paths-btn",    when: (s) => (s.evolutionRank || 0) >= 1,      label: "Evolution Paths" },
+  { id: "museum-btn",   when: (s) => (s.prestiges || 0) >= 1,          label: "Species Museum" },
+  { id: "mutagen-btn",  when: (s) => (s.lifetimeBiomass || 0) >= 3e3,  label: "Mutagen" },
+  { id: "market-btn",   when: (s) => (s.lifetimeBiomass || 0) >= 5e4,  label: "Biomass Market" },
+  { id: "splice-btn",   when: (s) => new Set(s.mutations).size >= 4,   label: "Gene Splicer" },
+  { id: "garden-btn",   when: (s) => (s.lifetimeBiomass || 0) >= 1e5,  label: "Petri Garden" },
+  { id: "reactor-btn",  when: (s) => (s.lifetimeBiomass || 0) >= 5e5,  label: "Reactor" },
+  { id: "machines-btn", when: (s) => (s.lifetimeBiomass || 0) >= 1e6,  label: "Automation Bay" },
+  { id: "chal-btn",     when: (s) => (s.speciations || 0) >= 1 || (s.prestiges || 0) >= 4, label: "Challenges" },
+  { id: "genome-btn",   when: (s) => (s.speciations || 0) >= 1,        label: "Genome Lab" },
+  { id: "pantheon-btn", when: (s) => (s.speciations || 0) >= 1,        label: "Genome Pantheon" },
+  { id: "symbiote-btn", when: (s) => (s.speciations || 0) >= 1,        label: "Symbiote" },
+  { id: "colony-btn",   when: (s) => (s.speciations || 0) >= 1,        label: "Colonization Map" },
+];
+let _unlockAt = 0;
+function updateUnlocks() {
+  state.unlocked = state.unlocked || {};
+  const firstPass = !state.unlockInit; // existing saves migrate silently (no toast spam)
+  for (const u of FEATURE_UNLOCKS) {
+    const btn = document.getElementById(u.id);
+    if (!btn) continue;
+    if (!state.unlocked[u.id] && u.when(state)) {
+      state.unlocked[u.id] = true;
+      if (!firstPass) { flashStatus(`🔓 ${u.label} unlocked!`); audio.playMilestone(); }
+    }
+    btn.classList.toggle("locked-feature", !state.unlocked[u.id]);
+  }
+  if (firstPass) state.unlockInit = true;
+}
+updateUnlocks(); // apply gating immediately on boot
+
 // ---- offline progress welcome ----
 const offline = applyOfflineProgress();
 if (offline.earned > 1 && offline.seconds > 5) {
@@ -1395,6 +1433,7 @@ function update() {
   renderCreature(visualDt, elapsed);
   updateJuice(visualDt);
   renderUI(rate, visualDt);
+  if (now - _unlockAt > 750) { _unlockAt = now; updateUnlocks(); } // reveal systems as milestones hit
 
   // autosave every 15s
   sinceSave += dt;
