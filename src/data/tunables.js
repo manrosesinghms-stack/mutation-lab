@@ -17,14 +17,13 @@ export const TUN = {
   // S rises ONLY via Genome (the Speciate currency), so the wall is the invitation
   // to Speciate. The knee is hard (low exp) so stacking past the wall does little.
   prodSoftcap: {
-    base: 1e11,              // S before any Genome upgrades. Set FAR out so normal
-                             // play (click → buy → Evolve → upgrades) almost never
-                             // sees a "capped" message — production grows freely
-                             // like a real clicker. Speciate is now a player CHOICE
-                             // (unlocked by evolving), not forced by a wall.
+    base: 1e6,               // S before any Genome upgrades. Tuned (with the sim) so
+                             // the wall starts biting mid-game — the smooth clicker
+                             // curve bends into a sawtooth instead of going vertical.
+                             // Speciate is the answer to the rising Metabolic Pressure.
     growthPerPrestige: 1.0,  // NO growth from Evolve-prestige (Genome raises S instead)
-    exp: 0.50,               // gentle diminishing returns, not a brick wall — past
-                             // S, production still climbs noticeably (sqrt-ish)
+    exp: 0.22,               // HARD knee — past S, stacking barely helps, which is
+                             // what crushes the late-game runaway (raw 1e12 → ~1e7).
   },
 
   // Clicking — keep the core verb meaningful at every scale. A click is worth a
