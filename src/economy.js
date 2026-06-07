@@ -1023,6 +1023,7 @@ export function click(critMult = 1) {
 }
 
 export function addBiomass(amount) {
+  if (!Number.isFinite(amount)) return; // never let an overflow corrupt the save
   state.biomass += amount;
   state.lifetimeBiomass += amount;
   state.runBiomass += amount;
