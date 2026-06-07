@@ -21,6 +21,7 @@ import {
   museumList, museumCount,
   researchName, researchTiers, nextResearch,
   atlasFamilies, masteriesComplete,
+  cultureMult, cultureCount,
 } from "./economy.js";
 import { RESEARCH_TIERS } from "./data/research.js";
 import { COLONY_NODES } from "./data/colony.js";
@@ -745,7 +746,12 @@ function renderCodex() {
   const fossilHtml = fossils.length
     ? fossils.map((f) => `<span class="mut-pill" style="border-color:#caa46a;color:#caa46a">🦴 ${f}</span>`).join("")
     : `<span class="mut-pill locked">no fossils yet — beat bosses to find them</span>`;
+  const culturePct = Math.round((cultureMult() - 1) * 100);
   el.codexBody.innerHTML = `
+    <h3>🥛 Biomass Culture · permanent global boost</h3>
+    <div class="trait got"><div class="tn">🥛 +${culturePct}% ALL production</div>
+      <div class="tf">Every achievement you unlock permanently boosts production, forever — it never resets.</div>
+      <div class="tp">${cultureCount()} achievements fed</div></div>
     <h3>🧬 Genome Atlas · ${masteriesComplete()} / ${fams.length} masteries · <span style="color:var(--muted)">permanent — never resets</span></h3>
     ${atlasHtml}
     <h3>⭐ Species Traits · ${tCount} / ${SYNERGIES.length} discovered</h3>

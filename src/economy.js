@@ -106,9 +106,23 @@ export function getModifiers() {
     if (a.prodMult) mods.prodMult *= a.prodMult;
     if (a.clickMult) mods.clickMult *= a.clickMult;
   }
-  // Helix meta-tree (3rd prestige) — permanent across every Transcension
-  mods.prodMult *= 1 + 0.30 * hLvl(state, "memory");
-  mods.clickMult *= 1 + 1.5 * hLvl(state, "touch");
+  // Helix meta-tree (3rd prestige) — permanent multipliers across every Transcension
+  let helixTotal = 0;
+  for (const n of HELIX_NODES) {
+    const lv = hLvl(state, n.id);
+    if (!lv) continue;
+    helixTotal += lv;
+    if (n.mod) {
+      if (n.mod.p) mods.prodMult *= 1 + n.mod.p * lv;
+      if (n.mod.c) mods.clickMult *= 1 + n.mod.c * lv;
+      if (n.mod.e) mods.epMult *= 1 + n.mod.e * lv;
+    }
+  }
+  // Primordial Singularity capstone: production scales with your TOTAL Helix investment
+  const sing = hLvl(state, "singularity");
+  if (sing) mods.prodMult *= 1 + 0.03 * sing * helixTotal;
+  // Biomass Culture: every achievement permanently boosts production (Cookie-Clicker's "milk")
+  mods.prodMult *= cultureMult();
   // Gene Splicer — each discovered Hybrid is a small permanent production bonus
   mods.prodMult *= 1 + 0.02 * Object.keys(state.splices || {}).length;
   // Challenge Tower — each cleared challenge is a permanent +8% production
@@ -360,6 +374,12 @@ export function atlasFamilies() {
   });
 }
 export function masteriesComplete() { return atlasFamilies().filter((f) => f.complete).length; }
+
+// ---- Biomass Culture (Cookie-Clicker "milk"): every achievement permanently
+// boosts ALL production, forever. Achievements never reset, so this only grows. ----
+const CULTURE_PER_ACH = 0.012; // +1.2% production per achievement unlocked
+export function cultureCount() { return Object.keys(state.achievements || {}).length; }
+export function cultureMult() { return 1 + CULTURE_PER_ACH * cultureCount(); }
 
 // ---- Organelle Research (auto-unlocked ownership-milestone tiers) ----
 // How many research tiers an organelle has unlocked (by current owned count).
