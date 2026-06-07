@@ -12,6 +12,7 @@ import {
   canPrestige,
   doPrestige,
   rollDraft,
+  rollEditions,
   acquireMutation,
   pressureLevel,
   doSpeciate,
@@ -120,7 +121,7 @@ import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabe
 import { SPELLS } from "./data/spells.js";
 import { SEASON_BY_ID } from "./data/seasons.js";
 import { formatNumber } from "./format.js";
-import { getMutation } from "./data/mutations.js";
+import { getMutation, EDITIONS } from "./data/mutations.js";
 import { GENERATORS } from "./data/generators.js";
 import * as audio from "./audio.js";
 import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme, hasTheme, setMusicStress, setMusicDanger } from "./music.js";
@@ -456,10 +457,12 @@ document.getElementById("viewdna-btn").addEventListener("click", viewSharedDNA);
 
 // open the mutation draft with reroll support
 function openDraft() {
-  showDraft(rollDraft(draftSize()), pickMutation, () => {
+  const ids = rollDraft(draftSize());
+  const editions = rollEditions(ids); // map id -> edition (or null), seeded on daily
+  showDraft(ids, pickMutation, () => {
     if (useReroll()) openDraft();
     else flashStatus("no reroll tokens");
-  }, () => flashStatus("skipped — no mutation taken"));
+  }, () => flashStatus("skipped — no mutation taken"), editions);
 }
 
 // build-dependent aura: colour the creature's glow by its dominant body part
@@ -566,9 +569,9 @@ function importSave() {
   } catch (e) { genomeStatus("invalid save string"); }
 }
 
-function pickMutation(id) {
+function pickMutation(id, edition) {
   const masteriesBefore = masteriesComplete();
-  acquireMutation(id);
+  acquireMutation(id, edition);
   const def = getMutation(id);
   onMutationGained(def && def.part); // hue drift + squash + grow a part
   const rarity = def ? def.rarity : "common";
@@ -595,7 +598,9 @@ function pickMutation(id) {
     const color = isRare ? "#56a0ff" : "#9fb3c8";
     burst(c.x, c.y, { count: isRare ? 44 : 24, color, spread: isRare ? 180 : 130, up: 0, life: isRare ? 900 : 750 });
   }
-  flashStatus(`mutation gained: ${def ? def.name : id}`);
+  const edTag = edition && EDITIONS[edition] ? ` ${EDITIONS[edition].tag}` : "";
+  if (edition && EDITIONS[edition]) { audio.playMilestone(); flash(EDITIONS[edition].color + "55"); burst(c.x, c.y, { count: 50, color: EDITIONS[edition].color, spread: 200, life: 1000 }); }
+  flashStatus(`mutation gained: ${def ? def.name : id}${edTag}`);
   // Genome Atlas: completing a mastery family is a permanent, celebrated milestone
   if (masteriesComplete() > masteriesBefore) {
     audio.playMilestone(); audio.playRoar(); cinematicPulse();
@@ -1568,7 +1573,7 @@ window.addEventListener("beforeunload", save);
 // has no console cheat surface. Add ?debug=1 to the URL to enable it for testing.
 if (typeof window !== "undefined" &&
     new URLSearchParams(location.search).has("debug")) {
-  window.ML = { state, save, productionPerSecond, spawnBloom, collectBloom, mutagenStorm };
+  window.ML = { state, save, productionPerSecond, spawnBloom, collectBloom, mutagenStorm, openDraft };
   console.log("[debug] window.ML enabled (cheat handle).");
 }
 

@@ -11,6 +11,25 @@ export const RARITY = {
   legendary: { weight: 10, color: "#ffb13d", label: "Legendary" },
 };
 
+// Mutation EDITIONS (Balatro-style): a drafted card can roll a rare edition that
+// amplifies its whole effect by `power`. Cursed is the risk/reward card — a big
+// amplification with a real drawback (halves click power). Editions are the
+// "broken build" chase: a Prismatic or Cursed legendary is a screenshot moment.
+export const EDITIONS = {
+  foil:      { id: "foil",      name: "Foil",      power: 1.5, weight: 14, color: "#7fd8ff", tag: "✦ FOIL" },
+  prismatic: { id: "prismatic", name: "Prismatic", power: 2.2, weight: 5,  color: "#c89bff", tag: "✦✦ PRISMATIC" },
+  cursed:    { id: "cursed",    name: "Cursed",    power: 3.0, weight: 4,  color: "#ff5a7a", tag: "☠ CURSED", clickPenalty: 0.5 },
+};
+// Roll an edition for a drafted card (or null = normal). `rnd` lets the daily
+// seed make editions deterministic. ~77% normal, 14% foil, 5% prismatic, 4% cursed.
+export function rollEdition(rnd = Math.random) {
+  const r = rnd() * 100;
+  if (r < 14) return "foil";
+  if (r < 19) return "prismatic";
+  if (r < 23) return "cursed";
+  return null;
+}
+
 export const MUTATIONS = [
   // ---- common ----
   { id: "hyperactive", name: "Hyperactive Cytoplasm", rarity: "common",

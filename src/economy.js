@@ -2,7 +2,7 @@
 
 import { state, nowSeconds } from "./state.js";
 import { GENERATORS } from "./data/generators.js";
-import { MUTATIONS, MUT_BY_ID } from "./data/mutations.js";
+import { MUTATIONS, MUT_BY_ID, EDITIONS, rollEdition } from "./data/mutations.js";
 import { TUN, softknee } from "./data/tunables.js";
 import { NODE_BY_ID, nodeLevel, nodeCost } from "./data/genomeNodes.js";
 import { ACHIEVEMENTS } from "./data/achievements.js";
@@ -59,11 +59,12 @@ const GEN_BY_ID = Object.fromEntries(GENERATORS.map((g) => [g.id, g]));
 // This keeps the exponential cost wall meaningful (the game's actual progression
 // engine) instead of a runaway multiplier trivializing it. Works for every
 // existing mutation with no per-mutation rewrite.
-function applyMutationEffects(mods, mutList) {
+function applyMutationEffects(mods, mutList, editions) {
   const counts = {};
   for (const id of mutList) counts[id] = (counts[id] || 0) + 1;
   const totalGenerators = GENERATORS.reduce((s, g) => s + (state.owned[g.id] || 0), 0);
   const info = { counts, totalMutations: mutList.length, totalGenerators };
+  const ed = editions || null; // edition map (live run only); species use base
   let prodB = 0, clickB = 0, epB = 0;
   const genB = {};
   for (const id of mutList) {
@@ -71,10 +72,14 @@ function applyMutationEffects(mods, mutList) {
     if (!def || !def.effect) continue;
     const u = { clickMult: 1, prodMult: 1, epMult: 1, genMult: {} };
     def.effect(u, info);
-    prodB += u.prodMult - 1;
-    clickB += u.clickMult - 1;
-    epB += u.epMult - 1;
-    for (const k in u.genMult) genB[k] = (genB[k] || 0) + (u.genMult[k] - 1);
+    // editions amplify the WHOLE effect by `power` (Foil/Prismatic/Cursed); Cursed
+    // adds a flat click penalty as its risk/reward cost.
+    const edDef = ed && ed[id] ? EDITIONS[ed[id]] : null;
+    const p = edDef ? edDef.power : 1;
+    prodB += (u.prodMult - 1) * p;
+    clickB += (u.clickMult - 1) * p - (edDef && edDef.clickPenalty ? edDef.clickPenalty : 0);
+    epB += (u.epMult - 1) * p;
+    for (const k in u.genMult) genB[k] = (genB[k] || 0) + (u.genMult[k] - 1) * p;
   }
   mods.prodMult *= Math.max(0.1, 1 + prodB);
   mods.clickMult *= Math.max(0.1, 1 + clickB);
@@ -85,7 +90,7 @@ function applyMutationEffects(mods, mutList) {
 // Build the full modifier bag: live mutations + EP + equipped Species + temp buffs.
 export function getModifiers() {
   const mods = { clickMult: 1, prodMult: 1, epMult: 1, genMult: {} };
-  applyMutationEffects(mods, state.mutations);
+  applyMutationEffects(mods, state.mutations, state.editions);
   // Evolution Point payoff — softcapped so it can't run away (see tunables.js)
   mods.prodMult *= epPayoffMult(state.evolutionPoints || 0);
   // synergies (combo traits) + completed set bonuses
@@ -719,7 +724,7 @@ export function doTranscend() {
   state.species = []; state.equippedSpecies = [];
   state.genomeNodes = {};
   state.speciations = 0;
-  state.evolutionPoints = 0; state.mutations = []; state.prestiges = 0;
+  state.evolutionPoints = 0; state.mutations = []; state.editions = {}; state.prestiges = 0;
   state.lastMilestoneExp = 2;
   for (const g of GENERATORS) state.owned[g.id] = 0;
   state.biomass = startBoostBiomass() + (hs > 0 ? Math.pow(10, hs) : 0);
@@ -1030,7 +1035,7 @@ export function currentWeekly() {
 export function startDailyRun() {
   setDraftSeed(todaySeed());
   state.dailyActive = true;
-  state.evolutionPoints = 0; state.mutations = []; state.prestiges = 0;
+  state.evolutionPoints = 0; state.mutations = []; state.editions = {}; state.prestiges = 0;
   state.biomass = 0; state.runBiomass = 0; state.lastMilestoneExp = 2;
   state.instabilityResolved = false; state.embraceChaos = false; state.stabilizeBonus = 1;
   for (const g of GENERATORS) state.owned[g.id] = 0;
@@ -1124,7 +1129,7 @@ export function doSpeciate() {
   archiveSpecimen(card); // record this generation in the permanent Museum (after the rank bump)
   // wipe the entire Evolve layer (EP + mutations + generators); Species cards persist
   state.evolutionPoints = 0;
-  state.mutations = [];
+  state.mutations = []; state.editions = {};
   state.prestiges = 0;
   state.lastMilestoneExp = 2;
   state.biomass = startBoostBiomass();
@@ -1165,7 +1170,7 @@ export function hasNode(id) {
 export function startChallenge(id) {
   if (!CHALLENGE_BY_ID[id]) return false;
   state.challenge = id;
-  state.evolutionPoints = 0; state.mutations = []; state.prestiges = 0;
+  state.evolutionPoints = 0; state.mutations = []; state.editions = {}; state.prestiges = 0;
   state.biomass = 0; state.runBiomass = 0; state.lastMilestoneExp = 2;
   state.instabilityResolved = false; state.embraceChaos = false; state.stabilizeBonus = 1;
   for (const g of GENERATORS) state.owned[g.id] = 0;
@@ -1173,7 +1178,7 @@ export function startChallenge(id) {
 }
 export function abandonChallenge() {
   state.challenge = null;
-  state.biomass = 0; state.runBiomass = 0; state.mutations = []; state.evolutionPoints = 0;
+  state.biomass = 0; state.runBiomass = 0; state.mutations = []; state.editions = {}; state.evolutionPoints = 0;
   for (const g of GENERATORS) state.owned[g.id] = 0;
 }
 export function checkChallenge() {
@@ -1280,11 +1285,26 @@ export function rollDraft(n = 3) {
   return picks;
 }
 
-export function acquireMutation(id) {
+// Roll an edition for each offered draft id (uses the daily seed when active so
+// editions are deterministic per seed). Returns { id: editionId|null }.
+export function rollEditions(ids) {
+  const rnd = seededRand || Math.random;
+  const out = {};
+  for (const id of ids) out[id] = rollEdition(rnd);
+  return out;
+}
+
+export function acquireMutation(id, edition) {
   if (MUT_BY_ID[id]) {
     state.mutations.push(id);
     state.discovered = state.discovered || {};
     state.discovered[id] = true; // for the collection / completionist achievement
+    if (edition && EDITIONS[edition]) {
+      state.editions = state.editions || {};
+      const cur = state.editions[id];
+      // a duplicate pick keeps the strongest edition
+      if (!cur || (EDITIONS[edition].power || 1) > (EDITIONS[cur] ? EDITIONS[cur].power : 1)) state.editions[id] = edition;
+    }
   }
 }
 

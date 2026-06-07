@@ -38,7 +38,7 @@ import { ANCESTRAL_GENES, GENE_BY_ID, PANTHEON_SLOTS, SYMBIOTE_STAGES, SYMBIOTE_
 import { PART_TYPES, PART_LABEL, HYBRID_LIST } from "./data/hybrids.js";
 import { partCounts } from "./data/synergies.js";
 import { formatNumber } from "./format.js";
-import { getMutation, RARITY, MUTATIONS } from "./data/mutations.js";
+import { getMutation, RARITY, MUTATIONS, EDITIONS } from "./data/mutations.js";
 import { GENOME_NODES, nodeCost, nodeLevel } from "./data/genomeNodes.js";
 import { ACHIEVEMENTS } from "./data/achievements.js";
 import { SYNERGIES, synergyProgress } from "./data/synergies.js";
@@ -1266,29 +1266,32 @@ function renderMutationChips() {
 }
 
 const DRAFT_GLYPH = { eye: "👁️", spike: "🦴", tentacle: "🐙", jaw: "🦷", frond: "🌿", cilia: "✨", body: "🦠" };
-// Show the mutation draft. onPick(id) when chosen; onReroll() if a reroll token is spent.
-export function showDraft(ids, onPick, onReroll, onSkip) {
+// Show the mutation draft. onPick(id, edition) when chosen; onReroll() if a reroll
+// token is spent. `editions` maps id -> edition (Foil/Prismatic/Cursed) or null.
+export function showDraft(ids, onPick, onReroll, onSkip, editions) {
   el.draftCards.innerHTML = "";
   let di = 0;
   for (const id of ids) {
     const def = getMutation(id);
     if (!def) continue;
     const r = RARITY[def.rarity];
-    const high = def.alien || def.rarity === "legendary" || def.rarity === "epic";
+    const ed = editions && editions[id] ? EDITIONS[editions[id]] : null;
+    const high = def.alien || def.rarity === "legendary" || def.rarity === "epic" || !!ed;
     const card = document.createElement("div");
-    card.className = "draft-card reveal" + (high ? " glow" : "") + (def.defect ? " defect" : "") + (def.alien ? " alien" : "");
+    card.className = "draft-card reveal" + (high ? " glow" : "") + (def.defect ? " defect" : "") + (def.alien ? " alien" : "") + (ed ? " editioned" : "");
     card.style.animationDelay = (di++ * 0.1).toFixed(2) + "s";
-    card.style.setProperty("--rarity", def.alien ? "#39d0c6" : def.defect ? "#ff6b6b" : r.color);
+    card.style.setProperty("--rarity", ed ? ed.color : def.alien ? "#39d0c6" : def.defect ? "#ff6b6b" : r.color);
     const glyph = def.alien ? "👽" : (DRAFT_GLYPH[def.part] || "🧬");
     const hint = draftHint(id);
     card.innerHTML = `
       <div class="rarity">${def.alien ? "👽 ALIEN DNA" : def.defect ? "⚠ CURSED" : r.label}</div>
+      ${ed ? `<div class="edition-tag" style="color:${ed.color};border-color:${ed.color}">${ed.tag} ×${ed.power}${ed.clickPenalty ? " · ½ click" : ""}</div>` : ""}
       <div class="draft-spin"><span>${glyph}</span></div>
       <div class="mname">${def.name}</div>
       ${def.part ? `<div class="part-tag">＋ grows a ${def.part}</div>` : ""}
       <div class="mdesc">${def.desc}</div>
       ${hint ? `<div class="draft-synergy">${hint.text}</div>` : ""}`;
-    card.addEventListener("click", () => { el.draftModal.classList.add("hidden"); onPick(id); });
+    card.addEventListener("click", () => { el.draftModal.classList.add("hidden"); onPick(id, editions ? editions[id] : null); });
     el.draftCards.appendChild(card);
   }
   // reroll button (spends a token)
