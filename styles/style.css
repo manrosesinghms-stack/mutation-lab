@@ -514,6 +514,17 @@ html, body {
 .leech:active { transform: scale(.85); }
 @keyframes leechWrithe { 0%,100% { transform: scale(1) rotate(-4deg); } 50% { transform: scale(1.08) rotate(5deg); } }
 
+/* drifters — ambient clickable visitors floating across the pond */
+.drifter {
+  position: absolute; z-index: 7; font-size: 30px; line-height: 1; cursor: pointer;
+  pointer-events: auto; user-select: none; will-change: left, top;
+  filter: drop-shadow(0 0 9px var(--dc, #fff));
+  animation: drifterIn .3s ease;
+}
+.drifter:hover { transform: scale(1.28); }
+.drifter:active { transform: scale(.85); }
+@keyframes drifterIn { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: scale(1); } }
+
 /* mutagen */
 .mutagen-bar { height: 8px; border-radius: 6px; background: var(--bg2); overflow: hidden; margin: 4px 0 14px; border: 1px solid var(--line); }
 #mutagen-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #b88cff, #56e39f); transition: width .5s linear; }

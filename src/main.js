@@ -897,6 +897,72 @@ setInterval(() => {
   if (automatorOn("forager")) setTimeout(() => { if (hasBloom()) collectBloom(); }, 1500);
 }, 30000);
 
+// ---- Drifters: ambient clickable visitors that float across the pond so there's
+// always something happening (Cookie-Clicker golden-cookie energy). Each drifts
+// edge-to-edge; click it for a reward, miss it and it swims away. ----
+const DRIFTERS = [
+  { id: "microbe", emoji: "🦠", w: 30, color: "#9be36b",
+    act() { const g = Math.max(80, productionPerSecond() * 45 + effectiveClickPower() * 15); addBiomass(g); return ["🦠 devoured a rival cell", "+" + formatNumber(g) + " biomass"]; } },
+  { id: "prey", emoji: "🦐", w: 28, color: "#6fd6ff",
+    act() { const g = Math.max(60, productionPerSecond() * 28 + effectiveClickPower() * 10); addBiomass(g); return ["🦐 caught drifting prey", "+" + formatNumber(g) + " biomass"]; } },
+  { id: "spore", emoji: "✨", w: 24, color: "#ffd76b",
+    act() { addTempBuff({ id: "spore", prodMult: 4, durationMs: 15000 }); return ["✨ golden spore", "×4 production · 15s"]; } },
+  { id: "dna", emoji: "🧬", w: 12, color: "#39d0c6",
+    act() { openDraft(); return ["🧬 stray DNA strand", "a free mutation draft!"]; } },
+  { id: "wisp", emoji: "🔆", w: 6, color: "#b88cff",
+    act() { const g = Math.max(200, productionPerSecond() * 360 + (state.biomass || 0) * 0.05); addBiomass(g); return ["🔆 mitogen wisp — JACKPOT", "+" + formatNumber(g) + " biomass"]; } },
+];
+function pickDrifter() { const tot = DRIFTERS.reduce((s, d) => s + d.w, 0); let r = Math.random() * tot; for (const d of DRIFTERS) { if ((r -= d.w) <= 0) return d; } return DRIFTERS[0]; }
+let drifters = [];
+// the visible pond = the creature canvas, NOT the full stage (which sits behind
+// the right UI panel) — so drifters never float over your menus.
+function pondWidth() {
+  const c = document.getElementById("creature-canvas");
+  return (c && c.clientWidth) || leechStage.clientWidth;
+}
+function spawnDrifter() {
+  const w = pondWidth(), h = leechStage.clientHeight;
+  if (w < 140 || drifters.length >= 3) return;
+  const d = pickDrifter();
+  const el = document.createElement("div");
+  el.className = "drifter";
+  el.textContent = d.emoji;
+  el.style.setProperty("--dc", d.color);
+  const dir = Math.random() < 0.5 ? 1 : -1;
+  const D = { el, d, dir, x: dir > 0 ? -40 : w + 40, baseY: h * (0.22 + Math.random() * 0.45), vx: dir * (26 + Math.random() * 20), t: Math.random() * 6 };
+  el.style.left = D.x + "px"; el.style.top = D.baseY + "px";
+  el.addEventListener("pointerdown", (e) => { e.stopPropagation(); catchDrifter(D, e); });
+  leechStage.appendChild(el);
+  drifters.push(D);
+}
+function catchDrifter(D, e) {
+  if (D._caught) return; D._caught = true;
+  const [label, sub] = D.d.act();
+  const x = e ? e.clientX : leechStage.clientWidth / 2, y = e ? e.clientY : 200;
+  burst(x, y, { count: 30, color: D.d.color, spread: 150, life: 800 });
+  audio.playMilestone(); ripple(x, y, D.d.color); flyToCounter(x, y, D.d.color);
+  flashStatus(`${label} — ${sub}`);
+  D.el.remove(); drifters = drifters.filter((z) => z !== D); save();
+}
+function updateDrifters(dt) {
+  if (!drifters.length) return;
+  const w = pondWidth();
+  for (const D of [...drifters]) {
+    D.t += dt; D.x += D.vx * dt;
+    D.el.style.left = D.x.toFixed(0) + "px";
+    if (!state.reduceMotion) D.el.style.top = (D.baseY + Math.sin(D.t * 1.5) * 14).toFixed(0) + "px";
+    if (D.x < -70 || D.x > w + 70) { D.el.remove(); drifters = drifters.filter((z) => z !== D); } // swam away (missed)
+  }
+}
+let seenDrifter = false;
+setInterval(() => {
+  if (state.biomass > 500 || (state.prestiges || 0) >= 1 || (state.speciations || 0) >= 1) {
+    const before = drifters.length;
+    spawnDrifter();
+    if (drifters.length > before && !seenDrifter) { seenDrifter = true; flashStatus("👀 Something's drifting through the pond — click it!"); }
+  }
+}, 14000);
+
 // --- Photo Mode (hide UI, free-orbit, save a screenshot of your creature) ---
 const appEl = document.getElementById("app");
 const photoBar = document.getElementById("photo-bar");
@@ -1112,6 +1178,7 @@ function update() {
   const rate = productionPerSecond();
   if (rate > 0) addBiomass(rate * dt);
   drainLeeches(rate, dt); // parasites skim production into themselves
+  updateDrifters(dt); // ambient clickable visitors floating across the pond
 
   // Mitosis Engine node: auto-buy organelles (only when toggled on)
   if (hasNode("auto_gen") && state.autoBuyOn !== false) autoBuyGenerators();
