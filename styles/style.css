@@ -845,6 +845,33 @@ button, .gen, .node, #creature-canvas, .draft-card, .species-card { touch-action
 .ghost:hover { color: var(--ink); border-color: var(--accent); transform: translateY(-1px); }
 .ghost:active { transform: translateY(1px) scale(.97); }
 .ghost.danger:hover { color: var(--danger); border-color: var(--danger); }
+
+/* ===== Bioluminescent polish: soft living glow, premium chrome, a11y focus ===== */
+/* keyboard focus ring everywhere (was missing) */
+button:focus-visible, .gen:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+/* buttons glow softly when hovered, like bioluminescence reacting to touch */
+.ghost:hover { background: rgba(86,227,159,.07); box-shadow: 0 0 14px -4px var(--accent); }
+.buy-amt button.active { box-shadow: 0 0 12px -3px var(--accent); }
+/* the hero biomass number reads as alive */
+#biomass-value { text-shadow: 0 0 20px rgba(86,227,159,.45); }
+/* panel: a faint luminous inner edge + soft depth shadow */
+#panel { box-shadow: inset 1px 0 0 rgba(86,227,159,.14), -10px 0 26px -14px rgba(0,0,0,.7); }
+#panel-head h1 { text-shadow: 0 0 24px rgba(86,227,159,.35); }
+/* premium themed scrollbars for the panel + modals */
+#panel, .genome-inner, .card-inner, .codex-body, .settings-body, #tree-canvas-wrap, #paths-list, #museum-list {
+  scrollbar-width: thin; scrollbar-color: #28384a transparent;
+}
+#panel::-webkit-scrollbar, .genome-inner::-webkit-scrollbar, .card-inner::-webkit-scrollbar { width: 9px; height: 9px; }
+#panel::-webkit-scrollbar-thumb, .genome-inner::-webkit-scrollbar-thumb, .card-inner::-webkit-scrollbar-thumb {
+  background: #223141; border-radius: 8px; border: 2px solid transparent; background-clip: padding-box;
+}
+#panel::-webkit-scrollbar-thumb:hover { background: #2e445a; background-clip: padding-box; }
+#panel::-webkit-scrollbar-track { background: transparent; }
+/* affordable organelle: a gentle luminous wash so the next buy invites the eye */
+.gen.affordable { background: linear-gradient(100deg, rgba(86,227,159,.10), rgba(86,227,159,.02) 60%); }
+
 #volume { width: 64px; accent-color: var(--accent); cursor: pointer; }
 #status { color: var(--muted); font-size: 11px; flex-basis: 100%; margin-top: 2px; }
 
