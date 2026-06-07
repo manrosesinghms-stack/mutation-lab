@@ -1252,6 +1252,32 @@ const FEATURE_UNLOCKS = [
   { id: "symbiote-btn", when: (s) => (s.speciations || 0) >= 1,        label: "Symbiote" },
   { id: "colony-btn",   when: (s) => (s.speciations || 0) >= 1,        label: "Colonization Map" },
 ];
+// ---- First-session coach: a single gentle, dismissible next-step nudge that
+// advances with the player (tap → buy → Evolve) and then retires itself forever.
+// Only ever shows for a brand-new player; never nags after the first Evolve.
+const coachEl = document.getElementById("coach");
+const coachTextEl = coachEl ? coachEl.querySelector(".coach-text") : null;
+function coachMessage() {
+  if (state.coachDone || (state.prestiges || 0) > 0) return null; // graduated
+  const owned = state.owned || {};
+  const totalOwned = Object.values(owned).reduce((a, b) => a + b, 0);
+  if (totalOwned === 0 && (state.biomass || 0) < 15) return "👆 Tap the cell to grow biomass";
+  if (totalOwned === 0) return "Nice! Now buy your first organelle on the right → it earns biomass for you";
+  const evolveBtn = document.getElementById("evolve-btn");
+  if (evolveBtn && !evolveBtn.disabled) return "✦ Evolve is ready — Evolve to mutate your creature!";
+  return "Keep growing — buy organelles until you can Evolve";
+}
+function updateCoach() {
+  if (!coachEl) return;
+  const msg = coachMessage();
+  if (!msg) { coachEl.classList.add("hidden"); if ((state.prestiges || 0) > 0) state.coachDone = true; return; }
+  if (coachTextEl.textContent !== msg) coachTextEl.textContent = msg;
+  coachEl.classList.remove("hidden");
+}
+if (coachEl) document.getElementById("coach-dismiss").addEventListener("click", () => {
+  state.coachDone = true; coachEl.classList.add("hidden"); save();
+});
+
 let _unlockAt = 0;
 function updateUnlocks() {
   state.unlocked = state.unlocked || {};
@@ -1433,7 +1459,7 @@ function update() {
   renderCreature(visualDt, elapsed);
   updateJuice(visualDt);
   renderUI(rate, visualDt);
-  if (now - _unlockAt > 750) { _unlockAt = now; updateUnlocks(); } // reveal systems as milestones hit
+  if (now - _unlockAt > 750) { _unlockAt = now; updateUnlocks(); updateCoach(); } // reveal systems + coach as milestones hit
 
   // autosave every 15s
   sinceSave += dt;

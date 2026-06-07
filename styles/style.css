@@ -479,6 +479,23 @@ html, body {
 }
 /* progressive disclosure: a system button stays hidden until its milestone */
 .locked-feature { display: none !important; }
+/* first-session coach: one gentle, dismissible next-step nudge at a time */
+#coach {
+  position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
+  z-index: 40; display: flex; align-items: center; gap: 10px;
+  max-width: 80%; padding: 9px 12px 9px 15px; border-radius: 22px;
+  background: rgba(12,20,28,.92); border: 1px solid var(--accent);
+  box-shadow: 0 6px 24px rgba(0,0,0,.45), 0 0 18px rgba(86,227,159,.18);
+  animation: coachPulse 2.2s ease-in-out infinite;
+}
+#coach.hidden { display: none; }
+#coach .coach-text { color: #d8f3e6; font-size: 13px; font-weight: 600; }
+#coach #coach-dismiss {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: 13px; padding: 2px 4px; line-height: 1;
+}
+#coach #coach-dismiss:hover { color: #fff; }
+@keyframes coachPulse { 0%,100% { box-shadow: 0 6px 24px rgba(0,0,0,.45), 0 0 14px rgba(86,227,159,.14); } 50% { box-shadow: 0 6px 24px rgba(0,0,0,.45), 0 0 24px rgba(86,227,159,.32); } }
 #card-img { width: 100%; border-radius: 12px; border: 1px solid var(--line); display: block; }
 .card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; justify-content: center; }
 .card-actions button { flex: 1 1 auto; min-width: 130px; }
