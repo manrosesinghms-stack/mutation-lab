@@ -200,6 +200,11 @@ export function getModifiers() {
     if (u.gen) mods.genMult[u.gen] = (mods.genMult[u.gen] || 1) * u.mult;
     if (u.click) mods.clickMult *= u.click;
     if (u.prod) mods.prodMult *= u.prod;
+    // Symbiosis: the "to" organelle scales with how many "from" organelles you own
+    if (u.synergy) {
+      const ownedFrom = state.owned[u.synergy.from] || 0;
+      if (ownedFrom > 0) mods.genMult[u.synergy.to] = (mods.genMult[u.synergy.to] || 1) * (1 + u.synergy.per * ownedFrom);
+    }
   }
   // Organelle Research — ownership-milestone tiers multiply each organelle
   for (const g of GENERATORS) {

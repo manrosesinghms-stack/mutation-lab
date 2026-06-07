@@ -255,6 +255,7 @@ export function renderUpgrades() {
       <div class="node-top"><span>${u.name}</span>
         <span class="node-cost">${formatNumber(u.cost)}</span></div>
       <div class="node-desc">${u.desc}</div>
+      ${u.flavor ? `<div class="node-flavor">"${u.flavor}"</div>` : ""}
       <div class="node-lvl">${u.cond}</div>`;
     if (!broke) row.addEventListener("click", () => uiHandlers.onBuyUpgrade(u.id));
     list.appendChild(row);
