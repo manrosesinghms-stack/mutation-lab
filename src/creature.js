@@ -1531,6 +1531,110 @@ export function exportPhoto(name, subtitle, scaleRef) {
   return out.toDataURL("image/png");
 }
 
+// Render a SPECIMEN CARD: the creature photo + a composited build panel (name,
+// archetype, build score, top mutations, DNA code). This is the viral share asset
+// — a portrait of the monster you made, not a bare save string. Returns a data URL.
+// data = { name, archetype:{name,kind}, score, lines:[..], muts:[{name,rarity}],
+//          dna, scaleRef }
+const RARITY_COL = { common: "#9fb3c8", rare: "#5aa0ff", legendary: "#ffd76b" };
+const KIND_COL = { set: "#ff7ac0", legendary: "#ffd76b", synergy: "#b88cff", path: "#5aa0ff", part: "#56e39f", none: "#7e93a8" };
+export function exportSpecimenCard(data) {
+  if (!renderer) return null;
+  renderer.render(scene, camera);
+  const src = renderer.domElement;
+  const W = src.width, H = src.height;
+  const out = document.createElement("canvas");
+  out.width = W; out.height = H;
+  const ctx = out.getContext("2d");
+  const U = W / 1000; // scale unit so sizes are resolution-independent
+  // backdrop + creature
+  const grad = ctx.createRadialGradient(W * 0.5, H * 0.38, 0, W * 0.5, H * 0.5, W * 0.72);
+  grad.addColorStop(0, "#16202c"); grad.addColorStop(1, "#0a0e13");
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(src, 0, 0, W, H);
+
+  // optional scale-reference badge (top-left)
+  if (data.scaleRef) {
+    const pad = 22 * U, eS = 46 * U;
+    ctx.textAlign = "left"; ctx.shadowColor = "rgba(0,0,0,.85)"; ctx.shadowBlur = 10 * U;
+    ctx.font = `${eS}px 'Segoe UI Emoji', sans-serif`; ctx.fillStyle = "#fff";
+    ctx.fillText(data.scaleRef.e, pad, pad + eS);
+    ctx.fillStyle = "#e8f0f7"; ctx.font = `bold ${20 * U}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.fillText(data.scaleRef.b, pad + eS + 12 * U, pad + 24 * U);
+    ctx.fillStyle = "#7e93a8"; ctx.font = `${14 * U}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.fillText(`specimen size · ${data.scaleRef.s}`, pad + eS + 12 * U, pad + 44 * U);
+    ctx.shadowBlur = 0;
+  }
+
+  // bottom build panel (gradient scrim so text is readable over the render)
+  const panelH = H * 0.34, py = H - panelH;
+  const sg = ctx.createLinearGradient(0, py, 0, H);
+  sg.addColorStop(0, "rgba(8,12,18,0)"); sg.addColorStop(0.35, "rgba(8,12,18,.82)"); sg.addColorStop(1, "rgba(8,12,18,.96)");
+  ctx.fillStyle = sg; ctx.fillRect(0, py, W, panelH);
+  const pad = 34 * U;
+  let ty = py + 56 * U;
+
+  // creature name
+  ctx.textAlign = "left"; ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 8 * U;
+  ctx.fillStyle = "#eaf3fb"; ctx.font = `800 ${42 * U}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.fillText(data.name || "Unknown Specimen", pad, ty);
+
+  // archetype pill (under the name)
+  ty += 34 * U;
+  if (data.archetype) {
+    const col = KIND_COL[data.archetype.kind] || "#56e39f";
+    ctx.font = `700 ${19 * U}px 'Segoe UI', system-ui, sans-serif`;
+    const label = (data.archetype.kind === "legendary" ? "★ " : "") + data.archetype.name;
+    const tw = ctx.measureText(label).width;
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(255,255,255,.06)";
+    roundRect(ctx, pad, ty - 20 * U, tw + 28 * U, 30 * U, 15 * U); ctx.fill();
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5 * U; roundRect(ctx, pad, ty - 20 * U, tw + 28 * U, 30 * U, 15 * U); ctx.stroke();
+    ctx.fillStyle = col; ctx.fillText(label, pad + 14 * U, ty + 1 * U);
+  }
+
+  // info lines (muted)
+  ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = 5 * U;
+  ctx.fillStyle = "#9fb3c8"; ctx.font = `${17 * U}px 'Segoe UI', system-ui, sans-serif`;
+  ty += 40 * U;
+  for (const line of (data.lines || []).slice(0, 3)) { ctx.fillText(line, pad, ty); ty += 25 * U; }
+
+  // top mutation chips (wrap across the panel width)
+  if (data.muts && data.muts.length) {
+    let cx = pad, cy = ty + 6 * U;
+    ctx.font = `600 ${15 * U}px 'Segoe UI', system-ui, sans-serif`;
+    for (const mu of data.muts.slice(0, 6)) {
+      const col = RARITY_COL[mu.rarity] || "#9fb3c8";
+      const w = ctx.measureText(mu.name).width + 24 * U;
+      if (cx + w > W - pad) break;
+      ctx.shadowBlur = 0; ctx.fillStyle = col + "22"; roundRect(ctx, cx, cy - 17 * U, w, 26 * U, 13 * U); ctx.fill();
+      ctx.fillStyle = col; ctx.fillText(mu.name, cx + 12 * U, cy + 1 * U);
+      cx += w + 8 * U;
+    }
+  }
+
+  // build score (big, bottom-right)
+  if (data.score != null) {
+    ctx.textAlign = "right"; ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 8 * U;
+    ctx.fillStyle = "#7e93a8"; ctx.font = `700 ${16 * U}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.fillText("BUILD SCORE", W - pad, py + 40 * U);
+    ctx.fillStyle = "#ffd76b"; ctx.font = `900 ${56 * U}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.fillText(String(data.score), W - pad, py + 96 * U);
+  }
+
+  // wordmark + DNA code (very bottom-right, subtle)
+  ctx.textAlign = "right"; ctx.shadowBlur = 0;
+  ctx.fillStyle = "#56e39f"; ctx.font = `800 ${15 * U}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.fillText("🧬 MUTATION LAB", W - pad, H - 18 * U);
+  if (data.dna) { ctx.fillStyle = "#5a6b7d"; ctx.font = `${11 * U}px monospace`; ctx.fillText(data.dna.slice(0, 42), W - pad, H - 36 * U); }
+  return out.toDataURL("image/png");
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
 // Clear all mutation parts (used on Speciate — new lineage starts bald).
 export function resetParts() {
   if (!partsGroup) return;

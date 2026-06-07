@@ -71,6 +71,8 @@ import {
   endDailyRun,
   currentWeekly,
   buySkin,
+  currentArchetype,
+  buildScore,
 } from "./economy.js";
 import { SKIN_BY_ID } from "./data/skins.js";
 import { speciesTier, speciesTierColor } from "./data/tiers.js";
@@ -107,6 +109,7 @@ import {
   hasBloom,
   engorgePop,
   exportPhoto,
+  exportSpecimenCard,
 } from "./creature.js";
 import { creatureName } from "./data/names.js";
 import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
@@ -425,12 +428,14 @@ initUI({
 });
 
 // --- creature DNA sharing: copy your creature as a code, or view a shared one ---
-function copyCreatureDNA() {
-  const code = "MLAB1." + btoa(unescape(encodeURIComponent(JSON.stringify({
+function creatureDNACode() {
+  return "MLAB1." + btoa(unescape(encodeURIComponent(JSON.stringify({
     n: creatureName(state.mutations, state.namingStyle || "scientific"),
     m: state.mutations, v: state.variant,
   }))));
-  if (navigator.clipboard) navigator.clipboard.writeText(code);
+}
+function copyCreatureDNA() {
+  if (navigator.clipboard) navigator.clipboard.writeText(creatureDNACode());
   flashStatus("🧬 creature DNA copied — share it!");
 }
 function viewSharedDNA() {
@@ -1033,6 +1038,74 @@ document.getElementById("photo-shot").addEventListener("click", () => {
   a.click();
   flashStatus("📸 screenshot saved");
 });
+
+// --- Specimen Card: shareable portrait of the monster + its build stats ---
+let _cardURL = null;
+function specimenLines() {
+  const st = evolutionStage();
+  return [
+    `${st.name} · Day ${(state.prestiges || 0) + 1}`,
+    `${formatNumber(productionPerSecond())} biomass/sec`,
+    `${new Set(state.mutations).size} mutations · ${state.prestiges || 0} evolutions · ${state.speciations || 0} species`,
+  ];
+}
+function topMutations(n = 6) {
+  const order = { legendary: 0, rare: 1, common: 2 };
+  const seen = new Set(), out = [];
+  const list = state.mutations.map(getMutation).filter(Boolean)
+    .sort((a, b) => (order[a.rarity] ?? 3) - (order[b.rarity] ?? 3));
+  for (const d of list) { if (seen.has(d.id)) continue; seen.add(d.id); out.push({ name: d.name, rarity: d.rarity }); if (out.length >= n) break; }
+  return out;
+}
+function openSpecimenCard() {
+  const url = exportSpecimenCard({
+    name: creatureName(state.mutations, state.namingStyle || "scientific"),
+    archetype: currentArchetype(),
+    score: buildScore(),
+    lines: specimenLines(),
+    muts: topMutations(6),
+    dna: creatureDNACode(),
+    scaleRef: SCALE_REFS[scaleIdx],
+  });
+  if (!url) { flashStatus("card render failed"); return; }
+  _cardURL = url;
+  document.getElementById("card-img").src = url;
+  document.getElementById("card-modal").classList.remove("hidden");
+}
+async function copyCardImage() {
+  try {
+    const blob = await (await fetch(_cardURL)).blob();
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    flashStatus("📋 card image copied — paste it anywhere!");
+  } catch (e) { flashStatus("copy not supported — use Download instead"); }
+}
+async function shareCard() {
+  try {
+    const blob = await (await fetch(_cardURL)).blob();
+    const file = new File([blob], "mutation-lab-specimen.png", { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: "My Mutation Lab specimen", text: "Look what I grew in Mutation Lab 🧬" });
+    } else { flashStatus("share not supported here"); }
+  } catch (e) { /* user cancelled */ }
+}
+document.getElementById("photo-card").addEventListener("click", openSpecimenCard);
+document.getElementById("card-close").addEventListener("click", () => document.getElementById("card-modal").classList.add("hidden"));
+document.getElementById("card-copy").addEventListener("click", copyCardImage);
+document.getElementById("card-download").addEventListener("click", () => {
+  if (!_cardURL) return;
+  const a = document.createElement("a");
+  a.href = _cardURL;
+  a.download = creatureName(state.mutations, state.namingStyle || "scientific").replace(/[^a-z0-9]+/gi, "_") + "_card.png";
+  a.click();
+  flashStatus("⬇ card downloaded");
+});
+document.getElementById("card-dna").addEventListener("click", copyCreatureDNA);
+{
+  const shareBtn = document.getElementById("card-share");
+  if (navigator.share) { shareBtn.classList.remove("hidden"); shareBtn.addEventListener("click", shareCard); }
+}
+// expose so milestone moments (new stage / Speciate) can offer the card
+window.__openSpecimenCard = openSpecimenCard;
 
 // --- Digest button (opt-in biomass sink -> production surge) ---
 document.getElementById("digest-btn").addEventListener("click", () => {

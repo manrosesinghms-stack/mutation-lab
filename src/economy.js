@@ -856,6 +856,49 @@ export function pressureLevel() {
   return rawProduction() / productionSoftcapThreshold();
 }
 
+// ---- Build identity (roguelike "what am I building" + a chase-able score) ----
+// The single headline label for the current run's build, derived from the
+// strongest thing the player has assembled: a completed Set Form > a synergy
+// (legendaries first) > the chosen Path > the dominant body part > Primordial.
+const PART_ARCHETYPE = { eye: "Watcher", spike: "Bristler", tentacle: "Grasper",
+  jaw: "Devourer", frond: "Photophyte", body: "Brood-Cell", cilia: "Drifter" };
+export function currentArchetype() {
+  const muts = state.mutations || [];
+  const sets = completedSets(muts);
+  if (sets.length) return { name: sets[0].form, kind: "set", flavor: `${sets[0].name} set complete` };
+  const syns = activeSynergies(muts);
+  if (syns.length) {
+    const best = syns.slice().sort((a, b) => (b.hidden ? 1 : 0) - (a.hidden ? 1 : 0))[0];
+    return { name: best.name, kind: best.hidden ? "legendary" : "synergy", flavor: best.flavor || "" };
+  }
+  if (state.evoPath && PATH_BY_ID[state.evoPath]) return { name: `${PATH_BY_ID[state.evoPath].name} Lineage`, kind: "path", flavor: "" };
+  const parts = partCounts(muts);
+  const top = Object.keys(parts).sort((a, b) => parts[b] - parts[a])[0];
+  if (top) return { name: PART_ARCHETYPE[top] || "Mutant", kind: "part", flavor: "" };
+  return { name: "Primordial Cell", kind: "none", flavor: "Unmutated — for now." };
+}
+
+// A single legible number summarizing how strong/spicy the current build is.
+// Production is LOG-scaled so the score can never explode the way raw production
+// once did; synergies, completed sets, legendaries, rank and speciations add flat
+// weight so wild builds and deep runs score higher (the thing players chase/share).
+export function buildScore() {
+  const muts = state.mutations || [];
+  const distinct = new Set(muts).size;
+  const prod = Math.max(1, productionPerSecond());
+  const syns = activeSynergies(muts);
+  const hidden = syns.filter((s) => s.hidden).length;
+  const sets = completedSets(muts).length;
+  const score = Math.log10(prod) * 4
+    + distinct * 2
+    + (syns.length - hidden) * 6
+    + hidden * 12
+    + sets * 18
+    + (state.evolutionRank || 0) * 1.5
+    + (state.speciations || 0) * 10;
+  return Math.max(0, Math.floor(score));
+}
+
 // Total passive biomass/sec, with the global production softcap (the wall) applied.
 export function productionPerSecond() {
   return softknee(rawProduction(), productionSoftcapThreshold(), TUN.prodSoftcap.exp);
