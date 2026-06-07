@@ -344,10 +344,12 @@ const ORG_VIS = {
   nucleolus:   { color: 0xffa6f0, shape: "bubble" },
 };
 const ORG_ORDER = Object.keys(ORG_VIS);
-// how many bodies to show for an owned count (gentle cbrt growth, capped)
+// How many bodies to show for an owned count. Ramps faster than cbrt so buying
+// visibly grows the colony early (1 unit at owned 1, climbing steadily), capped
+// per-type for performance. owned^0.42 → 1,2,3,4,5,6,7,8 around 1/4/12/30/60/100/160/240.
 function swarmVisibleCount(owned, cap) {
   if (owned <= 0) return 0;
-  return Math.min(cap, Math.ceil(Math.cbrt(owned)));
+  return Math.min(cap, Math.max(1, Math.ceil(Math.pow(owned, 0.42))));
 }
 function buildSwarmMesh(type) {
   const v = ORG_VIS[type] || { color: 0x9fb3c8, shape: "ico" };
@@ -373,7 +375,7 @@ function buildSwarmMesh(type) {
 let _swarmKey = "";
 export function setSwarm(owned) {
   if (!scene) return;
-  const cap = QUALITY.maxParts <= 12 ? 0 : (QUALITY.maxParts <= 18 ? 4 : 6);
+  const cap = QUALITY.maxParts <= 12 ? 0 : (QUALITY.maxParts <= 18 ? 5 : 8);
   if (!swarmGroup) { swarmGroup = new THREE.Group(); scene.add(swarmGroup); }
   const counts = ORG_ORDER.map((id) => swarmVisibleCount((owned && owned[id]) || 0, cap));
   const key = cap + ":" + counts.join(",");

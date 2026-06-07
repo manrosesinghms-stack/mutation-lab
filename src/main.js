@@ -138,6 +138,7 @@ initUI({
       audio.playBuy(tier);
       if (rect) burst(rect.left + rect.width / 2, rect.top + rect.height / 2,
                       { count: 12 + tier * 4, color: "#56e39f", spread: 80 + tier * 15 });
+      pulse(0.5); // the cell reacts — a new organelle joins the colony on screen
       // research milestone crossed → a satisfying unlock moment
       if (researchTiers(genId) > tiersBefore) {
         audio.playMilestone(); cinematicPulse(); flash("rgba(120,220,255,.3)");
