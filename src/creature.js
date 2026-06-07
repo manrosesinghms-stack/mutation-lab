@@ -393,6 +393,9 @@ export function setSwarm(owned) {
       mesh.userData.tilt = ((ti * 7 + i * 3) % 10) / 10 * 1.4 - 0.7;
       mesh.userData.spd = 0.12 + ((ti + i) % 5) * 0.04;
       mesh.userData.spin = 0.5 + (i % 3) * 0.4;
+      mesh.userData.phase = (idx * 1.37) % 6.28; // breathing offset
+      mesh.userData.pop = 0;                      // emit-pulse impulse
+      mesh.userData.color = (ORG_VIS[type] || {}).color || 0x9be36b;
       mesh.scale.setScalar(0.0001); mesh.userData.grow = 0;
       swarmGroup.add(mesh);
       idx++;
@@ -402,12 +405,34 @@ export function setSwarm(owned) {
 function updateSwarm(dt, elapsed) {
   if (!swarmGroup) return;
   for (const c of swarmGroup.children) {
-    if (c.userData.grow < 1) { c.userData.grow = Math.min(1, c.userData.grow + dt * 2.2); c.scale.setScalar(easeOutBack(c.userData.grow)); }
+    if (c.userData.grow < 1) c.userData.grow = Math.min(1, c.userData.grow + dt * 2.2);
+    c.userData.pop = (c.userData.pop || 0) * Math.max(0, 1 - dt * 4); // emit-pulse decay
+    const base = c.userData.grow < 1 ? easeOutBack(c.userData.grow) : 1;
+    const breathe = (c.userData.grow >= 1 && !reduceMotion) ? Math.sin(elapsed * 2.2 + (c.userData.phase || 0)) * 0.1 : 0;
+    c.scale.setScalar(Math.max(0.0001, base * (1 + breathe + c.userData.pop * 0.6)));
     const a = c.userData.ang + elapsed * c.userData.spd;
     const rad = c.userData.rad * currentScale;
     c.position.set(Math.cos(a) * rad, Math.sin(a * 0.8 + c.userData.tilt) * 0.9 * currentScale, Math.sin(a) * rad);
     if (!reduceMotion) { c.rotation.x += dt * c.userData.spin; c.rotation.y += dt * c.userData.spin * 0.8; }
   }
+}
+
+// Pick a random grown swarm organelle, pop it, and return its screen position +
+// colour so the caller can fly a biomass mote from it to the counter. Returns
+// null if no swarm / behind camera. This is what makes production VISIBLE.
+const _swv = new THREE.Vector3();
+export function emitProductionMote() {
+  if (!swarmGroup || !swarmGroup.children.length || !renderer || !camera) return null;
+  const c = swarmGroup.children[(Math.random() * swarmGroup.children.length) | 0];
+  if (!c || c.userData.grow < 1) return null;
+  c.userData.pop = 1; // visible "I just produced" pulse
+  c.getWorldPosition(_swv).project(camera);
+  if (_swv.z > 1) return null; // behind the camera
+  const rect = renderer.domElement.getBoundingClientRect();
+  const sx = rect.left + (_swv.x * 0.5 + 0.5) * rect.width;
+  const sy = rect.top + (-_swv.y * 0.5 + 0.5) * rect.height;
+  const col = "#" + ((c.userData.color || 0x9be36b) >>> 0).toString(16).padStart(6, "0");
+  return { sx, sy, color: col };
 }
 
 function updateTierCrown(dt, elapsed) {

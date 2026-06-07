@@ -84,6 +84,7 @@ import {
   pulse,
   setStage,
   setSwarm,
+  emitProductionMote,
   rebuildVisuals,
   setStress,
   resetParts,
@@ -1164,6 +1165,9 @@ let sinceSave = 0;
 // drone idle-FX throttle: accumulate auto-click gain, emit one tidy pulse ~2×/sec
 let droneFxAccum = 0;
 let droneFxGain = 0;
+// working-producer throttle: organelles emit biomass motes toward the counter,
+// at a rate scaled by production/sec (so the screen SHOWS the economy running)
+let prodMoteAccum = 0;
 
 function update() {
   const now = performance.now();
@@ -1179,6 +1183,18 @@ function update() {
   if (rate > 0) addBiomass(rate * dt);
   drainLeeches(rate, dt); // parasites skim production into themselves
   updateDrifters(dt); // ambient clickable visitors floating across the pond
+  // working producers: organelles fire biomass motes into the counter, denser as
+  // /sec grows — so you SEE production happening (Cookie-Clicker cookies-flowing).
+  if (rate > 0 && !state.reduceMotion && !document.hidden) {
+    prodMoteAccum += dt * Math.min(7, Math.max(0.6, Math.log10(rate + 10)));
+    let guard = 0;
+    while (prodMoteAccum >= 1 && guard++ < 8) {
+      prodMoteAccum -= 1;
+      const m = emitProductionMote();
+      if (m) flyToCounter(m.sx, m.sy, m.color);
+    }
+    if (prodMoteAccum > 8) prodMoteAccum = 0; // never bank a backlog
+  }
 
   // Mitosis Engine node: auto-buy organelles (only when toggled on)
   if (hasNode("auto_gen") && state.autoBuyOn !== false) autoBuyGenerators();
