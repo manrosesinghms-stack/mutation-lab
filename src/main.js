@@ -124,6 +124,7 @@ import { SPELLS } from "./data/spells.js";
 import { SEASON_BY_ID } from "./data/seasons.js";
 import { formatNumber } from "./format.js";
 import { getMutation, EDITIONS } from "./data/mutations.js";
+import { backendOn, setBackendUrl, backendUrl, submitDailyScore, cloudPutSave, cloudGetSave, newSyncCode } from "./net.js";
 import { GENERATORS } from "./data/generators.js";
 import * as audio from "./audio.js";
 import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme, hasTheme, setMusicStress, setMusicDanger } from "./music.js";
@@ -429,6 +430,8 @@ initUI({
     flashStatus(res && res.improved ? `🎲 Daily done — NEW BEST · Build Score ${res.score}!` : `🎲 Daily done — Build Score ${res ? res.score : 0}`);
     renderChallenges();
     save();
+    // submit to the online leaderboard if a backend is configured (fire-and-forget)
+    if (res && backendOn()) submitDailyScore({ seed: res.seed, score: res.score, biomass: Math.round(res.biomass), name: state.dailyName, dna: creatureDNACode(), ts: Date.now() });
     // the share moment: show the Specimen Card stamped with today's seed + score
     setTimeout(() => openSpecimenCard(), 400);
   },
@@ -460,6 +463,18 @@ function viewSharedDNA() {
 }
 document.getElementById("photo-dna").addEventListener("click", copyCreatureDNA);
 document.getElementById("viewdna-btn").addEventListener("click", viewSharedDNA);
+// cloud save + backend config (all optional; offline by default)
+document.getElementById("cloud-up").addEventListener("click", cloudUpload);
+document.getElementById("cloud-down").addEventListener("click", cloudDownload);
+{
+  const bi = document.getElementById("backend-url");
+  if (bi) bi.value = backendUrl();
+  document.getElementById("backend-save").addEventListener("click", () => {
+    const u = setBackendUrl(document.getElementById("backend-url").value);
+    genomeStatus(u ? "🌐 connected: " + u : "🌐 offline mode");
+    renderChallenges();
+  });
+}
 
 // open the mutation draft with reroll support
 function openDraft() {
@@ -573,6 +588,34 @@ function importSave() {
     genomeStatus("imported — reloading");
     setTimeout(() => location.reload(), 600);
   } catch (e) { genomeStatus("invalid save string"); }
+}
+
+// ---- Cloud save (cross-device via a short code; needs a backend) ----
+async function cloudUpload() {
+  if (!backendOn()) { genomeStatus("set a backend URL in Settings → Online first"); return; }
+  const code = newSyncCode();
+  const data = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+  genomeStatus("☁ uploading…");
+  const ok = await cloudPutSave(code, data);
+  if (ok) {
+    if (navigator.clipboard) navigator.clipboard.writeText(code);
+    genomeStatus(`☁ Uploaded! Sync code: ${code} (copied) — use it on another device`);
+  } else genomeStatus("cloud upload failed");
+}
+async function cloudDownload() {
+  if (!backendOn()) { genomeStatus("set a backend URL in Settings → Online first"); return; }
+  const code = prompt("Enter your cloud sync code (MLAB-XXXX-XXXX):");
+  if (!code) return;
+  genomeStatus("☁ fetching…");
+  const data = await cloudGetSave(code.trim());
+  if (!data) { genomeStatus("no save found for that code"); return; }
+  try {
+    const obj = JSON.parse(decodeURIComponent(escape(atob(data))));
+    Object.assign(state, obj);
+    save();
+    genomeStatus("☁ loaded — reloading");
+    setTimeout(() => location.reload(), 600);
+  } catch (e) { genomeStatus("cloud save was corrupt"); }
 }
 
 function pickMutation(id, edition) {
@@ -1568,7 +1611,7 @@ window.addEventListener("beforeunload", save);
 // has no console cheat surface. Add ?debug=1 to the URL to enable it for testing.
 if (typeof window !== "undefined" &&
     new URLSearchParams(location.search).has("debug")) {
-  window.ML = { state, save, productionPerSecond, spawnBloom, collectBloom, mutagenStorm, openDraft };
+  window.ML = { state, save, productionPerSecond, spawnBloom, collectBloom, mutagenStorm, openDraft, backendOn, cloudPutSave, cloudGetSave, newSyncCode };
   console.log("[debug] window.ML enabled (cheat handle).");
 }
 

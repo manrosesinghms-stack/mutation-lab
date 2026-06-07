@@ -294,7 +294,15 @@
         <button id="export-btn" class="ghost">Export save</button>
         <button id="import-btn" class="ghost">Import save</button>
         <button id="viewdna-btn" class="ghost">🧬 View shared DNA</button>
+        <button id="cloud-up" class="ghost">☁ Cloud upload</button>
+        <button id="cloud-down" class="ghost">☁ Cloud load</button>
         <span id="genome-status"></span>
+      </div>
+      <div class="genome-foot" style="margin-top:6px">
+        <span style="font-size:11px;color:var(--muted)">Online (optional):</span>
+        <input id="backend-url" type="text" placeholder="https://your-api… (leave blank for offline)"
+          style="flex:1;min-width:160px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:6px 9px;font-size:12px" />
+        <button id="backend-save" class="ghost">Connect</button>
       </div>
     </div>
   </div>

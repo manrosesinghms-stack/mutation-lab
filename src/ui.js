@@ -39,6 +39,7 @@ import { PART_TYPES, PART_LABEL, HYBRID_LIST } from "./data/hybrids.js";
 import { partCounts } from "./data/synergies.js";
 import { formatNumber } from "./format.js";
 import { getMutation, RARITY, MUTATIONS, EDITIONS } from "./data/mutations.js";
+import { backendOn, fetchDailyLeaderboard } from "./net.js";
 import { GENOME_NODES, nodeCost, nodeLevel } from "./data/genomeNodes.js";
 import { ACHIEVEMENTS } from "./data/achievements.js";
 import { SYNERGIES, synergyProgress } from "./data/synergies.js";
@@ -677,6 +678,7 @@ export function renderChallenges() {
       <div class="tf">Everyone gets the same draws today — grow the best monster you can, then share your Build Score. ${todayScore ? `Today's best: <b>BUILD ${todayScore.score}</b> (${formatNumber(todayScore.biomass)} biomass)` : "Not attempted yet today."}</div>
       ${daily ? `<button class="ghost" id="daily-end">Finish &amp; share monster</button>` : `<button class="ghost" id="daily-start">Start daily run (resets run)</button>`}
       ${hist.length ? `<div class="daily-ladder"><div class="dl-h">Your recent dailies</div>${hist.map((h) => `<div class="dl-row"><span>#${h.seed}</span><span>BUILD <b>${h.score}</b></span><span>${formatNumber(h.biomass)}</span></div>`).join("")}</div>` : ""}
+      ${backendOn() ? `<div id="global-board" class="daily-ladder"></div>` : ""}
     </div>
     <h3>Challenge Runs</h3>
     ${active && active !== "daily" ? `<div class="trait got"><div class="tn">⚔️ Active challenge</div><div class="tf">Reach the goal — or abandon below.</div></div>` : `<p class="help-tip" style="margin-bottom:10px">Starting a challenge resets your current run (your Species, Genome &amp; achievements are kept).</p>`}
@@ -695,6 +697,21 @@ export function renderChallenges() {
   if (ds) ds.addEventListener("click", () => uiHandlers.onStartDaily());
   const de = document.getElementById("daily-end");
   if (de) de.addEventListener("click", () => uiHandlers.onEndDaily());
+  if (backendOn()) fillGlobalBoard(todaySeed());
+}
+
+// Async-fill the online daily leaderboard (degrades silently if the backend is
+// unreachable; the local ladder above always shows regardless).
+async function fillGlobalBoard(seed) {
+  const box = document.getElementById("global-board");
+  if (!box) return;
+  box.innerHTML = `<div class="dl-h">🌐 Global top — loading…</div>`;
+  const rows = await fetchDailyLeaderboard(seed, 10);
+  const b = document.getElementById("global-board");
+  if (!b) return; // modal closed / re-rendered while awaiting
+  if (!rows || !rows.length) { b.innerHTML = `<div class="dl-h">🌐 Global top — no scores yet today</div>`; return; }
+  b.innerHTML = `<div class="dl-h">🌐 Global top today</div>` +
+    rows.map((r, i) => `<div class="dl-row"><span>${i + 1}. ${tlEsc(r.name || "Anon")}</span><span>BUILD <b>${r.score | 0}</b></span><span>${formatNumber(r.biomass || 0)}</span></div>`).join("");
 }
 
 // ---- codex: species traits + set forms + mutation encyclopedia + museum ----
