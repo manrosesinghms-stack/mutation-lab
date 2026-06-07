@@ -3,7 +3,7 @@
 import { state } from "./state.js";
 import { GENERATORS } from "./data/generators.js";
 import {
-  costOf, canAfford, isUnlocked,
+  costOf, canAfford, isUnlocked, costForN, maxAffordable, productionBreakdown,
   epForReset, canPrestige, effectiveClickPower, pressureLevel,
   canSpeciate, genomeForSpeciate, equipSlots, activeBuffs,
   currentWeekly, dailyBestToday, todaySeed, dailyScoreToday, dailyHistory,
@@ -53,6 +53,15 @@ import { creatureName } from "./data/names.js";
 const el = {};
 let onBuy = null;
 let sellMode = false;
+let buyAmt = 1; // bulk-buy amount: 1 | 10 | 100 | "max"
+// resolve how many to buy from the selector + click modifiers (Shift=10, Ctrl=100)
+function amountFor(e, genId) {
+  let n = buyAmt;
+  if (e && e.shiftKey) n = 10;
+  if (e && (e.ctrlKey || e.metaKey)) n = 100;
+  if (n === "max") return Math.max(1, maxAffordable(genId));
+  return n;
+}
 
 export function initUI(handlers) {
   onBuy = handlers.onBuy;
@@ -120,6 +129,12 @@ export function initUI(handlers) {
     el.buysellToggle.textContent = sellMode ? "Mode: Sell" : "Mode: Buy";
     el.buysellToggle.classList.toggle("off", sellMode);
   });
+  // bulk-buy amount selector (×1 / ×10 / ×100 / Max)
+  const amtBox = document.getElementById("buy-amt");
+  if (amtBox) amtBox.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    buyAmt = b.dataset.amt === "max" ? "max" : parseInt(b.dataset.amt, 10);
+    amtBox.querySelectorAll("button").forEach((x) => x.classList.toggle("active", x === b));
+  }));
 
   document.getElementById("save-btn").addEventListener("click", handlers.onSave);
   document.getElementById("wipe-btn").addEventListener("click", handlers.onWipe);
@@ -1054,9 +1069,9 @@ function buildGeneratorRows() {
       <div class="cost">${formatNumber(g.baseCost)}</div>
       <div class="owned">0</div>
       <div class="research"></div>`;
-    row.addEventListener("click", () => {
+    row.addEventListener("click", (e) => {
       if (sellMode) uiHandlers.onSell(g.id);
-      else if (onBuy) onBuy(g.id, row.getBoundingClientRect());
+      else if (onBuy) onBuy(g.id, row.getBoundingClientRect(), amountFor(e, g.id));
     });
     el.genList.appendChild(row);
     el.genRows[g.id] = row;
@@ -1241,6 +1256,7 @@ export function renderUI(rate, dt = 0.016) {
     }
   }
 
+  const _bd = productionBreakdown(); // per-organelle /sec + share for tooltips
   for (const g of GENERATORS) {
     const row = el.genRows[g.id];
     const unlocked = isUnlocked(g.id);
@@ -1249,11 +1265,24 @@ export function renderUI(rate, dt = 0.016) {
       continue;
     }
     row.classList.remove("locked");
-    const cost = costOf(g.id);
-    const affordable = canAfford(g.id);
+    const affordable = canAfford(g.id); // can buy at least one
     row.classList.toggle("affordable", affordable);
-    row.querySelector(".cost").textContent = formatNumber(cost);
+    // cost label reflects the bulk-buy amount (×1 / ×10 / ×100 / Max)
+    let costLabel;
+    if (buyAmt === "max") {
+      const m = maxAffordable(g.id);
+      costLabel = m >= 1 ? `Max ${m} · ${formatNumber(costForN(g.id, m))}` : formatNumber(costOf(g.id));
+    } else if (buyAmt === 1) {
+      costLabel = formatNumber(costOf(g.id));
+    } else {
+      costLabel = `×${buyAmt} · ${formatNumber(costForN(g.id, buyAmt))}`;
+    }
+    row.querySelector(".cost").textContent = costLabel;
     row.querySelector(".owned").textContent = `×${state.owned[g.id] || 0}`;
+    // hover tooltip: exact /sec each + share of total production (CC-style detail)
+    const share = _bd.total > 0 ? (_bd.per[g.id] / _bd.total * 100) : 0;
+    row.title = `${researchName(g.id) || g.name}\n+${formatNumber(_bd.each[g.id] || 0)}/sec each` +
+      (state.owned[g.id] ? ` · ${share.toFixed(share < 10 ? 1 : 0)}% of production` : " (none owned yet)");
     // research: rename the organelle to its current tier + show next milestone
     const rName = researchName(g.id);
     if (rName) {

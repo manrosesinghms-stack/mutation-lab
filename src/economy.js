@@ -835,6 +835,61 @@ export function buy(genId) {
   return true;
 }
 
+// ---- Bulk buy (×10 / ×100 / Max) — the Cookie-Clicker QoL muscle memory ----
+// Total cost to buy the next `n` of a generator (geometric, per-unit ceil).
+// Per-organelle production breakdown for the hover tooltip (Cookie-Clicker detail):
+// how much each unit makes and what share of total /sec the organelle provides.
+export function productionBreakdown() {
+  const mods = getModifiers();
+  const per = {}; let total = 0;
+  for (const g of GENERATORS) {
+    let gen = (state.owned[g.id] || 0) * g.baseProduction * (mods.genMult[g.id] || 1);
+    gen = softknee(gen, TUN.genSaturation.threshold, TUN.genSaturation.exp);
+    const contrib = gen * mods.prodMult;
+    per[g.id] = contrib; total += contrib;
+  }
+  const each = {};
+  for (const g of GENERATORS) {
+    const owned = state.owned[g.id] || 0;
+    each[g.id] = owned > 0 ? per[g.id] / owned : g.baseProduction * (mods.genMult[g.id] || 1) * mods.prodMult;
+  }
+  return { per, each, total };
+}
+
+export function costForN(genId, n) {
+  const g = GEN_BY_ID[genId];
+  const owned = state.owned[genId] || 0;
+  let total = 0;
+  for (let i = 0; i < n; i++) total += Math.ceil(g.baseCost * Math.pow(g.costGrowth, owned + i));
+  return total;
+}
+// How many you could afford right now (capped so the loop can't run away).
+export function maxAffordable(genId) {
+  if (challengeRule() === "noGenerators") return 0;
+  const g = GEN_BY_ID[genId];
+  let owned = state.owned[genId] || 0;
+  let bm = state.biomass, n = 0;
+  while (n < 100000) {
+    const c = Math.ceil(g.baseCost * Math.pow(g.costGrowth, owned + n));
+    if (c > bm) break;
+    bm -= c; n++;
+  }
+  return n;
+}
+// Buy up to `n` (stops when unaffordable). Returns how many were actually bought.
+export function buyN(genId, n) {
+  if (challengeRule() === "noGenerators") return 0;
+  let bought = 0;
+  for (let i = 0; i < n; i++) {
+    const cost = costOf(genId);
+    if (state.biomass < cost) break;
+    state.biomass -= cost;
+    state.owned[genId] = (state.owned[genId] || 0) + 1;
+    bought++;
+  }
+  return bought;
+}
+
 // Raw biomass/sec BEFORE the global production softcap (per-generator saturation
 // already applied). Shared by productionPerSecond + pressureLevel.
 function rawProduction() {
@@ -986,6 +1041,10 @@ export function epForReset() {
   const mods = getModifiers();
   const epNode = 1 + 0.25 * nodeLevel(state, "ep_boost");
   const raw = Math.sqrt((state.runBiomass || 0) / 1e4) * mods.epMult * epNode;
+  // Snappier FIRST Evolve: the mutation draft is the game's best hook, so let the
+  // very first Evolve land early (run-biomass >= 2000 ≈ a few minutes) without
+  // changing the overall EP curve — only the first reset gets this floor.
+  if ((state.prestiges || 0) === 0 && (state.runBiomass || 0) >= 2000) return Math.max(1, Math.floor(raw));
   return Math.max(0, Math.floor(raw));
 }
 

@@ -527,6 +527,13 @@ button, .gen, .node, #creature-canvas, .draft-card, .species-card { touch-action
 @keyframes crewIn { 0% { transform: translateY(16px) scale(.2); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
 @keyframes crewBob { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-4px) rotate(1deg); } }
 @media (max-width: 640px) { .crew { font-size: 22px; } }
+/* bulk-buy amount selector (×1 / ×10 / ×100 / Max) */
+.buy-amt { display: flex; gap: 4px; margin: 2px 0 8px; }
+.buy-amt button {
+  flex: 1; font-size: 11px; font-weight: 700; padding: 5px 0; cursor: pointer;
+  background: var(--bg2); color: var(--muted); border: 1px solid var(--line); border-radius: 7px;
+}
+.buy-amt button.active { background: #16352a; color: var(--accent); border-color: var(--accent); }
 /* Lab Bulletin news ticker fade-in */
 #lab-bulletin { transition: none; min-height: 1.2em; }
 .bull-in { animation: bullIn .5s ease; }

@@ -4,6 +4,7 @@ import { state, save, wipe } from "./state.js";
 import {
   click,
   buy,
+  buyN,
   sellGenerator,
   productionPerSecond,
   effectiveClickPower,
@@ -123,7 +124,7 @@ import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabe
 import { SPELLS } from "./data/spells.js";
 import { SEASON_BY_ID } from "./data/seasons.js";
 import { formatNumber } from "./format.js";
-import { getMutation, EDITIONS } from "./data/mutations.js";
+import { getMutation, EDITIONS, MUTATIONS } from "./data/mutations.js";
 import { backendOn, setBackendUrl, backendUrl, submitDailyScore, cloudPutSave, cloudGetSave, newSyncCode } from "./net.js";
 import { GENERATORS } from "./data/generators.js";
 import * as audio from "./audio.js";
@@ -140,14 +141,15 @@ function stageCenter() {
 
 // ---- wire UI ----
 initUI({
-  onBuy: (genId, rect) => {
+  onBuy: (genId, rect, amount = 1) => {
     const tiersBefore = researchTiers(genId);
-    if (buy(genId)) {
+    const n = buyN(genId, amount || 1);
+    if (n > 0) {
       const tier = GENERATORS.findIndex((g) => g.id === genId); // 0..4
       audio.playBuy(tier);
       if (rect) burst(rect.left + rect.width / 2, rect.top + rect.height / 2,
-                      { count: 12 + tier * 4, color: "#56e39f", spread: 80 + tier * 15 });
-      pulse(0.5); // the cell reacts — a new organelle joins the colony on screen
+                      { count: 12 + tier * 4 + Math.min(n, 20), color: "#56e39f", spread: 80 + tier * 15 });
+      pulse(0.5); // the cell reacts — new organelles join the colony on screen
       // research milestone crossed → a satisfying unlock moment
       if (researchTiers(genId) > tiersBefore) {
         audio.playMilestone(); cinematicPulse(); flash("rgba(120,220,255,.3)");
@@ -155,7 +157,7 @@ initUI({
         burst(c.x, c.y, { count: 40, color: "#7be3ff", spread: 160, life: 900 });
         flashStatus(`⚗ RESEARCH UNLOCKED — evolved into ${researchName(genId)}!`);
       } else {
-        flashStatus("organelle acquired");
+        flashStatus(n > 1 ? `+${n} organelles acquired` : "organelle acquired");
       }
     } else {
       flashStatus("not enough biomass");
@@ -479,6 +481,12 @@ document.getElementById("cloud-down").addEventListener("click", cloudDownload);
 // open the mutation draft with reroll support
 function openDraft() {
   const ids = rollDraft(draftSize());
+  // First-ever draft: guarantee at least one body-part mutation so the creature
+  // VISIBLY transforms on the first Evolve (the payoff that hooks new players).
+  if ((state.prestiges || 0) === 0 && (state.mutations || []).length === 0 && !ids.some((id) => (getMutation(id) || {}).part)) {
+    const parts = MUTATIONS.filter((m) => m.part && m.rarity !== "legendary" && !m.alien && !m.defect);
+    if (parts.length) ids[0] = parts[(Math.random() * parts.length) | 0].id;
+  }
   const editions = rollEditions(ids); // map id -> edition (or null), seeded on daily
   showDraft(ids, pickMutation, () => {
     if (useReroll()) openDraft();
@@ -649,6 +657,13 @@ function pickMutation(id, edition) {
   }
   const edTag = edition && EDITIONS[edition] ? ` ${EDITIONS[edition].tag}` : "";
   if (edition && EDITIONS[edition]) { audio.playMilestone(); flash(EDITIONS[edition].color + "55"); burst(c.x, c.y, { count: 50, color: EDITIONS[edition].color, spread: 200, life: 1000 }); }
+  // first-ever mutation: a big, memorable "it begins to change" beat
+  if (!state.sawFirstMutation) {
+    state.sawFirstMutation = true;
+    audio.playRoar(); cinematicPulse(); shake(16); flash("rgba(86,227,159,.5)");
+    burst(c.x, c.y, { count: 80, color: "#56e39f", spread: 240, up: 0, life: 1100 });
+    playCinematic("🧬 FIRST MUTATION", def && def.part ? `It grows a ${def.part}… it begins to change.` : "Your cell will never be the same.", "#56e39f");
+  }
   flashStatus(`mutation gained: ${def ? def.name : id}${edTag}`);
   // Genome Atlas: completing a mastery family is a permanent, celebrated milestone
   if (masteriesComplete() > masteriesBefore) {

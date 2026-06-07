@@ -78,6 +78,12 @@
 
       <section id="generators">
         <h2>Organelles <button id="buysell-toggle" class="autobuy">Mode: Buy</button><button id="autobuy-toggle" class="autobuy hidden">Auto-buy: ON</button></h2>
+        <div id="buy-amt" class="buy-amt" title="How many to buy per click (or hold Shift = ×10, Ctrl = ×100)">
+          <button data-amt="1" class="active">×1</button>
+          <button data-amt="10">×10</button>
+          <button data-amt="100">×100</button>
+          <button data-amt="max">Max</button>
+        </div>
         <div id="upgrade-tray-wrap" class="hidden">
           <div class="tray-head">⬆ Upgrades available <b id="upgrades-badge">0</b><button id="upgrades-btn" class="tray-all">see all ▸</button></div>
           <div id="upgrade-tray"><!-- compact buyable upgrade chips, injected by ui.js --></div>
