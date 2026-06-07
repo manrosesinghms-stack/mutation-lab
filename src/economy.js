@@ -878,6 +878,21 @@ export function currentArchetype() {
   return { name: "Primordial Cell", kind: "none", flavor: "Unmutated — for now." };
 }
 
+// Would drafting this mutation complete a Set Form or synergy? Drives the draft
+// "completes Leviathan!" hint that turns picking into deliberate build-crafting.
+export function draftHint(id) {
+  const cur = state.mutations || [];
+  const next = cur.concat([id]);
+  const beforeSets = new Set(completedSets(cur).map((s) => s.id));
+  for (const s of completedSets(next)) if (!beforeSets.has(s.id)) return { text: `completes ${s.form}!`, strong: true };
+  const beforeSyn = new Set(activeSynergies(cur).map((s) => s.id));
+  const newSyn = activeSynergies(next).filter((s) => !beforeSyn.has(s.id));
+  const leg = newSyn.find((s) => s.hidden);
+  if (leg) return { text: "★ unlocks a legendary evolution!", strong: true };
+  if (newSyn.length) return { text: `completes ${newSyn[0].name}!`, strong: true };
+  return null;
+}
+
 // A single legible number summarizing how strong/spicy the current build is.
 // Production is LOG-scaled so the score can never explode the way raw production
 // once did; synergies, completed sets, legendaries, rank and speciations add flat

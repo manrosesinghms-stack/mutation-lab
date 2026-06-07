@@ -437,6 +437,34 @@ html, body {
   border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px;
   display: flex; flex-direction: column;
 }
+/* live archetype + build-score badge under the creature name */
+#archetype-badge {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  top: 64px; display: flex; gap: 8px; align-items: center; z-index: 5;
+  pointer-events: none; white-space: nowrap;
+}
+#archetype-badge.hidden { display: none; }
+#archetype-badge .arche-name {
+  font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  padding: 3px 11px; border-radius: 12px;
+  background: rgba(0,0,0,.35); border: 1px solid var(--accent2); color: var(--accent2);
+  text-shadow: 0 1px 4px rgba(0,0,0,.6);
+}
+#archetype-badge[data-kind="set"] .arche-name { border-color: #ff7ac0; color: #ff7ac0; }
+#archetype-badge[data-kind="legendary"] .arche-name { border-color: #ffd76b; color: #ffd76b; }
+#archetype-badge[data-kind="part"] .arche-name { border-color: var(--accent); color: var(--accent); }
+#archetype-badge .arche-score {
+  font-size: 11px; font-weight: 800; color: #ffd76b;
+  padding: 3px 9px; border-radius: 12px; background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,215,107,.4); text-shadow: 0 1px 4px rgba(0,0,0,.6);
+}
+/* draft card "completes X" synergy hint */
+.draft-synergy {
+  margin-top: 8px; font-size: 11px; font-weight: 800; letter-spacing: .03em;
+  color: #ffd76b; text-transform: uppercase;
+  background: rgba(255,215,107,.1); border: 1px solid rgba(255,215,107,.4);
+  border-radius: 8px; padding: 4px 8px;
+}
 #card-img { width: 100%; border-radius: 12px; border: 1px solid var(--line); display: block; }
 .card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; justify-content: center; }
 .card-actions button { flex: 1 1 auto; min-width: 130px; }

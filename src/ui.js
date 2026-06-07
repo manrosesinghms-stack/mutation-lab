@@ -23,6 +23,7 @@ import {
   atlasFamilies, masteriesComplete,
   cultureMult, cultureCount,
   digestActive,
+  currentArchetype, buildScore, draftHint,
 } from "./economy.js";
 import { RESEARCH_TIERS } from "./data/research.js";
 import { COLONY_NODES } from "./data/colony.js";
@@ -1135,6 +1136,23 @@ export function renderUI(rate, dt = 0.016) {
     el.creatureName.textContent = creatureName(state.mutations, state.namingStyle || "scientific");
   }
 
+  // live archetype + build-score badge under the creature name (throttled ~2/s)
+  const badge = el.archetypeBadge || (el.archetypeBadge = document.getElementById("archetype-badge"));
+  if (badge) {
+    const nowMs = Date.now();
+    if (nowMs - (el._badgeAt || 0) > 500) {
+      el._badgeAt = nowMs;
+      if (state.mutations.length === 0) badge.classList.add("hidden");
+      else {
+        const a = currentArchetype();
+        badge.classList.remove("hidden");
+        badge.dataset.kind = a.kind;
+        badge.innerHTML = `<span class="arche-name">${a.kind === "legendary" ? "★ " : ""}${a.name}</span>` +
+          `<span class="arche-score">BUILD ${buildScore()}</span>`;
+      }
+    }
+  }
+
   for (const g of GENERATORS) {
     const row = el.genRows[g.id];
     const unlocked = isUnlocked(g.id);
@@ -1195,12 +1213,14 @@ export function showDraft(ids, onPick, onReroll, onSkip) {
     card.style.animationDelay = (di++ * 0.1).toFixed(2) + "s";
     card.style.setProperty("--rarity", def.alien ? "#39d0c6" : def.defect ? "#ff6b6b" : r.color);
     const glyph = def.alien ? "👽" : (DRAFT_GLYPH[def.part] || "🧬");
+    const hint = draftHint(id);
     card.innerHTML = `
       <div class="rarity">${def.alien ? "👽 ALIEN DNA" : def.defect ? "⚠ CURSED" : r.label}</div>
       <div class="draft-spin"><span>${glyph}</span></div>
       <div class="mname">${def.name}</div>
       ${def.part ? `<div class="part-tag">＋ grows a ${def.part}</div>` : ""}
-      <div class="mdesc">${def.desc}</div>`;
+      <div class="mdesc">${def.desc}</div>
+      ${hint ? `<div class="draft-synergy">${hint.text}</div>` : ""}`;
     card.addEventListener("click", () => { el.draftModal.classList.add("hidden"); onPick(id); });
     el.draftCards.appendChild(card);
   }
