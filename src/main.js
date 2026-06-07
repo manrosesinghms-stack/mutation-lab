@@ -6,6 +6,7 @@ import {
   buy,
   sellGenerator,
   productionPerSecond,
+  effectiveClickPower,
   addBiomass,
   applyOfflineProgress,
   canPrestige,
@@ -52,6 +53,7 @@ import {
   hasNode,
   autoBuyGenerators,
   doDigest,
+  digestActive,
   pruneTempBuffs,
   addTempBuff,
   checkAchievements,
@@ -1027,6 +1029,7 @@ document.getElementById("photo-shot").addEventListener("click", () => {
 
 // --- Digest button (opt-in biomass sink -> production surge) ---
 document.getElementById("digest-btn").addEventListener("click", () => {
+  if (digestActive()) { flashStatus("🍴 still digesting — wait for the surge to finish"); return; }
   const res = doDigest();
   if (!res) { flashStatus("not enough biomass to digest"); return; }
   engorgePop();

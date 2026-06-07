@@ -741,8 +741,17 @@ export function activeBuffs() {
   return (state.tempBuffs || []).filter((b) => !b.expiresAt || b.expiresAt > now);
 }
 
+// Is a Digest surge currently running? (used to block re-spamming it)
+export function digestActive() {
+  const now = Date.now();
+  return (state.tempBuffs || []).some((b) => b.id === "digest" && b.expiresAt > now);
+}
 // Digest: spend 40% of biomass for a temporary production surge (an opt-in sink).
+// CANNOT be re-triggered while a surge is active — otherwise stacking it with a
+// Mitogen Frenzy lets production out-earn the 40% cost instantly and you spam it
+// forever. One surge at a time; wait for it to finish.
 export function doDigest() {
+  if (digestActive()) return null;
   const spend = (state.biomass || 0) * 0.4;
   if (spend < 10) return null;
   state.biomass -= spend;

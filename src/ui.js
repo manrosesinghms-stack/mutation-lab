@@ -22,6 +22,7 @@ import {
   researchName, researchTiers, nextResearch,
   atlasFamilies, masteriesComplete,
   cultureMult, cultureCount,
+  digestActive,
 } from "./economy.js";
 import { RESEARCH_TIERS } from "./data/research.js";
 import { COLONY_NODES } from "./data/colony.js";
@@ -1011,6 +1012,13 @@ function updateUnlocks() {
 // Called every frame (cheap DOM writes only). dt (seconds) drives count-up tween.
 export function renderUI(rate, dt = 0.016) {
   updateUnlocks();
+  // Digest button: grey out + relabel while a surge is active (can't re-spam)
+  const digestBtn = document.getElementById("digest-btn");
+  if (digestBtn) {
+    const da = digestActive();
+    digestBtn.classList.toggle("cooling", da);
+    digestBtn.textContent = da ? "🍴 Digesting… (surge active)" : "🍴 Digest — spend 40% for a surge";
+  }
   // smooth count-up: ease the displayed biomass toward the real value
   if (el._dispBiomass === undefined) el._dispBiomass = state.biomass;
   el._dispBiomass += (state.biomass - el._dispBiomass) * Math.min(1, dt * 8);

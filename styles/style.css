@@ -160,6 +160,8 @@ html, body {
 }
 .digest:hover { background: rgba(140,90,255,.08); border-color: var(--accent2); }
 .digest:active { transform: translateY(1px); }
+.digest.cooling { opacity: .5; cursor: not-allowed; border-style: solid; }
+.digest.cooling:hover { background: transparent; }
 
 #generators h2 {
   font-size: 12px; letter-spacing: .2em; text-transform: uppercase;

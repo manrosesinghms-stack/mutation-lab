@@ -5,16 +5,20 @@
 // Compiler. Tiers are per-run (tied to owned count) like Cookie Clicker buildings.
 
 // Shared milestone ladder: own N → unlock the next research tier (compounding).
+// Tamed from the original 2/2/2/3/3/4/5 (=1440×, which made production explode to
+// billions as you bought a few organelles each run) to gentle 1.5× steps. Total
+// ~17× fully maxed — a real boost that stays in step with the exponential cost
+// curve instead of outrunning it, so the run is a climb, not an instant max.
 export const RESEARCH_TIERS = [
-  { at: 10,  mult: 2 },
-  { at: 25,  mult: 2 },
-  { at: 50,  mult: 2 },
-  { at: 100, mult: 3 },
-  { at: 200, mult: 3 },
-  { at: 350, mult: 4 },
-  { at: 600, mult: 5 },
+  { at: 10,  mult: 1.5 },
+  { at: 25,  mult: 1.5 },
+  { at: 50,  mult: 1.5 },
+  { at: 100, mult: 1.5 },
+  { at: 200, mult: 1.5 },
+  { at: 350, mult: 1.5 },
+  { at: 600, mult: 1.5 },
 ];
-// total multiplier if all 7 tiers unlocked: 2·2·2·3·3·4·5 = 1440×
+// total multiplier if all 7 tiers unlocked: 1.5^7 ≈ 17×
 
 // Per-organelle escalating names. Index 0 = base; one extra name per unlocked tier
 // (8 entries = base + 7 tiers). The organelle's row shows the highest unlocked name.
