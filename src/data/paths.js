@@ -17,6 +17,7 @@ export const EVO_PATHS = [
 
     profile: { a1: 0.16, f1: 3.0, a2: 0.12, f2: 5.0, a3: 0.08, f3: 7.0, lobe: 0.12, lobeF: 1.8, spike: 0.5 },
     bonus: { kind: "click", per: 0.5 }, // clickMult ×(1 + 0.5·stage)
+    sigParts: ["jaw", "claw", "spike"], // signature anatomy grown by stage
     blurb: "Spined and aggressive — built around the kill. Your clicks hit far harder.",
     bonusText: "+50% click power per stage reached",
     stages: ["Feral Cell", "Pack Colony", "Hunter", "Apex Hunter", "Titan Predator", "Devourer God"],
@@ -28,6 +29,7 @@ export const EVO_PATHS = [
 
     profile: { a1: 0.2, f1: 4.0, a2: 0.16, f2: 6.5, a3: 0.1, f3: 9.0, lobe: 0.42, lobeF: 2.2, spike: 0 },
     bonus: { kind: "prod", per: 0.4 }, // prodMult ×(1 + 0.4·stage)
+    sigParts: ["eye", "neuron"],
     blurb: "A swelling hive-mind — lobed, eyed, and thinking. Passive production swells.",
     bonusText: "+40% production per stage reached",
     stages: ["Sensory Cell", "Ganglion Colony", "Thinker", "Hive Mind", "Neural Vastness", "Neural God"],
@@ -39,6 +41,7 @@ export const EVO_PATHS = [
 
     profile: { a1: 0.08, f1: 3.0, a2: 0.06, f2: 4.0, a3: 0.05, f3: 6.0, lobe: 0, lobeF: 1.4, spike: 0.18 },
     bonus: { kind: "ep", per: 0.45 }, // epMult ×(1 + 0.45·stage)
+    sigParts: ["shard"],
     blurb: "Faceted, geometric, ever-growing. Prestige currencies crystallize faster.",
     bonusText: "+45% Evolution Point gain per stage reached",
     stages: ["Seed Crystal", "Crystal Cluster", "Crystal Growth", "Crystal Entity", "Crystal Colossus", "Crystal Singularity"],
@@ -50,6 +53,7 @@ export const EVO_PATHS = [
 
     profile: { a1: 0.26, f1: 3.4, a2: 0.18, f2: 5.4, a3: 0.12, f3: 7.4, lobe: 0.44, lobeF: 2.4, spike: 0.24 },
     bonus: { kind: "prodclick", per: 0.24 }, // both prod & click ×(1 + 0.24·stage)
+    sigParts: ["tentacle", "eggsac"],
     blurb: "Writhing and ravenous — a relentless generalist that consumes everything.",
     bonusText: "+24% production AND click power per stage reached",
     stages: ["Spore", "Infestation", "Leech", "Infestor", "World-Eater", "Planet Eater"],

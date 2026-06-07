@@ -18,6 +18,7 @@ let raycaster, pointer;
 
 // mutation visuals
 let partsGroup;
+let sigGroup; // Evolution-Path signature parts (managed per stage)
 let partIndex = 0;      // how many parts attached (also the anchor seed)
 let hueShift = 0;       // accumulates per mutation -> creature drifts color
 let stress = 0;         // 0..1 metabolic stress (near the production wall)
@@ -250,7 +251,39 @@ export function setStage(idx, seed = 0, pathId = null) {
   buildCrown(s.crown, s.rings, col);          // grandeur ladder (shards + rings)
   setAura(col, s.auraI);                        // glow + orbiting aura particles
   buildOrbiters(s.orbits, col);                 // detached organs / orbiting stars
+  setStageParts(p, stageIndex, col);            // grow the path's signature anatomy
   return true; // caller should re-seat parts (rebuildVisuals)
+}
+
+// Grow the chosen path's SIGNATURE anatomy, scaled by stage, so the creature
+// reads instantly as Predator/Neural/Crystal/Parasite. Rebuilt each setStage;
+// lives in sigGroup so it never collides with drafted mutation parts.
+function setStageParts(p, stage, col) {
+  if (!sigGroup) return;
+  while (sigGroup.children.length) {
+    const c = sigGroup.children[0];
+    sigGroup.remove(c);
+    c.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose && o.material.dispose(); });
+  }
+  if (!p || !p.sigParts || !p.sigParts.length) return;
+  const count = Math.min(14, 2 + stage * 2); // 4 at Colony → 12 at Cosmic
+  for (let i = 0; i < count; i++) {
+    const type = p.sigParts[i % p.sigParts.length];
+    const part = buildPart(type, col);
+    // dedicated anchor sequence (offset from mutation parts) so they spread out
+    const dir = anchorDir(3 + i * 2);
+    part.quaternion.setFromUnitVectors(UP, dir);
+    const R = surfaceRadius(dir);
+    part.userData.fromPos = dir.clone().multiplyScalar(R * 0.55);
+    part.userData.toPos = dir.clone().multiplyScalar(R - 0.05);
+    part.position.copy(part.userData.toPos);
+    part.userData.growT = 0;
+    part.userData.targetScale = 0.85 + Math.min(0.5, stage * 0.1); // grander at higher stages
+    part.userData.baseRotZ = part.rotation.z;
+    if (part.userData.seed === undefined) part.userData.seed = i * 1.7;
+    part.scale.setScalar(0.0001);
+    sigGroup.add(part);
+  }
 }
 
 // Small bright bodies that orbit the creature at the top stages — detached
@@ -445,6 +478,10 @@ export function initCreature(canvasEl, onClick) {
   // parts ride on the organism so they spin/scale with it
   partsGroup = new THREE.Group();
   organism.add(partsGroup);
+  // path-signature parts (claws / shards / neurons / egg sacs) live in their own
+  // group so they're managed by stage/path without touching mutation parts
+  sigGroup = new THREE.Group();
+  organism.add(sigGroup);
   applyHue();
 
   // click + drag-to-orbit handling
@@ -623,35 +660,8 @@ export function renderCreature(dt, elapsed) {
     if (bp < 0.14) blinkAmt = 1 - Math.abs(bp - 0.07) / 0.07;
   }
 
-  if (partsGroup) {
-    for (const p of partsGroup.children) {
-      // emerge: grow + push out of the skin (juicy overshoot)
-      if (p.userData.growT < 1) {
-        p.userData.growT = Math.min(1, p.userData.growT + dt * 2.0);
-        p.scale.setScalar(Math.max(0.0001, easeOutBack(p.userData.growT) * p.userData.targetScale));
-        if (p.userData.fromPos && p.userData.toPos) {
-          p.position.lerpVectors(p.userData.fromPos, p.userData.toPos, p.userData.growT);
-        }
-      } else {
-        // ease toward current targetScale so evolution-stage level-ups animate in
-        const cur = p.scale.x, tgt = p.userData.targetScale;
-        if (Math.abs(cur - tgt) > 0.002) p.scale.setScalar(cur + (tgt - cur) * Math.min(1, dt * 3));
-      }
-      if (p.userData.sway) {
-        p.rotation.z = p.userData.baseRotZ + Math.sin(elapsed * 2 + p.userData.seed) * 0.18;
-      }
-      if (p.userData.look) {
-        p.userData.look.rotation.x = gazeX;
-        p.userData.look.rotation.z = gazeZ;
-        if (p.userData.growT >= 1) p.scale.y = p.scale.x * (1 - blinkAmt * 0.85);
-      }
-      if (p.userData.jaw) {
-        const open = Math.max(0, Math.sin(elapsed * 1.1 + p.userData.seed)) * 0.5;
-        p.userData.jaw.upper.rotation.x = -open;
-        p.userData.jaw.lower.rotation.x = open;
-      }
-    }
-  }
+  animatePartGroup(partsGroup, dt, elapsed, blinkAmt, gazeX, gazeZ);
+  animatePartGroup(sigGroup, dt, elapsed, blinkAmt, gazeX, gazeZ);
 
   // animate the Mitogen Bloom (pulse + spin); auto-despawn if ignored
   if (activeBloom) {
@@ -840,7 +850,106 @@ function buildExtraBody() {
   return g;
 }
 
-function buildPart(type) {
+// ---- Evolution-Path signature parts (so a screenshot screams the lineage) ----
+// Predator: curved claws. Builds toward a bladed, armoured silhouette.
+function buildClaw() {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0x2b2b33, roughness: 0.3, metalness: 0.5, flatShading: true });
+  const tipMat = new THREE.MeshStandardMaterial({ color: 0xffd0a0, emissive: 0xff7a3d, emissiveIntensity: 0.5, roughness: 0.2, metalness: 0.4, flatShading: true });
+  for (let i = 0; i < 3; i++) {
+    const seg = new THREE.Group();
+    const len = 0.34 - i * 0.05;
+    const claw = new THREE.Mesh(new THREE.ConeGeometry(0.05, len, 5), mat);
+    claw.position.y = len / 2;
+    claw.rotation.x = -0.5; // hook forward
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.022, len * 0.3, 5), tipMat);
+    tip.position.y = len * 0.5; claw.add(tip);
+    seg.add(claw);
+    seg.rotation.z = (i - 1) * 0.4;
+    g.add(seg);
+  }
+  return g;
+}
+// Crystal: a cluster of angular shards / wing — faceted, refractive, glowing.
+function buildShard(color = 0x9fe8ff) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6, roughness: 0.05, metalness: 0.85, flatShading: true, transparent: true, opacity: 0.92 });
+  for (let i = 0; i < 5; i++) {
+    const h = 0.5 - i * 0.07;
+    const shard = new THREE.Mesh(new THREE.OctahedronGeometry(0.07 + i * 0.005, 0), mat);
+    shard.scale.set(0.5, 2.4, 0.5); // elongate into a blade
+    const a = (i - 2) * 0.42;
+    shard.position.set(Math.sin(a) * 0.14, h * 0.5 + 0.05, 0);
+    shard.rotation.z = a;
+    g.add(shard);
+  }
+  return g;
+}
+// Neural: floating glowing neuron orbs with a thin connecting tendril (electric).
+function buildNeuron(color = 0x6fd6ff) {
+  const g = new THREE.Group();
+  const core = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.6, roughness: 0.25 });
+  const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 0.26, 5), matte(0x9fb6d0));
+  stalk.position.y = 0.13; g.add(stalk);
+  for (let i = 0; i < 3; i++) {
+    const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(0.06 - i * 0.012, 0), core);
+    orb.position.set(Math.sin(i * 2.1) * 0.1, 0.26 + i * 0.09, Math.cos(i * 2.1) * 0.06);
+    orb.userData.flick = true;
+    g.add(orb);
+  }
+  g.userData.sway = true;
+  return g;
+}
+// Parasite: a translucent egg sac bulging with dark eggs.
+function buildEggSac(color = 0x9be36b) {
+  const g = new THREE.Group();
+  const sac = new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 12),
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35, roughness: 0.4, transparent: true, opacity: 0.6 }));
+  sac.scale.set(1, 1.3, 1); sac.position.y = 0.2; g.add(sac);
+  const eggMat = matte(0x14361c);
+  for (let i = 0; i < 6; i++) {
+    const egg = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), eggMat);
+    const a = i * 1.4;
+    egg.position.set(Math.sin(a) * 0.07, 0.16 + (i % 3) * 0.08, Math.cos(a) * 0.05);
+    g.add(egg);
+  }
+  g.userData.sway = true;
+  return g;
+}
+
+// Animate every part in a group: emerge/grow, ease to level-up scale, sway,
+// eye-gaze + blink, jaw chomp, neuron flicker. Shared by mutation + signature parts.
+function animatePartGroup(grp, dt, elapsed, blinkAmt, gazeX, gazeZ) {
+  if (!grp) return;
+  for (const p of grp.children) {
+    if (p.userData.growT < 1) {
+      p.userData.growT = Math.min(1, p.userData.growT + dt * 2.0);
+      p.scale.setScalar(Math.max(0.0001, easeOutBack(p.userData.growT) * p.userData.targetScale));
+      if (p.userData.fromPos && p.userData.toPos) p.position.lerpVectors(p.userData.fromPos, p.userData.toPos, p.userData.growT);
+    } else {
+      const cur = p.scale.x, tgt = p.userData.targetScale;
+      if (Math.abs(cur - tgt) > 0.002) p.scale.setScalar(cur + (tgt - cur) * Math.min(1, dt * 3));
+    }
+    if (p.userData.sway) p.rotation.z = p.userData.baseRotZ + Math.sin(elapsed * 2 + p.userData.seed) * 0.18;
+    if (p.userData.look) {
+      p.userData.look.rotation.x = gazeX;
+      p.userData.look.rotation.z = gazeZ;
+      if (p.userData.growT >= 1) p.scale.y = p.scale.x * (1 - blinkAmt * 0.85);
+    }
+    if (p.userData.jaw) {
+      const open = Math.max(0, Math.sin(elapsed * 1.1 + p.userData.seed)) * 0.5;
+      p.userData.jaw.upper.rotation.x = -open;
+      p.userData.jaw.lower.rotation.x = open;
+    }
+    if (p.userData.seed !== undefined) { // neuron orbs flicker like synapses
+      p.traverse((o) => {
+        if (o.userData.flick && o.material) o.material.emissiveIntensity = 1.0 + Math.abs(Math.sin(elapsed * 6 + o.position.x * 9)) * 1.4;
+      });
+    }
+  }
+}
+
+function buildPart(type, color) {
   switch (type) {
     case "eye": return buildEye();
     case "spike": return buildSpikeCluster();
@@ -849,6 +958,10 @@ function buildPart(type) {
     case "frond": return buildFrond();
     case "cilia": return buildCilia();
     case "body": return buildExtraBody();
+    case "claw": return buildClaw();
+    case "shard": return buildShard(color);
+    case "neuron": return buildNeuron(color);
+    case "eggsac": return buildEggSac(color);
     default: {
       const g = new THREE.Group();
       g.add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), glossy(0xffffff)));
