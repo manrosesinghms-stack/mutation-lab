@@ -723,6 +723,20 @@ html, body {
   20%  { transform: translateY(-6px) scale(1.15); }
   100% { opacity: 0; transform: translateY(-60px) scale(1); }
 }
+/* passive-income readout: dimmer + smaller, drifts higher and slower than a click
+   number so it reads as "the colony is earning" rather than a tap reward */
+.float-num--passive {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(123,227,176,.72);
+  text-shadow: 0 1px 6px rgba(0,0,0,.55);
+  animation: floatUpPassive 1.6s ease-out forwards;
+}
+@keyframes floatUpPassive {
+  0%   { opacity: 0; transform: translateY(0) scale(.7); }
+  18%  { opacity: .85; transform: translateY(-10px) scale(1); }
+  100% { opacity: 0; transform: translateY(-78px) scale(.95); }
+}
 
 /* particles (biomass splatter, purchase bursts, mutation confetti) */
 .particle {

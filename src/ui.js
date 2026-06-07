@@ -1250,16 +1250,16 @@ export function showChoice(title, sub, options, onPick) {
 }
 
 // Floating "+N" number at a screen position.
-export function spawnFloatNumber(x, y, text) {
+export function spawnFloatNumber(x, y, text, variant) {
   const node = document.createElement("div");
-  node.className = "float-num";
+  node.className = variant ? "float-num float-num--" + variant : "float-num";
   node.textContent = text;
   node.style.left = x + "px";
   node.style.top = y + "px";
   // small horizontal jitter so rapid clicks fan out
   node.style.transform = `translateX(${(Math.random() * 24 - 12) | 0}px)`;
   el.fx.appendChild(node);
-  setTimeout(() => node.remove(), 900);
+  setTimeout(() => node.remove(), variant === "passive" ? 1700 : 900);
 }
 
 export function flashStatus(msg) {

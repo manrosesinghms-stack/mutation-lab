@@ -123,7 +123,7 @@ import * as audio from "./audio.js";
 import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme, hasTheme, setMusicStress, setMusicDanger } from "./music.js";
 import { initCinematic, playCinematic } from "./cinematic.js";
 import { initJuice, burst, shake, updateJuice, flash, setShakeScale, setJuiceReduceMotion, ripple, flyToCounter } from "./juice.js";
-import { initBackground, renderBackground, setBackground, hasBackground, resizeBackground, setBackgroundReduceMotion, setDnaStorm } from "./background.js";
+import { initBackground, renderBackground, setBackground, setWorldStage, hasBackground, resizeBackground, setBackgroundReduceMotion, setDnaStorm } from "./background.js";
 
 // screen-center of the 3D stage, for big bursts
 function stageCenter() {
@@ -298,7 +298,7 @@ initUI({
     save();
   },
   onSetNaming: (v) => { state.namingStyle = v; save(); },
-  onSetBackground: (v) => { state.background = v; setBackground(v); save(); },
+  onSetBackground: (v) => { state.background = v; applyWorld(); save(); },
   onSpeciate: () => {
     const prevStage = evolutionStage().index;
     const res = doSpeciate();
@@ -736,8 +736,14 @@ setReduceMotion(!!state.reduceMotion);
 setJuiceReduceMotion(!!state.reduceMotion);
 setBackgroundReduceMotion(!!state.reduceMotion);
 setEyeTracking(!!state.eyeTrack);
-if (!hasBackground(state.background)) state.background = "aurora";
-setBackground(state.background);
+if (!hasBackground(state.background)) state.background = "world"; // default: backdrop escalates with evolution stage
+// Apply the backdrop: "world" = stage-driven escalation, anything else = locked theme.
+let _lastWorldStage = -1;
+function applyWorld() {
+  if ((state.background || "world") === "world") { _lastWorldStage = evolutionStage().index; setWorldStage(_lastWorldStage); }
+  else setBackground(state.background);
+}
+applyWorld();
 setHabitat(state.biome); // theme the 3D habitat to the run's biome
 setVariant(state.variant); // apply any rare run variant
 applyCreatureSkin();       // base body = cosmetic skin, else current species tier
@@ -746,9 +752,10 @@ if (pathChoiceDue() && !state.pathPrompted) { state.pathPrompted = true; setTime
 
 const BIOME_ICON = { ocean: "🌊", volcanic: "🌋", verdant: "🌿", glacial: "❄️", abyssal: "🌌", voidrift: "🕳️" };
 function startNewRun(silent) {
-  // roll a biome → sets the backdrop + a build buff for this run
+  // roll a biome → sets a build buff + 3D habitat for this run. In "world" mode the
+  // 2D backdrop tracks your evolution stage (not the biome), so the world escalates.
   const biome = rollBiome();
-  setBackground(biome.background);
+  if ((state.background || "world") === "world") applyWorld(); else setBackground(biome.background);
   setHabitat(biome.id);
   // re-roll the per-run silhouette jitter, then apply the PERMANENT evolution
   // stage (drives body + crown + aura + orbiters). Rank never resets, so the
@@ -1172,6 +1179,7 @@ let droneFxGain = 0;
 // working-producer throttle: organelles emit biomass motes toward the counter,
 // at a rate scaled by production/sec (so the screen SHOWS the economy running)
 let prodMoteAccum = 0;
+let prodFloatAccum = 0; // throttle for the readable "+N/s" passive-income float
 
 function update() {
   const now = performance.now();
@@ -1187,6 +1195,12 @@ function update() {
   if (rate > 0) addBiomass(rate * dt);
   drainLeeches(rate, dt); // parasites skim production into themselves
   updateDrifters(dt); // ambient clickable visitors floating across the pond
+  // "Living World": the backdrop escalates the moment your evolution stage changes
+  // (micro pond → ocean → planet → cosmos), so the world grows around the creature.
+  if ((state.background || "world") === "world") {
+    const sIdx = evolutionStage().index;
+    if (sIdx !== _lastWorldStage) { _lastWorldStage = sIdx; setWorldStage(sIdx); }
+  }
   // working producers: organelles fire biomass motes into the counter, denser as
   // /sec grows — so you SEE production happening (Cookie-Clicker cookies-flowing).
   if (rate > 0 && !state.reduceMotion && !document.hidden) {
@@ -1198,6 +1212,14 @@ function update() {
       if (m) flyToCounter(m.sx, m.sy, m.color);
     }
     if (prodMoteAccum > 8) prodMoteAccum = 0; // never bank a backlog
+    // readable passive-income float: every ~2.4s a "+N" rises off the creature so
+    // passive /sec is legible as an actual NUMBER, not just flowing motes.
+    prodFloatAccum += dt;
+    if (prodFloatAccum >= 2.4) {
+      const c = stageCenter();
+      spawnFloatNumber(c.x + (Math.random() * 70 - 35), c.y - 64, "+" + formatNumber(rate) + "/s", "passive");
+      prodFloatAccum = 0;
+    }
   }
 
   // Mitosis Engine node: auto-buy organelles (only when toggled on)

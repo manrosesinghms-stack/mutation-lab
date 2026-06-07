@@ -21,9 +21,24 @@ const THEMES = {
 };
 const ORDER = ["aurora", "abyss", "cosmos", "ember", "meadow", "voidd"];
 
-export const BACKGROUNDS = Object.keys(THEMES).map((id) => ({ id, name: THEMES[id].name }));
+// "🌍 Living World" is listed first so it's the obvious default: the backdrop
+// tracks your Evolution stage, so the WORLD visibly grows around the creature
+// (micro pond → ocean → volcanic surface → planet → cosmos → void) the way Cookie
+// Clicker escalates kitchen → factory → universe. Picking any specific theme below
+// locks the backdrop to that theme instead.
+export const BACKGROUNDS = [{ id: "world", name: "🌍 Living World" }]
+  .concat(Object.keys(THEMES).map((id) => ({ id, name: THEMES[id].name })));
 export function setBackground(id) { if (THEMES[id]) { themeId = id; seed(); } }
-export function hasBackground(id) { return !!THEMES[id]; }
+export function hasBackground(id) { return id === "world" || !!THEMES[id]; }
+
+// One backdrop per Evolution stage (indices match EVO_STAGES in data/stages.js).
+const STAGE_THEMES = ["aurora", "meadow", "abyss", "ember", "cosmos", "voidd"];
+// Escalate the backdrop to match the creature's macro-stage. Cheap: only reseeds
+// when the stage actually changes a theme, so it's safe to call every frame.
+export function setWorldStage(idx) {
+  const id = STAGE_THEMES[Math.max(0, Math.min(STAGE_THEMES.length - 1, idx | 0))];
+  if (THEMES[id] && id !== themeId) { themeId = id; seed(); }
+}
 
 export function initBackground(canvasEl) {
   canvas = canvasEl;
