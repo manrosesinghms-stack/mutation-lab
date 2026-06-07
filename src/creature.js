@@ -5,6 +5,7 @@
 
 import * as THREE from "three";
 import { speciesTier } from "./data/tiers.js";
+import { EVO_STAGES } from "./data/stages.js";
 
 let renderer, scene, camera, organism, light;
 let canvas;
@@ -184,8 +185,11 @@ function makeOrganismGeometry(detail = 3, radius = 1) {
 // ---- Species Tier "ascension crown": orbiting glowing shards + halo rings that
 // escalate with each Speciation, so a higher lineage instantly looks grander. ----
 let tierGroup, tierIndex = 0;
-export function setSpeciesTier(n) {
-  tierIndex = Math.max(0, n | 0);
+
+// Build the orbiting "ascension crown" (glowing shards + halo rings) for a given
+// shard/ring count + color. Shared by the legacy per-Speciation tier and the new
+// permanent Evolution Stage.
+function buildCrown(crown, rings, colorHex) {
   if (!scene) return;
   if (!tierGroup) { tierGroup = new THREE.Group(); scene.add(tierGroup); }
   while (tierGroup.children.length) {
@@ -194,24 +198,91 @@ export function setSpeciesTier(n) {
     if (c.geometry) c.geometry.dispose();
     if (c.material) c.material.dispose();
   }
-  const T = speciesTier(tierIndex);
-  const col = new THREE.Color(T.color);
-  for (let i = 0; i < T.crown; i++) {
+  const col = new THREE.Color(colorHex);
+  for (let i = 0; i < crown; i++) {
     const m = new THREE.Mesh(
       new THREE.OctahedronGeometry(0.12, 0),
       new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 1.5, flatShading: true, metalness: 0.3, roughness: 0.2 }));
-    m.userData.ang = (i / T.crown) * Math.PI * 2;
+    m.userData.ang = (i / crown) * Math.PI * 2;
     m.userData.tilt = (i % 2 ? 0.35 : -0.22);
     m.userData.shard = true;
     tierGroup.add(m);
   }
-  for (let r = 0; r < T.rings; r++) {
+  for (let r = 0; r < rings; r++) {
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(1.0, 0.016, 8, 72),
       new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
     ring.rotation.x = Math.PI / 2 + (r * 0.45 - 0.2);
     ring.userData.ring = true;
     tierGroup.add(ring);
+  }
+}
+
+export function setSpeciesTier(n) {
+  tierIndex = Math.max(0, n | 0);
+  const T = speciesTier(tierIndex);
+  buildCrown(T.crown, T.rings, T.color);
+}
+
+// ---- Evolution Stage: the PERMANENT macro-transformation (Cell → Cosmic) ----
+// Drives body silhouette + crown grandeur + aura + orbiting bodies all at once,
+// so each stage reads as a genuine transformation, not a recolor. `seed` adds
+// per-run silhouette jitter so two creatures at the same stage still differ.
+let stageIndex = 0, orbiterGroup;
+export function setStage(idx, seed = 0) {
+  stageIndex = Math.max(0, Math.min(EVO_STAGES.length - 1, idx | 0));
+  const s = EVO_STAGES[stageIndex];
+  // body silhouette
+  shapeProfile = { ...s.profile };
+  shapeSeed = seed * 0.137;
+  bodyDetail = s.detail;
+  const j = (k) => 1 + Math.sin(seed * 12.9898 + k) * 0.5 * 0.14; // deterministic per-run jitter
+  bodyScale.set(s.scale[0] * j(1), s.scale[1] * j(2), s.scale[2] * j(3));
+  rebuildBody();
+  // crown + halo rings
+  buildCrown(s.crown, s.rings, s.color);
+  // aura colour + intensity
+  setAura(s.auraColor, s.auraI);
+  // orbiting bodies: detached organs (planetary) / stars (cosmic)
+  buildOrbiters(s.orbits, s.color);
+  return true; // caller should re-seat parts (rebuildVisuals)
+}
+
+// Small bright bodies that orbit the creature at the top stages — detached
+// organs / captured stars. Disposed + rebuilt each stage change.
+function buildOrbiters(n, colorHex) {
+  if (!scene) return;
+  if (!orbiterGroup) { orbiterGroup = new THREE.Group(); scene.add(orbiterGroup); }
+  while (orbiterGroup.children.length) {
+    const c = orbiterGroup.children[0];
+    orbiterGroup.remove(c);
+    if (c.geometry) c.geometry.dispose();
+    if (c.material) c.material.dispose();
+  }
+  const col = new THREE.Color(colorHex);
+  for (let i = 0; i < n; i++) {
+    const m = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(0.1 + Math.sin(i * 2.3) * 0.03 + 0.05, 0),
+      new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 2.2, flatShading: true, metalness: 0.2, roughness: 0.3 }));
+    m.userData.ang = (i / n) * Math.PI * 2;
+    m.userData.rad = 2.1 + (i % 3) * 0.35;     // orbit radius band
+    m.userData.tilt = (i % 2 ? 0.5 : -0.4);    // orbit-plane tilt
+    m.userData.spd = 0.25 + (i % 4) * 0.06;    // orbital speed
+    orbiterGroup.add(m);
+  }
+}
+
+function updateOrbiters(dt, elapsed) {
+  if (!orbiterGroup) return;
+  for (const c of orbiterGroup.children) {
+    const a = c.userData.ang + elapsed * c.userData.spd;
+    const rad = c.userData.rad * currentScale;
+    c.position.set(
+      Math.cos(a) * rad,
+      Math.sin(a * 0.7 + c.userData.tilt) * 0.7 * currentScale,
+      Math.sin(a) * rad);
+    c.rotation.x += dt * 1.1;
+    c.rotation.y += dt * 0.9;
   }
 }
 
@@ -587,6 +658,7 @@ export function renderCreature(dt, elapsed) {
 
   updateHabitat(dt, elapsed);
   updateTierCrown(dt, elapsed);
+  updateOrbiters(dt, elapsed);
   updateAuraParticles(elapsed);
   updateVeins(elapsed);
   if (skinShellMat) skinShellMat.uniforms.uTime.value = elapsed;

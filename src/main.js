@@ -31,6 +31,7 @@ import {
   plantSeed,
   harvestPlot,
   claimColonyNode,
+  evolutionStage,
   buyMachine,
   buyAutomator,
   toggleAutomator,
@@ -75,6 +76,7 @@ import {
   prestigeFlash,
   cinematicPulse,
   pulse,
+  setStage,
   rebuildVisuals,
   setStress,
   resetParts,
@@ -205,6 +207,7 @@ initUI({
   },
   onEvolve: () => {
     if (!canPrestige()) { flashStatus("not enough biomass to evolve"); return; }
+    const prevStage = evolutionStage().index;
     const gained = doPrestige();
     // PRESTIGE EXPLOSION
     prestigeFlash();
@@ -213,9 +216,10 @@ initUI({
     shake(18);
     const c = stageCenter();
     burst(c.x, c.y, { count: 60, color: "#b88cff", spread: 200, up: 0, life: 900 });
-    flashStatus(`evolved! +${formatNumber(gained)} EP`);
+    flashStatus(`evolved! +${formatNumber(gained)} EP · Evolution Rank ${evolutionStage().rank}`);
     openDraft();
     startNewRun();
+    maybeStageUp(prevStage);
     save();
   },
   onMute: () => {
@@ -260,13 +264,12 @@ initUI({
   onSetNaming: (v) => { state.namingStyle = v; save(); },
   onSetBackground: (v) => { state.background = v; setBackground(v); save(); },
   onSpeciate: () => {
+    const prevStage = evolutionStage().index;
     const res = doSpeciate();
     if (!res) { flashStatus("can't speciate yet — reach the wall first"); return; }
     resetParts();        // new lineage starts bald, re-grows as you draft
     applyCreatureSkin(); // ascend the BASE body to the new species tier
     const tier = speciesTier(state.speciations || 0);
-    setSpeciesTier(state.speciations || 0); // grander orbiting ascension crown
-    setAura(speciesTierColor(state.speciations || 0), 1.2);
     refreshGhosts();
     audio.playEvolve();
     const tcol = "#" + tier.color.toString(16).padStart(6, "0");
@@ -282,17 +285,19 @@ initUI({
       : `ASCENDED → ${tier.name} form · +${formatNumber(res.gain)} Genome (draft mutations to bank a Species card)`);
     grantReroll(1);
     startNewRun();
+    maybeStageUp(prevStage);
     save();
   },
   onTranscend: () => {
     if (!canTranscend()) { flashStatus("can't Transcend yet — reach 8 Speciations first"); return; }
+    const prevStage = evolutionStage().index;
     const res = doTranscend();
     if (!res) return;
     resetParts();
     applyCreatureSkin();
-    setSpeciesTier(0);
-    setAura(0xffffff, 1.4);
-    setBodyShape(0, (state.runShapeSeed = Math.floor(Math.random() * 100000)));
+    // NOTE: do NOT reset the creature to a blob here. Evolution Rank is permanent,
+    // so startNewRun()'s setStage() keeps the creature at its hard-earned stage —
+    // Transcend rebuilds the run, not your monster.
     refreshGhosts();
     audio.playEvolve(); audio.playRoar();
     cinematicPulse();
@@ -302,6 +307,7 @@ initUI({
     playCinematic("✦ TRANSCENDENCE ✦", `+${formatNumber(res.gain)} Helix · everything reborn`, "#c8a0ff");
     flashStatus(`✦ TRANSCENDED — +${formatNumber(res.gain)} Helix. The Helix Tree awaits.`);
     startNewRun();
+    maybeStageUp(prevStage);
     save();
   },
   onBuyUpgrade: (id) => {
@@ -580,13 +586,14 @@ function autoEvolve() {
   save();
 }
 function autoSpeciate() {
+  const prevStage = evolutionStage().index;
   const res = doSpeciate();
   if (!res) return;
   resetParts();
   applyCreatureSkin();
-  setSpeciesTier(state.speciations || 0);
   refreshGhosts();
   startNewRun(true);
+  maybeStageUp(prevStage);
   save();
 }
 
@@ -658,7 +665,7 @@ initCinematic();
 // restore creature parts from a saved game (visual mutations only)
 if (state.runShapeSeed == null) state.runShapeSeed = 1;
 setQuality(state.graphics || "medium"); // apply graphics quality (part cap, resolution, effects)
-setBodyShape(state.speciations || 0, state.runShapeSeed); // shape the body BEFORE seating parts
+setStage(evolutionStage().index, state.runShapeSeed); // permanent evolution stage drives the body BEFORE seating parts
 const savedParts = state.mutations
   .map((id) => getMutation(id))
   .filter((d) => d && d.part)
@@ -685,7 +692,7 @@ setBackground(state.background);
 setHabitat(state.biome); // theme the 3D habitat to the run's biome
 setVariant(state.variant); // apply any rare run variant
 applyCreatureSkin();       // base body = cosmetic skin, else current species tier
-setSpeciesTier(state.speciations || 0); // restore the ascension crown
+// (crown/aura/orbiters already restored by setStage() above — driven by permanent rank)
 
 const BIOME_ICON = { ocean: "🌊", volcanic: "🌋", verdant: "🌿", glacial: "❄️", abyssal: "🌌", voidrift: "🕳️" };
 function startNewRun(silent) {
@@ -693,13 +700,32 @@ function startNewRun(silent) {
   const biome = rollBiome();
   setBackground(biome.background);
   setHabitat(biome.id);
-  // re-roll the body silhouette so each run looks different, then re-seat parts
+  // re-roll the per-run silhouette jitter, then apply the PERMANENT evolution
+  // stage (drives body + crown + aura + orbiters). Rank never resets, so the
+  // creature keeps its evolved form across every prestige instead of going blob.
   state.runShapeSeed = Math.floor(Math.random() * 100000);
-  setBodyShape(state.speciations || 0, state.runShapeSeed);
+  setStage(evolutionStage().index, state.runShapeSeed);
   const parts = state.mutations.map((id) => getMutation(id)).filter((d) => d && d.part).map((d) => d.part);
   rebuildVisuals(parts, state.mutations.length);
   if (!silent) flashStatus(`${BIOME_ICON[biome.id] || "🌍"} ${biome.name} — ${biome.desc}`);
   rollAndApplyVariant(silent);
+}
+
+// Fire the big "NEW EVOLUTION STAGE" moment when a prestige pushes the permanent
+// rank across a macro-stage boundary (Cell→Colony→Predator→Apex→Planetary→Cosmic).
+// No-op when the stage didn't change, so it never spams on ordinary Evolves.
+function maybeStageUp(prevStageIdx) {
+  const ns = evolutionStage();
+  if (ns.index <= prevStageIdx) return;
+  const col = "#" + ns.color.toString(16).padStart(6, "0");
+  cinematicPulse();
+  flash(col + "99");
+  shake(30);
+  const c = stageCenter();
+  burst(c.x, c.y, { count: 130, color: col, spread: 340, up: 0, life: 1500 });
+  audio.playRoar();
+  playCinematic(`✦ STAGE ${ns.index + 1}: ${ns.name.toUpperCase()} ✦`, ns.blurb, col);
+  setTimeout(() => flashStatus(`✦ NEW STAGE — your creature is now a ${ns.name}! (Evolution Rank ${ns.rank})`), 30);
 }
 
 function rollAndApplyVariant(silent) {

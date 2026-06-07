@@ -19,6 +19,7 @@ import { SEED_BY_ID } from "./data/garden.js";
 import { SEASON_BY_ID } from "./data/seasons.js";
 import { COLONY_NODES, COLONY_BY_ID } from "./data/colony.js";
 import { DRONES, AUTOMATORS, FACTORY, DRONE_BY_ID, AUTOMATOR_BY_ID, FACTORY_BY_ID, LEVELED_BY_ID } from "./data/machines.js";
+import { EVO_STAGES, STAGE_COUNT, stageForRank, nextStageRank } from "./data/stages.js";
 
 // buy (if needed) + equip a cosmetic skin; returns the skin or null
 export function buySkin(id) {
@@ -281,6 +282,28 @@ export function claimColonyNode(id) {
 }
 export function colonyCount() { return Object.keys(state.colony || {}).length; }
 
+// ---- Evolution Rank (permanent macro-progression) ----
+// Every prestige ADDS rank; nothing ever subtracts it. Rank drives the 6
+// dramatic creature stages, so your monster keeps evolving across resets.
+// Returns { gainedStage: true } when the add crossed into a new stage.
+export function addEvolutionRank(n) {
+  const before = stageForRank(state.evolutionRank || 0);
+  state.evolutionRank = (state.evolutionRank || 0) + n;
+  state.peakRank = Math.max(state.peakRank || 0, state.evolutionRank);
+  const after = stageForRank(state.evolutionRank);
+  return { rank: state.evolutionRank, stageIndex: after, gainedStage: after > before };
+}
+// Everything the UI / creature need about the current stage in one call.
+export function evolutionStage() {
+  const rank = state.evolutionRank || 0;
+  const index = stageForRank(rank);
+  const stage = EVO_STAGES[index];
+  const next = nextStageRank(rank);
+  const curMin = stage.minRank;
+  const progress = next == null ? 1 : Math.max(0, Math.min(1, (rank - curMin) / (next - curMin)));
+  return { rank, index, stage, name: stage.name, blurb: stage.blurb, color: stage.color, nextRank: next, progress, isMax: next == null };
+}
+
 // ---- Automation Bay (drones + automators + factory) ----
 export function machineLevel(id) { return (state.machines && state.machines[id]) || 0; }
 export function machineCost(id) {
@@ -506,6 +529,7 @@ export function doTranscend() {
   const gain = transcendGain();
   state.helix = (state.helix || 0) + gain;
   state.transcensions = (state.transcensions || 0) + 1;
+  addEvolutionRank(10); // permanent — the biggest leap of all
   // wipe the two layers below (Helix + helixNodes + cosmetics/achievements persist)
   const hs = hLvl(state, "headstart");
   state.genome = 2 * hs;
@@ -702,6 +726,7 @@ export function doPrestige() {
   if (gain < 1) return 0;
   state.evolutionPoints = (state.evolutionPoints || 0) + gain;
   state.prestiges = (state.prestiges || 0) + 1;
+  addEvolutionRank(1); // permanent — each Evolve pushes the creature forward
   // wipe the run; keep all meta (EP, mutations). Yolk Reserve gives a head start.
   state.biomass = startBoostBiomass();
   state.runBiomass = state.biomass;
@@ -812,6 +837,7 @@ export function doSpeciate() {
   }
   state.genome = (state.genome || 0) + gain;
   state.speciations = (state.speciations || 0) + 1;
+  addEvolutionRank(3); // permanent — a Speciation is a bigger leap than an Evolve
   // wipe the entire Evolve layer (EP + mutations + generators); Species cards persist
   state.evolutionPoints = 0;
   state.mutations = [];

@@ -30,6 +30,11 @@ function freshState() {
     // --- Transcend layer (3rd prestige; persists across everything) ---
     helix: 0,              // Helix meta-currency from Transcending
     transcensions: 0,      // how many times Transcended
+    evolutionRank: 0,      // PERMANENT progression — NEVER reset by any prestige.
+                           // Every Evolve/Speciate/Transcend adds to it; drives the
+                           // creature's 6 dramatic macro-stages (Cell→Cosmic). This is
+                           // what makes resets feel like collecting, not losing.
+    peakRank: 0,           // highest rank ever (== evolutionRank, kept for clarity/stats)
     helixNodes: {},        // { nodeId: level } purchased Helix meta-tree
     catalyst: 60,          // Reactor spell pool (regenerates over time)
     catalystAt: 0,         // ms timestamp basis for catalyst regen

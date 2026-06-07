@@ -249,6 +249,19 @@ html, body {
 #pressure-warn.hidden { display: none; }
 @keyframes warnPulse { 0%,100% { opacity: .55 } 50% { opacity: 1 } }
 
+/* ---- permanent Evolution Rank strip ---- */
+#evo-rank {
+  background: linear-gradient(180deg, rgba(30,22,46,.6), rgba(14,18,24,.6));
+  border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; margin-bottom: 10px;
+}
+.evo-rank-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.evo-rank-stage { font-size: 13px; font-weight: 700; color: var(--ink); letter-spacing: .02em; }
+.evo-rank-stage b { color: var(--accent); }
+#evo-stage-name { color: var(--accent2); }
+.evo-rank-next { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.evo-rank-bar { margin-top: 7px; height: 7px; border-radius: 999px; background: rgba(255,255,255,.07); overflow: hidden; }
+#evo-rank-fill { height: 100%; width: 0; border-radius: 999px; background: var(--accent); transition: width .3s ease, background .4s ease; box-shadow: 0 0 10px -2px currentColor; }
+
 .evolve {
   width: 100%;
   display: flex; justify-content: space-between; align-items: center;

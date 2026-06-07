@@ -17,9 +17,11 @@ import {
   colonyNodes, colonyCount,
   machineLevel, machineCost, dronesClicksPerSec, dronesPerSec,
   automatorOwned, automatorOn,
+  evolutionStage,
 } from "./economy.js";
 import { COLONY_NODES } from "./data/colony.js";
 import { DRONES, AUTOMATORS, FACTORY } from "./data/machines.js";
+import { EVO_STAGES } from "./data/stages.js";
 import { SEEDS, SEED_BY_ID } from "./data/garden.js";
 import { HELIX_NODES } from "./data/helix.js";
 import { SPELLS } from "./data/spells.js";
@@ -862,6 +864,21 @@ export function renderUI(rate, dt = 0.016) {
   el.biomass.textContent = formatNumber(el._dispBiomass);
   el.rate.textContent = formatNumber(rate);
   el.click.textContent = formatNumber(effectiveClickPower());
+
+  // permanent Evolution Rank + macro-stage (the long-term "what will it become?")
+  const evo = evolutionStage();
+  const rn = document.getElementById("evo-rank-num");
+  if (rn) {
+    rn.textContent = "RANK " + formatNumber(evo.rank);
+    const sn = document.getElementById("evo-stage-name"); if (sn) sn.textContent = evo.name;
+    const nx = document.getElementById("evo-rank-next");
+    if (nx) nx.textContent = evo.isMax ? "FINAL STAGE — apex of evolution" : `next: ${EVO_STAGES[evo.index + 1].name} at Rank ${evo.nextRank}`;
+    const f = document.getElementById("evo-rank-fill");
+    if (f) {
+      f.style.width = (evo.progress * 100).toFixed(1) + "%";
+      f.style.background = "#" + evo.color.toString(16).padStart(6, "0");
+    }
+  }
 
   // active temporary buffs (explains why /sec swings up then drops)
   const buffs = activeBuffs();
