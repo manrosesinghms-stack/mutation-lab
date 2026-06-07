@@ -1042,14 +1042,30 @@ export function startDailyRun() {
 }
 export function endDailyRun() {
   state.dailyBest = state.dailyBest || {};
+  state.dailyScores = state.dailyScores || {}; // seed -> { score, biomass, name } personal best
   const seed = String(todaySeed());
+  const score = buildScore();
+  const prev = state.dailyScores[seed];
+  const improved = !prev || score > (prev.score || 0);
+  if (improved) state.dailyScores[seed] = { score, biomass: state.runBiomass || 0, name: state.dailyName || "Specimen" };
   state.dailyBest[seed] = Math.max(state.dailyBest[seed] || 0, state.runBiomass || 0);
   setDraftSeed(null);
   state.dailyActive = false;
+  return { seed, score, biomass: state.runBiomass || 0, improved };
 }
 export function dailyBestToday() {
   state.dailyBest = state.dailyBest || {};
   return state.dailyBest[String(todaySeed())] || 0;
+}
+export function dailyScoreToday() {
+  state.dailyScores = state.dailyScores || {};
+  return state.dailyScores[String(todaySeed())] || null;
+}
+// Personal "leaderboard": your best daily scores, most recent first.
+export function dailyHistory(limit = 8) {
+  const sc = state.dailyScores || {};
+  return Object.keys(sc).map((seed) => ({ seed, ...sc[seed] }))
+    .sort((a, b) => Number(b.seed) - Number(a.seed)).slice(0, limit);
 }
 
 function speciesStrength(mutList) {

@@ -6,7 +6,7 @@ import {
   costOf, canAfford, isUnlocked,
   epForReset, canPrestige, effectiveClickPower, pressureLevel,
   canSpeciate, genomeForSpeciate, equipSlots, activeBuffs,
-  currentWeekly, dailyBestToday, todaySeed,
+  currentWeekly, dailyBestToday, todaySeed, dailyScoreToday, dailyHistory,
   canTranscend, transcendGain, helixNodeLevel, helixNodeCost,
   canSplice, spliceCooldownLeft, splicesFound,
   availableUpgrades, affordableUpgradeCount,
@@ -668,12 +668,15 @@ export function renderChallenges() {
   const active = state.challenge;
   const wk = currentWeekly();
   const daily = state.dailyActive;
+  const todayScore = dailyScoreToday();
+  const hist = dailyHistory(6);
   el.chalBody.innerHTML = `
     <div class="trait"><div class="tn">📅 Weekly Event — ${wk.name}</div><div class="tf">${wk.desc} · active for everyone this week</div></div>
     <div class="trait ${daily ? "got" : ""}">
-      <div class="tn">🎲 Daily Seed #${todaySeed()}</div>
-      <div class="tf">Same mutation draws for everyone today. Today's best: ${formatNumber(dailyBestToday())} biomass</div>
-      ${daily ? `<button class="ghost" id="daily-end">Finish daily run</button>` : `<button class="ghost" id="daily-start">Start daily run (resets run)</button>`}
+      <div class="tn">🎲 Daily Monster · Seed #${todaySeed()}</div>
+      <div class="tf">Everyone gets the same draws today — grow the best monster you can, then share your Build Score. ${todayScore ? `Today's best: <b>BUILD ${todayScore.score}</b> (${formatNumber(todayScore.biomass)} biomass)` : "Not attempted yet today."}</div>
+      ${daily ? `<button class="ghost" id="daily-end">Finish &amp; share monster</button>` : `<button class="ghost" id="daily-start">Start daily run (resets run)</button>`}
+      ${hist.length ? `<div class="daily-ladder"><div class="dl-h">Your recent dailies</div>${hist.map((h) => `<div class="dl-row"><span>#${h.seed}</span><span>BUILD <b>${h.score}</b></span><span>${formatNumber(h.biomass)}</span></div>`).join("")}</div>` : ""}
     </div>
     <h3>Challenge Runs</h3>
     ${active && active !== "daily" ? `<div class="trait got"><div class="tn">⚔️ Active challenge</div><div class="tf">Reach the goal — or abandon below.</div></div>` : `<p class="help-tip" style="margin-bottom:10px">Starting a challenge resets your current run (your Species, Genome &amp; achievements are kept).</p>`}
@@ -1056,7 +1059,8 @@ const GATED_BTNS = [
   { id: "mutagen-btn",  name: "Mutagen",          when: (s) => (s.speciations || 0) >= 1 },
   { id: "colony-btn",   name: "Colonization Map", when: (s) => (s.speciations || 0) >= 1 },
   { id: "museum-btn",   name: "Species Museum",   when: (s) => ((s.museum || []).length) >= 1 },
-  { id: "chal-btn",     name: "Challenges",       when: (s) => (s.speciations || 0) >= 2 },
+  { id: "genome-btn",   name: "Genome Lab",       when: (s) => (s.speciations || 0) >= 1 },
+  { id: "chal-btn",     name: "Challenges & Daily Monster", when: (s) => (s.speciations || 0) >= 1 || (s.prestiges || 0) >= 3 },
 ];
 let _unlockInit = false;
 const _announced = new Set();

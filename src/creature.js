@@ -1597,7 +1597,7 @@ export function exportSpecimenCard(data) {
   ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = 5 * U;
   ctx.fillStyle = "#9fb3c8"; ctx.font = `${17 * U}px 'Segoe UI', system-ui, sans-serif`;
   ty += 40 * U;
-  for (const line of (data.lines || []).slice(0, 3)) { ctx.fillText(line, pad, ty); ty += 25 * U; }
+  for (const line of (data.lines || []).slice(0, 4)) { ctx.fillText(line, pad, ty); ty += 25 * U; }
 
   // top mutation chips (wrap across the panel width)
   if (data.muts && data.muts.length) {

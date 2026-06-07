@@ -70,6 +70,8 @@ import {
   grantFossil,
   startDailyRun,
   endDailyRun,
+  dailyScoreToday,
+  todaySeed,
   currentWeekly,
   buySkin,
   currentArchetype,
@@ -421,10 +423,13 @@ initUI({
     save();
   },
   onEndDaily: () => {
-    endDailyRun();
-    flashStatus("daily run finished — best score recorded");
+    state.dailyName = creatureName(state.mutations, state.namingStyle || "scientific");
+    const res = endDailyRun();
+    flashStatus(res && res.improved ? `🎲 Daily done — NEW BEST · Build Score ${res.score}!` : `🎲 Daily done — Build Score ${res ? res.score : 0}`);
     renderChallenges();
     save();
+    // the share moment: show the Specimen Card stamped with today's seed + score
+    setTimeout(() => openSpecimenCard(), 400);
   },
 });
 
@@ -1090,11 +1095,12 @@ document.getElementById("photo-shot").addEventListener("click", () => {
 let _cardURL = null;
 function specimenLines() {
   const st = evolutionStage();
-  return [
-    `${st.name} · Day ${(state.prestiges || 0) + 1}`,
-    `${formatNumber(productionPerSecond())} biomass/sec`,
-    `${new Set(state.mutations).size} mutations · ${state.prestiges || 0} evolutions · ${state.speciations || 0} species`,
-  ];
+  const lines = [];
+  if (state.dailyActive || dailyScoreToday()) lines.push(`🎲 Daily #${todaySeed()} — beat my Build Score!`);
+  lines.push(`${st.name} · Day ${(state.prestiges || 0) + 1}`);
+  lines.push(`${formatNumber(productionPerSecond())} biomass/sec`);
+  lines.push(`${new Set(state.mutations).size} mutations · ${state.prestiges || 0} evolutions · ${state.speciations || 0} species`);
+  return lines;
 }
 function topMutations(n = 6) {
   const order = { legendary: 0, rare: 1, common: 2 };
@@ -1278,27 +1284,6 @@ setInterval(() => {
   if (mm && !mm.classList.contains("hidden")) renderMarket();
 }, 4000);
 
-// ---- Progressive disclosure: deeper systems stay hidden until they're relevant,
-// so a new player's first minutes are clean (click → organelle → Evolve → draft)
-// instead of a wall of 16 buttons. Unlocks are STICKY (once shown, always shown —
-// they don't re-lock after a Speciate wipe) and fire a one-time "unlocked!" toast.
-const FEATURE_UNLOCKS = [
-  { id: "digest-btn",   when: (s) => (s.lifetimeBiomass || 0) >= 150,  label: "Digest" },
-  { id: "codex-btn",    when: (s) => (s.prestiges || 0) >= 1 || new Set(s.mutations).size >= 1, label: "Codex" },
-  { id: "paths-btn",    when: (s) => (s.evolutionRank || 0) >= 1,      label: "Evolution Paths" },
-  { id: "museum-btn",   when: (s) => (s.prestiges || 0) >= 1,          label: "Species Museum" },
-  { id: "mutagen-btn",  when: (s) => (s.lifetimeBiomass || 0) >= 3e3,  label: "Mutagen" },
-  { id: "market-btn",   when: (s) => (s.lifetimeBiomass || 0) >= 5e4,  label: "Biomass Market" },
-  { id: "splice-btn",   when: (s) => new Set(s.mutations).size >= 4,   label: "Gene Splicer" },
-  { id: "garden-btn",   when: (s) => (s.lifetimeBiomass || 0) >= 1e5,  label: "Petri Garden" },
-  { id: "reactor-btn",  when: (s) => (s.lifetimeBiomass || 0) >= 5e5,  label: "Reactor" },
-  { id: "machines-btn", when: (s) => (s.lifetimeBiomass || 0) >= 1e6,  label: "Automation Bay" },
-  { id: "chal-btn",     when: (s) => (s.speciations || 0) >= 1 || (s.prestiges || 0) >= 4, label: "Challenges" },
-  { id: "genome-btn",   when: (s) => (s.speciations || 0) >= 1,        label: "Genome Lab" },
-  { id: "pantheon-btn", when: (s) => (s.speciations || 0) >= 1,        label: "Genome Pantheon" },
-  { id: "symbiote-btn", when: (s) => (s.speciations || 0) >= 1,        label: "Symbiote" },
-  { id: "colony-btn",   when: (s) => (s.speciations || 0) >= 1,        label: "Colonization Map" },
-];
 // ---- First-session coach: a single gentle, dismissible next-step nudge that
 // advances with the player (tap → buy → Evolve) and then retires itself forever.
 // Only ever shows for a brand-new player; never nags after the first Evolve.
@@ -1363,22 +1348,7 @@ function updateLabCrew() {
 }
 updateLabCrew(); // restore the crew on boot (no toasts)
 
-let _unlockAt = 0;
-function updateUnlocks() {
-  state.unlocked = state.unlocked || {};
-  const firstPass = !state.unlockInit; // existing saves migrate silently (no toast spam)
-  for (const u of FEATURE_UNLOCKS) {
-    const btn = document.getElementById(u.id);
-    if (!btn) continue;
-    if (!state.unlocked[u.id] && u.when(state)) {
-      state.unlocked[u.id] = true;
-      if (!firstPass) { flashStatus(`🔓 ${u.label} unlocked!`); audio.playMilestone(); }
-    }
-    btn.classList.toggle("locked-feature", !state.unlocked[u.id]);
-  }
-  if (firstPass) state.unlockInit = true;
-}
-updateUnlocks(); // apply gating immediately on boot
+let _unlockAt = 0; // shared throttle timer for the coach + lab crew updates
 
 // ---- offline progress welcome ----
 const offline = applyOfflineProgress();
@@ -1544,7 +1514,7 @@ function update() {
   renderCreature(visualDt, elapsed);
   updateJuice(visualDt);
   renderUI(rate, visualDt);
-  if (now - _unlockAt > 750) { _unlockAt = now; updateUnlocks(); updateCoach(); updateLabCrew(); } // reveal systems + coach + lab crew as milestones hit
+  if (now - _unlockAt > 750) { _unlockAt = now; updateCoach(); updateLabCrew(); } // coach + lab crew as milestones hit (button gating lives in ui.js)
 
   // autosave every 15s
   sinceSave += dt;
