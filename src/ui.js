@@ -19,7 +19,9 @@ import {
   automatorOwned, automatorOn,
   evolutionStage, evoPathId,
   museumList, museumCount,
+  researchName, researchTiers, nextResearch,
 } from "./economy.js";
+import { RESEARCH_TIERS } from "./data/research.js";
 import { COLONY_NODES } from "./data/colony.js";
 import { DRONES, AUTOMATORS, FACTORY } from "./data/machines.js";
 import { EVO_STAGES } from "./data/stages.js";
@@ -915,7 +917,8 @@ function buildGeneratorRows() {
       <div class="name">${g.name}</div>
       <div class="desc">${g.desc}</div>
       <div class="cost">${formatNumber(g.baseCost)}</div>
-      <div class="owned">0</div>`;
+      <div class="owned">0</div>
+      <div class="research"></div>`;
     row.addEventListener("click", () => {
       if (sellMode) uiHandlers.onSell(g.id);
       else if (onBuy) onBuy(g.id, row.getBoundingClientRect());
@@ -1050,6 +1053,19 @@ export function renderUI(rate, dt = 0.016) {
     row.classList.toggle("affordable", affordable);
     row.querySelector(".cost").textContent = formatNumber(cost);
     row.querySelector(".owned").textContent = `×${state.owned[g.id] || 0}`;
+    // research: rename the organelle to its current tier + show next milestone
+    const rName = researchName(g.id);
+    if (rName) {
+      const nameEl = row.querySelector(".name");
+      if (nameEl.textContent !== rName) nameEl.textContent = rName;
+      const tiers = researchTiers(g.id);
+      const next = nextResearch(g.id);
+      const rEl = row.querySelector(".research");
+      rEl.textContent = next
+        ? `⚗ research ${tiers}/${RESEARCH_TIERS.length} · next ×${next.mult} at ${next.at}`
+        : `⚗ research MAXED ${tiers}/${RESEARCH_TIERS.length}`;
+      rEl.classList.toggle("ready", !!next && (state.owned[g.id] || 0) >= next.at);
+    }
   }
 }
 

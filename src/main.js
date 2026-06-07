@@ -32,6 +32,8 @@ import {
   harvestPlot,
   claimColonyNode,
   evolutionStage,
+  researchTiers,
+  researchName,
   chooseEvoPath,
   pathChoiceDue,
   buyMachine,
@@ -127,12 +129,21 @@ function stageCenter() {
 // ---- wire UI ----
 initUI({
   onBuy: (genId, rect) => {
+    const tiersBefore = researchTiers(genId);
     if (buy(genId)) {
       const tier = GENERATORS.findIndex((g) => g.id === genId); // 0..4
       audio.playBuy(tier);
       if (rect) burst(rect.left + rect.width / 2, rect.top + rect.height / 2,
                       { count: 12 + tier * 4, color: "#56e39f", spread: 80 + tier * 15 });
-      flashStatus("organelle acquired");
+      // research milestone crossed → a satisfying unlock moment
+      if (researchTiers(genId) > tiersBefore) {
+        audio.playMilestone(); cinematicPulse(); flash("rgba(120,220,255,.3)");
+        const c = stageCenter();
+        burst(c.x, c.y, { count: 40, color: "#7be3ff", spread: 160, life: 900 });
+        flashStatus(`⚗ RESEARCH UNLOCKED — evolved into ${researchName(genId)}!`);
+      } else {
+        flashStatus("organelle acquired");
+      }
     } else {
       flashStatus("not enough biomass");
     }

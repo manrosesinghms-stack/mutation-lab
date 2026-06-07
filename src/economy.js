@@ -21,6 +21,7 @@ import { COLONY_NODES, COLONY_BY_ID } from "./data/colony.js";
 import { DRONES, AUTOMATORS, FACTORY, DRONE_BY_ID, AUTOMATOR_BY_ID, FACTORY_BY_ID, LEVELED_BY_ID } from "./data/machines.js";
 import { EVO_STAGES, STAGE_COUNT, stageForRank, nextStageRank } from "./data/stages.js";
 import { EVO_PATHS, PATH_BY_ID } from "./data/paths.js";
+import { RESEARCH_TIERS, ORG_NAMES } from "./data/research.js";
 
 // buy (if needed) + equip a cosmetic skin; returns the skin or null
 export function buySkin(id) {
@@ -164,6 +165,11 @@ export function getModifiers() {
     if (u.gen) mods.genMult[u.gen] = (mods.genMult[u.gen] || 1) * u.mult;
     if (u.click) mods.clickMult *= u.click;
     if (u.prod) mods.prodMult *= u.prod;
+  }
+  // Organelle Research — ownership-milestone tiers multiply each organelle
+  for (const g of GENERATORS) {
+    const rm = researchMult(g.id);
+    if (rm > 1) mods.genMult[g.id] = (mods.genMult[g.id] || 1) * rm;
   }
   return mods;
 }
@@ -317,6 +323,34 @@ export function evolutionStage() {
   const name = p ? p.stages[index] : stage.name;
   const color = p ? p.color : stage.color;
   return { rank, index, stage, name, blurb: stage.blurb, color, nextRank: next, progress, isMax: next == null, path: state.evoPath || null, pathData: p };
+}
+
+// ---- Organelle Research (auto-unlocked ownership-milestone tiers) ----
+// How many research tiers an organelle has unlocked (by current owned count).
+export function researchTiers(genId) {
+  const o = state.owned[genId] || 0;
+  let n = 0;
+  for (const t of RESEARCH_TIERS) if (o >= t.at) n++;
+  return n;
+}
+// Compounding ×multiplier from all unlocked tiers.
+export function researchMult(genId) {
+  const o = state.owned[genId] || 0;
+  let m = 1;
+  for (const t of RESEARCH_TIERS) if (o >= t.at) m *= t.mult;
+  return m;
+}
+// Current escalating name (Ribosome → Molecular Forge → …).
+export function researchName(genId) {
+  const names = ORG_NAMES[genId];
+  if (!names) return null;
+  return names[Math.min(researchTiers(genId), names.length - 1)];
+}
+// Next milestone {at, mult} or null if maxed.
+export function nextResearch(genId) {
+  const o = state.owned[genId] || 0;
+  for (const t of RESEARCH_TIERS) if (o < t.at) return t;
+  return null;
 }
 
 // ---- Species Museum (permanent lineage archive) ----
