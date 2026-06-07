@@ -252,6 +252,7 @@ export function setStage(idx, seed = 0, pathId = null) {
   setAura(col, s.auraI);                        // glow + orbiting aura particles
   buildOrbiters(s.orbits, col);                 // detached organs / orbiting stars
   setStageParts(p, stageIndex, col);            // grow the path's signature anatomy
+  setPathHabitat(pathId, stageIndex);           // theme the WORLD to the lineage
   return true; // caller should re-seat parts (rebuildVisuals)
 }
 
@@ -428,6 +429,110 @@ function updateHabitat(dt, elapsed) {
   }
   p.needsUpdate = true;
   if (habitatGroup && !reduceMotion) habitatGroup.rotation.y += dt * 0.01;
+}
+
+// ---- Path-themed habitat: real scenery on the floor that matches the lineage,
+// so the creature lives in a WORLD (crystal cavern / bone ground / synaptic
+// network / fleshy nest) instead of floating in a void. ----
+let sceneryGroup;
+const PATH_HABITAT = {
+  predator: { fog: 0x1a0c08, floor: 0x2a1510, mote: 0xffae6b },
+  neural:   { fog: 0x081626, floor: 0x0e2238, mote: 0x8fd6ff },
+  crystal:  { fog: 0x0a1c2a, floor: 0x123040, mote: 0xbfeeff },
+  parasite: { fog: 0x0c1a0e, floor: 0x14301a, mote: 0xaef07a },
+};
+// deterministic pseudo-random so scenery is stable within a stage (no Math.random churn)
+function srand(i) { const x = Math.sin(i * 127.1 + 311.7) * 43758.5; return x - Math.floor(x); }
+
+export function setPathHabitat(pathId, stage) {
+  const h = PATH_HABITAT[pathId];
+  if (h) {
+    if (scene && scene.fog) scene.fog.color.setHex(h.fog);
+    if (floorMesh) { floorMesh.material.color.setHex(h.floor); floorMesh.material.emissive.setHex(h.floor); }
+    if (motes) motes.material.color.setHex(h.mote);
+  }
+  buildPathScenery(pathId, stage || 0);
+}
+
+function buildPathScenery(pathId, stage) {
+  if (!habitatGroup) return;
+  if (!sceneryGroup) { sceneryGroup = new THREE.Group(); habitatGroup.add(sceneryGroup); }
+  while (sceneryGroup.children.length) {
+    const c = sceneryGroup.children[0];
+    sceneryGroup.remove(c);
+    c.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); });
+  }
+  if (!pathId || (QUALITY && QUALITY.maxParts <= 12)) return; // skip heavy scenery on Low
+  const n = Math.min(14, 7 + stage); // more props as the world matures
+  const FLOOR_Y = -2.28;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + srand(i) * 0.5;
+    const r = 3.0 + srand(i + 50) * 2.2;          // ring around the creature
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    const prop = buildSceneryProp(pathId, i, stage);
+    if (!prop) continue;
+    prop.position.set(x, FLOOR_Y, z);
+    prop.rotation.y = srand(i + 9) * Math.PI * 2;
+    const s = 0.7 + srand(i + 3) * 0.8 + stage * 0.06;
+    prop.scale.setScalar(s);
+    sceneryGroup.add(prop);
+  }
+}
+
+function buildSceneryProp(pathId, i, stage) {
+  const g = new THREE.Group();
+  if (pathId === "crystal") {
+    // a cluster of glowing crystal spires jutting from the ground
+    const mat = new THREE.MeshStandardMaterial({ color: 0x9fe8ff, emissive: 0x4aa8d8, emissiveIntensity: 0.7, roughness: 0.08, metalness: 0.8, flatShading: true, transparent: true, opacity: 0.9 });
+    const k = 2 + (i % 3);
+    for (let j = 0; j < k; j++) {
+      const h = 0.8 + srand(i * 7 + j) * 1.6;
+      const spire = new THREE.Mesh(new THREE.ConeGeometry(0.16, h, 5), mat);
+      spire.position.set((srand(i + j) - 0.5) * 0.5, h / 2, (srand(i - j) - 0.5) * 0.5);
+      spire.rotation.z = (srand(i * 3 + j) - 0.5) * 0.4;
+      g.add(spire);
+    }
+  } else if (pathId === "predator") {
+    // bone-strewn hunting ground — pale rib/spike shapes tilted out of the dirt
+    const bone = new THREE.MeshStandardMaterial({ color: 0xe8e2cf, roughness: 0.6, metalness: 0.05, flatShading: true });
+    const k = 1 + (i % 3);
+    for (let j = 0; j < k; j++) {
+      const h = 0.9 + srand(i * 5 + j) * 1.4;
+      const rib = new THREE.Mesh(new THREE.ConeGeometry(0.09, h, 5), bone);
+      rib.position.set((srand(i + j) - 0.5) * 0.7, h / 2, (srand(i - j) - 0.5) * 0.5);
+      rib.rotation.set((srand(i + 2) - 0.5) * 0.8, 0, (srand(i + 4) - 0.5) * 0.9); // jutting at angles
+      g.add(rib);
+    }
+  } else if (pathId === "neural") {
+    // synaptic node on a thin stalk, glowing + pulsing
+    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.04, 1.0 + srand(i) * 0.8, 5), matte(0x24506e));
+    stalk.position.y = (1.0 + srand(i) * 0.8) / 2; g.add(stalk);
+    const node = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0),
+      new THREE.MeshStandardMaterial({ color: 0x8fd6ff, emissive: 0x6fd6ff, emissiveIntensity: 1.5, roughness: 0.3 }));
+    node.position.y = 1.0 + srand(i) * 0.8; node.userData.pulse = true; g.add(node);
+  } else if (pathId === "parasite") {
+    // fleshy nest mound topped with dark egg clusters
+    const mound = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0x3a6b2e, emissive: 0x1a3315, emissiveIntensity: 0.4, roughness: 0.7, flatShading: true }));
+    mound.scale.set(1, 0.6, 1); g.add(mound);
+    const eggMat = new THREE.MeshStandardMaterial({ color: 0xaef07a, emissive: 0x4a7a2a, emissiveIntensity: 0.5, roughness: 0.4, transparent: true, opacity: 0.7 });
+    const k = 2 + (i % 3);
+    for (let j = 0; j < k; j++) {
+      const egg = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), eggMat);
+      egg.position.set((srand(i + j) - 0.5) * 0.4, 0.28 + srand(i * j) * 0.1, (srand(i - j) - 0.5) * 0.4);
+      egg.scale.y = 1.3; g.add(egg);
+    }
+  } else { return null; }
+  return g;
+}
+
+function updateScenery(dt, elapsed) {
+  if (!sceneryGroup || reduceMotion) return;
+  for (const prop of sceneryGroup.children) {
+    prop.traverse((o) => {
+      if (o.userData.pulse && o.material) o.material.emissiveIntensity = 1.0 + Math.abs(Math.sin(elapsed * 2 + o.position.x)) * 1.2;
+    });
+  }
 }
 
 export function initCreature(canvasEl, onClick) {
@@ -672,6 +777,7 @@ export function renderCreature(dt, elapsed) {
   }
 
   updateHabitat(dt, elapsed);
+  updateScenery(dt, elapsed);
   updateTierCrown(dt, elapsed);
   updateOrbiters(dt, elapsed);
   updateAuraParticles(elapsed);
