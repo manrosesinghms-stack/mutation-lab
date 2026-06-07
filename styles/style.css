@@ -373,7 +373,7 @@ html, body {
 
 /* settings */
 .settings-inner { width: min(600px, 95vw); }
-.settings-body { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.settings-body { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; overflow-y: auto; padding-right: 6px; }
 .set-row {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 12px 14px; border-radius: 12px;
