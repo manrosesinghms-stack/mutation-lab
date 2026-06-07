@@ -63,7 +63,14 @@ export function spawnBloom() {
     new THREE.IcosahedronGeometry(0.2, 1),
     new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffaa22, emissiveIntensity: 1.5, flatShading: true }));
   g.add(core);
-  g.position.copy(dir).multiplyScalar(surfaceRadius(dir) + 0.12);
+  // invisible, much larger click target so the bloom is easy to tap even on a
+  // spinning creature crowded with parts (raycast still hits this sphere)
+  const hit = new THREE.Mesh(
+    new THREE.SphereGeometry(0.55, 8, 8),
+    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+  hit.userData.bloomHit = true;
+  g.add(hit);
+  g.position.copy(dir).multiplyScalar(surfaceRadius(dir) + 0.18);
   partsGroup.add(g);
   activeBloom = g;
 }
@@ -744,9 +751,12 @@ function onPointerUp(e) {
   pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
-  const hit = raycaster.intersectObject(organism, true);
-  if (hit.length === 0) return;
-  const bloom = bloomAncestor(hit[0].object);
+  const hits = raycaster.intersectObject(organism, true);
+  if (hits.length === 0) return;
+  // check ALL hits for the bloom (not just the closest) — a spike or part can sit
+  // in front of it; clicking through them should still pop the bloom.
+  let bloom = null;
+  for (const h of hits) { const b = bloomAncestor(h.object); if (b) { bloom = b; break; } }
   if (bloom) {
     removeBloom();
     if (onBloomCb) onBloomCb(e.clientX, e.clientY);
