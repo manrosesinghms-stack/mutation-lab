@@ -214,6 +214,32 @@ export function openUpgrades() {
   renderUpgrades();
   el.upgradesModal.classList.remove("hidden");
 }
+// Inline upgrade tray: compact clickable chips for everything you can afford
+// RIGHT NOW. Only rebuilt when the affordable set changes (signature cache) so
+// the chips stay stable and clickable — never recreated mid-click each frame.
+let _trayKey = "";
+function renderUpgradeTray(avail) {
+  const tray = document.getElementById("upgrade-tray");
+  if (!tray) return;
+  const buyable = (avail || availableUpgrades())
+    .filter((u) => (state.biomass || 0) >= u.cost)
+    .sort((a, b) => a.cost - b.cost);
+  const key = buyable.map((u) => u.id).join(",");
+  if (key === _trayKey) return; // unchanged → leave the DOM (and click targets) alone
+  _trayKey = key;
+  tray.innerHTML = "";
+  for (const u of buyable.slice(0, 30)) {
+    const type = u.click ? "click" : u.prod ? "prod" : "gen";
+    const glyph = u.click ? "✋" : u.prod ? "⚙" : "⬡";
+    const chip = document.createElement("button");
+    chip.className = "upg-chip " + type;
+    chip.innerHTML = `<span class="ug">${glyph}</span><span class="uc">${formatNumber(u.cost)}</span>`;
+    chip.title = `${u.name} — ${u.desc} · ${u.cond} · costs ${formatNumber(u.cost)}`;
+    chip.addEventListener("click", () => { uiHandlers.onBuyUpgrade(u.id); _trayKey = ""; renderUpgradeTray(); });
+    tray.appendChild(chip);
+  }
+}
+
 export function renderUpgrades() {
   const list = document.getElementById("upgrades-list");
   const avail = availableUpgrades().sort((a, b) => a.cost - b.cost);
@@ -1031,12 +1057,14 @@ export function renderUI(rate, dt = 0.016) {
   if (showHelix) el.helixValue.textContent = formatNumber(state.helix || 0);
   // live Gene Splicer cooldown while its modal is open
   if (el.spliceModal && !el.spliceModal.classList.contains("hidden")) refreshSpliceGo();
-  // Upgrade Store button: show with a badge of how many you can afford right now
+  // Upgrade Store: an inline tray of buyable chips (always visible on the page,
+  // Cookie-Clicker style) + a "see all" modal for the full/locked list.
   const avail = availableUpgrades();
-  el.upgradesBtn.classList.toggle("hidden", avail.length === 0);
   const aff = affordableUpgradeCount();
+  const wrap = document.getElementById("upgrade-tray-wrap");
+  if (wrap) wrap.classList.toggle("hidden", avail.length === 0);
   el.upgradesBadge.textContent = aff > 0 ? `${aff} ⚡` : `${avail.length}`;
-  el.upgradesBtn.classList.toggle("ready", aff > 0);
+  renderUpgradeTray(avail);
   if (el.upgradesModal && !el.upgradesModal.classList.contains("hidden")) renderUpgrades();
 
   // auto-buy toggle (only shown once the Mitosis Engine node is owned)

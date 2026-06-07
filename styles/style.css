@@ -220,6 +220,28 @@ html, body {
 .gen .research.ready { color: var(--accent); opacity: 1; font-weight: 700; }
 .gen .research:empty { display: none; }
 
+/* ---------- inline Upgrade Tray (Cookie-Clicker-style on-page upgrades) ---------- */
+#upgrade-tray-wrap { margin: 4px 0 10px; }
+#upgrade-tray-wrap.hidden { display: none; }
+.tray-head { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--accent2); letter-spacing: .03em; margin-bottom: 6px; }
+.tray-head b { color: var(--accent); }
+.tray-all { margin-left: auto; background: transparent; border: 1px solid var(--line); color: var(--muted); font-size: 10px; padding: 3px 8px; border-radius: 7px; cursor: pointer; font-weight: 700; }
+.tray-all:hover { color: var(--ink); border-color: var(--accent2); }
+#upgrade-tray { display: flex; flex-wrap: wrap; gap: 5px; }
+.upg-chip {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 50px; height: 42px; gap: 1px; padding: 2px;
+  border: 1px solid var(--line); border-radius: 9px; cursor: pointer;
+  background: var(--bg2); transition: transform .06s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.upg-chip:hover { transform: translateY(-2px); }
+.upg-chip:active { transform: translateY(1px) scale(.96); }
+.upg-chip .ug { font-size: 15px; line-height: 1; }
+.upg-chip .uc { font-size: 9px; font-weight: 700; color: var(--muted); }
+.upg-chip.click { border-color: #ffd76b66; } .upg-chip.click:hover { border-color: #ffd76b; box-shadow: 0 0 10px -3px #ffd76b; }
+.upg-chip.prod  { border-color: #56e39f66; } .upg-chip.prod:hover  { border-color: #56e39f; box-shadow: 0 0 10px -3px #56e39f; }
+.upg-chip.gen   { border-color: #6fd6ff66; } .upg-chip.gen:hover   { border-color: #6fd6ff; box-shadow: 0 0 10px -3px #6fd6ff; }
+
 /* ---------- evolution / prestige ---------- */
 #evolution h2 {
   font-size: 12px; letter-spacing: .2em; text-transform: uppercase;
