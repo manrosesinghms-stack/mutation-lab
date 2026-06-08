@@ -318,7 +318,12 @@ export function setStage(idx, seed = 0, pathId = null) {
   setAura(col, s.auraI);                        // glow + orbiting aura particles
   buildOrbiters(s.orbits, col);                 // detached organs / orbiting stars
   setStageParts(p, stageIndex, col);            // grow the path's signature anatomy
-  buildStageAnatomy(stageIndex, col);           // silhouette-defining body parts per stage
+  // Silhouette: once a lineage is chosen, a PATH-SPECIFIC body plan defines the
+  // shape (quadruped predator / floating neural / crystalline / writhing parasite)
+  // so a screenshot instantly reads the path. Before a path, fall back to the
+  // generic per-stage anatomy (budding colony → jaws → limbs → rings → tendrils).
+  if (p) buildPathAnatomy(pathId, stageIndex, col);
+  else buildStageAnatomy(stageIndex, col);
   loadStageModel(s.id);                         // swap in an imported .glb for this stage if configured
   setPathHabitat(pathId, stageIndex);           // theme the WORLD to the lineage
   return true; // caller should re-seat parts (rebuildVisuals)
@@ -458,6 +463,128 @@ function updateStageAnatomy(elapsed) {
       m.quaternion.copy(a.baseQ);
       m.rotateX(Math.sin(elapsed * (a.type === "tendril" ? 2.2 : 1.5) + a.phase) * (a.type === "tendril" ? 0.18 : 0.1) * sway);
     }
+  }
+}
+
+// ===========================================================================
+// PATH BODY PLANS — once a lineage is chosen, the SILHOUETTE itself becomes
+// path-specific so a screenshot instantly screams Predator / Neural / Crystal /
+// Parasite (instead of the old stage-anatomy that looked the same across paths).
+// All procedural primitives, scaled by stage for grandeur. Lives in anatomyGroup
+// so the existing per-frame animator (jaws/limbs/tendrils/buds/tail) drives it.
+// ===========================================================================
+function buildPathAnatomy(pathId, stage, colHex) {
+  if (!anatomyGroup) return;
+  while (anatomyGroup.children.length) {
+    const c = anatomyGroup.children[0]; anatomyGroup.remove(c);
+    c.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); });
+  }
+  const col = new THREE.Color(colHex);
+  const gr = 0.92 + stage * 0.11;                 // grandeur grows with macro-stage
+  const lowQ = QUALITY && QUALITY.maxParts <= 12; // thin out on Low
+  const M = (emi = 0.3, rough = 0.5, metal = 0.12) => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: emi, roughness: rough, metalness: metal, flatShading: true });
+  const mesh = (geo, mat) => new THREE.Mesh(geo, mat);
+  const add = (m) => { anatomyGroup.add(m); return m; };
+  const toward = (m, dir) => { m.quaternion.setFromUnitVectors(UP, dir.clone().normalize()); return m; };
+
+  if (pathId === "predator") {
+    // QUADRUPED TITAN — legs + clawed feet, armoured spine spikes, huge jaws, tail
+    const flesh = M(0.16, 0.55, 0.18);
+    [[0.82, -0.5, 0.7], [-0.82, -0.5, 0.7], [0.82, -0.5, -0.7], [-0.82, -0.5, -0.7]].forEach(([x, y, z], i) => {
+      const leg = mesh(new THREE.CylinderGeometry(0.1, 0.18, 1.35 * gr, 6), flesh);
+      leg.position.set(x, y - 0.55, z);
+      leg.quaternion.setFromUnitVectors(UP, new THREE.Vector3(x * 0.5, -1, z * 0.4).normalize());
+      leg.userData.anim = { type: "limb", phase: i * 1.4, baseQ: leg.quaternion.clone() };
+      add(leg);
+      for (let k = 0; k < 3; k++) {
+        const claw = mesh(new THREE.ConeGeometry(0.06, 0.34, 4), M(0.3, 0.3));
+        const ca = (k - 1) * 0.38;
+        claw.position.set(x + Math.sin(ca) * 0.2, y - 1.2 * gr, z + 0.2 + Math.cos(ca) * 0.05);
+        claw.rotation.x = 0.7; add(claw);
+      }
+    });
+    const jaw = M(0.16, 0.4);
+    const up = mesh(new THREE.ConeGeometry(0.48, 0.95, 6), jaw); up.position.set(0, 0.18, 1.05 * gr); up.rotation.x = Math.PI / 2 - 0.3; up.userData.anim = { type: "jawU", base: up.rotation.x }; add(up);
+    const lo = mesh(new THREE.ConeGeometry(0.48, 0.95, 6), jaw); lo.position.set(0, -0.18, 1.05 * gr); lo.rotation.x = Math.PI / 2 + 0.3; lo.userData.anim = { type: "jawL", base: lo.rotation.x }; add(lo);
+    const toothMat = new THREE.MeshStandardMaterial({ color: 0xfff4e0, roughness: 0.4, flatShading: true });
+    for (const jm of [up, lo]) for (let k = 0; k < 5; k++) {
+      const t = mesh(new THREE.ConeGeometry(0.06, 0.24, 4), toothMat);
+      const ang = (k / 5) * Math.PI - Math.PI / 2;
+      t.position.set(Math.sin(ang) * 0.34, -0.42, Math.cos(ang) * 0.12); jm.add(t);
+    }
+    for (let i = 0; i < 5; i++) { const sp = mesh(new THREE.ConeGeometry(0.13, 0.5 + i * 0.07, 5), M(0.22, 0.4)); sp.position.set(0, 0.92, 0.6 - i * 0.36); add(sp); }
+    for (const sx of [-0.55, 0.55]) { const pl = mesh(new THREE.IcosahedronGeometry(0.42, 0), M(0.1, 0.65, 0.35)); pl.position.set(sx, 0.5, -0.1); pl.scale.set(1, 0.35, 1.15); add(pl); }
+    const tail = mesh(new THREE.ConeGeometry(0.28, 1.7 * gr, 6), flesh); tail.position.set(0, -0.1, -1.15 * gr); tail.rotation.x = -Math.PI / 2; tail.userData.anim = { type: "tail" }; add(tail);
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffaa22, emissiveIntensity: 1.4, roughness: 0.3 });
+    for (const sx of [-0.32, 0.32]) { const e = mesh(new THREE.SphereGeometry(0.13, 10, 10), eyeMat); e.position.set(sx, 0.42, 0.8); add(e); }
+
+  } else if (pathId === "neural") {
+    // FLOATING BRAIN HORROR — clustered brain lobes, eye swarm, energy arcs, no legs
+    const tissue = M(0.5, 0.5, 0.08);
+    [[0, 0.72, 0.15], [0.52, 0.52, 0.05], [-0.52, 0.52, 0.05], [0.28, 0.78, -0.35], [-0.28, 0.78, -0.35], [0, 0.55, -0.5]].forEach(([x, y, z], i) => {
+      if (lowQ && i > 3) return;
+      const lobe = mesh(new THREE.IcosahedronGeometry(0.4 + (i === 0 ? 0.14 : 0), 1), tissue);
+      lobe.position.set(x, y, z); lobe.scale.set(1.05, 0.8, 1.05);
+      lobe.userData.anim = { type: "bud", phase: i * 1.1, base: 1 }; add(lobe);
+    });
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0xeaffff, emissive: 0x6fd6ff, emissiveIntensity: 1.7, roughness: 0.2 });
+    const pupMat = new THREE.MeshStandardMaterial({ color: 0x0c2236, roughness: 0.4 });
+    const nEye = lowQ ? 5 : 9;
+    for (let i = 0; i < nEye; i++) {
+      const a = (i / nEye) * Math.PI * 2, el = 0.15 + Math.sin(i * 2.1) * 0.5;
+      const dir = new THREE.Vector3(Math.cos(a), el, Math.sin(a)).normalize();
+      const e = mesh(new THREE.SphereGeometry(0.16, 12, 12), eyeMat); e.position.copy(dir).multiplyScalar(1.02); add(e);
+      const pp = mesh(new THREE.SphereGeometry(0.07, 8, 8), pupMat); pp.position.copy(dir).multiplyScalar(1.16); add(pp);
+    }
+    const arcMat = new THREE.MeshStandardMaterial({ color: 0x9fe8ff, emissive: 0x6fd6ff, emissiveIntensity: 1.2, roughness: 0.3, transparent: true, opacity: 0.85 });
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2, dir = new THREE.Vector3(Math.cos(a), 0.3 + Math.sin(i) * 0.4, Math.sin(a)).normalize();
+      const arc = toward(mesh(new THREE.ConeGeometry(0.05, 1.5 * gr, 5), arcMat), dir);
+      arc.position.copy(dir).multiplyScalar(0.85); arc.userData.anim = { type: "tendril", phase: i * 0.8, baseQ: arc.quaternion.clone() }; add(arc);
+    }
+
+  } else if (pathId === "crystal") {
+    // CRYSTALLINE ENTITY — faceted shard limbs, swept crystal wings, geometric growth
+    const cryst = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.5, roughness: 0.06, metalness: 0.85, flatShading: true, transparent: true, opacity: 0.9 });
+    const nShard = lowQ ? 5 : 7;
+    for (let i = 0; i < nShard; i++) {
+      const a = (i / nShard) * Math.PI * 2, dir = new THREE.Vector3(Math.cos(a), -0.15 + Math.sin(i * 1.7) * 0.5, Math.sin(a)).normalize();
+      const shard = toward(mesh(new THREE.OctahedronGeometry(0.3 + 0.1 * (i % 3), 0), cryst), dir);
+      shard.position.copy(dir).multiplyScalar(1.15 * gr); shard.scale.set(0.5, 1.7 + 0.4 * (i % 2), 0.5); add(shard);
+    }
+    for (const sx of [-1, 1]) {
+      const wing = mesh(new THREE.ConeGeometry(0.72, 1.8 * gr, 3), cryst);
+      wing.scale.set(1, 1, 0.12); wing.position.set(sx * 0.72, 0.55, -0.5); wing.rotation.set(0.3, sx * 0.5, sx * -0.55); add(wing);
+    }
+    for (let i = 0; i < (lowQ ? 5 : 10); i++) {
+      const a = (i / 10) * Math.PI * 2, dir = new THREE.Vector3(Math.cos(a), Math.sin(i * 2.3) * 0.7, Math.sin(a)).normalize();
+      const g = mesh(new THREE.OctahedronGeometry(0.14, 0), cryst); g.position.copy(dir).multiplyScalar(1.0); add(g);
+    }
+
+  } else if (pathId === "parasite") {
+    // WRITHING LEVIATHAN — long asymmetric segmented body, tendril swarm, egg sacs, maw
+    const flesh = M(0.4, 0.62, 0.08);
+    let px = 0.22, py = -0.1, pz = -0.9;
+    for (let i = 0; i < 4; i++) {
+      const seg = mesh(new THREE.SphereGeometry(0.46 - i * 0.08, 10, 8), flesh);
+      seg.position.set(px, py, pz); seg.userData.anim = { type: "bud", phase: i * 0.9, base: 1 }; add(seg);
+      px += 0.16; py -= 0.05; pz -= 0.55 * gr;
+    }
+    const tMat = M(0.3, 0.62, 0.05);
+    const nT = lowQ ? 6 : 11;
+    for (let i = 0; i < nT; i++) {
+      const a = (i / nT) * Math.PI * 2 + 0.5;
+      const dir = new THREE.Vector3(Math.cos(a) + 0.2, Math.sin(i * 1.3) * 0.7 - 0.1, Math.sin(a)).normalize();
+      const tend = toward(mesh(new THREE.ConeGeometry(0.06, 1.1 * gr + 0.3 * (i % 3), 5), tMat), dir);
+      tend.position.copy(dir).multiplyScalar(0.95); tend.userData.anim = { type: "tendril", phase: i * 0.7, baseQ: tend.quaternion.clone() }; add(tend);
+    }
+    const eggMat = new THREE.MeshStandardMaterial({ color: 0xaef07a, emissive: 0x4a7a2a, emissiveIntensity: 0.6, roughness: 0.4, transparent: true, opacity: 0.72, flatShading: true });
+    for (let i = 0; i < 6; i++) {
+      const egg = mesh(new THREE.SphereGeometry(0.13 + 0.05 * (i % 2), 8, 8), eggMat);
+      egg.position.set(0.62 + Math.sin(i) * 0.2, 0.2 + i * 0.12 - 0.3, 0.42 + Math.cos(i) * 0.2); egg.scale.y = 1.3; add(egg);
+    }
+    const maw = mesh(new THREE.SphereGeometry(0.32, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), M(0.5, 0.5));
+    maw.position.set(0, 0, 1.0 * gr); maw.rotation.x = -Math.PI / 2; add(maw);
   }
 }
 
