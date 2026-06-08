@@ -142,6 +142,16 @@ function bumpAt(n) {
     const v = Math.sin(n.x * 7 + s) * Math.sin(n.y * 7 + s * 1.3) * Math.sin(n.z * 7 + s * 0.7);
     b += p.spike * 1.6 * Math.pow(Math.max(0, v), 4);
   }
+  // carnivore maw — carve a concave mouth into the front (+Z), equatorial band
+  if (p.maw) {
+    const front = Math.max(0, (n.z - 0.45) / 0.55);
+    b -= p.maw * front * Math.max(0, 1 - Math.abs(n.y) * 2.2);
+  }
+  // radial limbs — `limbCount` appendages bulging out around the equator
+  if (p.limbs) {
+    const lobes = Math.pow(Math.max(0, Math.cos(Math.atan2(n.z, n.x) * (p.limbCount || 5))), 6);
+    b += p.limbs * lobes * Math.max(0, 1 - Math.abs(n.y) * 1.8);
+  }
   return b;
 }
 function surfaceRadius(dir) {
