@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { speciesTier } from "./data/tiers.js";
 import { EVO_STAGES } from "./data/stages.js";
 import { PATH_BY_ID } from "./data/paths.js";
+import { MODELS } from "./data/models.js";
 
 let renderer, scene, camera, organism, light;
 let canvas;
@@ -20,6 +21,7 @@ let raycaster, pointer;
 let partsGroup;
 let sigGroup; // Evolution-Path signature parts (managed per stage)
 let anatomyGroup; // composite per-stage anatomy (silhouette-defining body parts)
+let modelGroup = null; // optional imported .glb model that replaces the procedural body
 let partIndex = 0;      // how many parts attached (also the anchor seed)
 let hueShift = 0;       // accumulates per mutation -> creature drifts color
 let stageColor = 0x66ffcc; // the body's base colour = current stage/path identity colour
@@ -317,6 +319,7 @@ export function setStage(idx, seed = 0, pathId = null) {
   buildOrbiters(s.orbits, col);                 // detached organs / orbiting stars
   setStageParts(p, stageIndex, col);            // grow the path's signature anatomy
   buildStageAnatomy(stageIndex, col);           // silhouette-defining body parts per stage
+  loadStageModel(s.id);                         // swap in an imported .glb for this stage if configured
   setPathHabitat(pathId, stageIndex);           // theme the WORLD to the lineage
   return true; // caller should re-seat parts (rebuildVisuals)
 }
@@ -350,6 +353,29 @@ function setStageParts(p, stage, col) {
     part.scale.setScalar(0.0001);
     sigGroup.add(part);
   }
+}
+
+// Optional imported model: if this stage has a .glb in data/models.js, load it
+// (lazily — GLTFLoader is only imported when actually needed) and use it as the
+// body, hiding the procedural mesh. Any failure falls back to procedural.
+async function loadStageModel(stageId) {
+  if (modelGroup) { organism.remove(modelGroup); modelGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); }); modelGroup = null; }
+  const url = MODELS[stageId];
+  if (!url) { if (organism) organism.material.visible = true; return; } // procedural body
+  try {
+    const { GLTFLoader } = await import("../vendor/GLTFLoader.js");
+    new GLTFLoader().load(url, (gltf) => {
+      if (!organism) return;
+      modelGroup = gltf.scene;
+      const box = new THREE.Box3().setFromObject(modelGroup), sz = new THREE.Vector3(), ctr = new THREE.Vector3();
+      box.getSize(sz); box.getCenter(ctr);
+      const s = 1.7 / Math.max(sz.x, sz.y, sz.z, 0.001);
+      modelGroup.scale.setScalar(s);
+      modelGroup.position.copy(ctr).multiplyScalar(-s);
+      organism.add(modelGroup);
+      organism.material.visible = false; // the imported model IS the body now
+    }, undefined, () => { if (organism) organism.material.visible = true; });
+  } catch (e) { if (organism) organism.material.visible = true; }
 }
 
 // Composite per-stage anatomy — the silhouette-defining parts that make each macro
