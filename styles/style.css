@@ -64,7 +64,7 @@ button, .gen, .node, #creature-canvas, .draft-card, .species-card { touch-action
   animation: pulse 2.2s ease-in-out infinite;
 }
 #creature-name {
-  position: absolute; left: 50%; top: 22px; transform: translateX(-50%);
+  position: absolute; left: 50%; top: 84px; transform: translateX(-50%);
   font-size: 20px; font-weight: 800; letter-spacing: .04em; text-align: center;
   pointer-events: none; color: var(--ink);
   text-shadow: 0 2px 12px rgba(0,0,0,.7);
@@ -110,8 +110,8 @@ button, .gen, .node, #creature-canvas, .draft-card, .species-card { touch-action
   #stage { flex: 0 0 44vh; height: 44vh; min-height: 260px; }
   #panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   #app.photo-mode #stage { flex: 1 1 auto; height: auto; }
-  #creature-name { font-size: 17px; top: 12px; }
-  #archetype-badge { top: 44px; }
+  #creature-name { font-size: 17px; top: 60px; }
+  #archetype-badge { top: 88px; }
   #lab-crew { max-height: 26%; }
   .gen { padding: 12px 12px; } /* roomier tap targets on touch */
 }
@@ -249,6 +249,49 @@ button, .gen, .node, #creature-canvas, .draft-card, .species-card { touch-action
 .gen .research { grid-column: 1 / -1; grid-row: 3; font-size: 10px; color: var(--accent2); opacity: .9; letter-spacing: .02em; margin-top: 3px; }
 .gen .research.ready { color: var(--accent); opacity: 1; font-weight: 700; }
 .gen .research:empty { display: none; }
+/* THE JOURNEY — always-visible destination ladder at top-center of the stage */
+#journey {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  z-index: 6; pointer-events: none; width: min(640px, 78vw);
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  font-family: inherit; user-select: none;
+}
+#journey-steps { display: flex; align-items: center; gap: 0; width: 100%; }
+.jstep { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; }
+.jstep .jdot {
+  width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 13px; background: rgba(10,16,22,.72); border: 1.5px solid rgba(255,255,255,.14);
+  transition: all .3s ease; filter: grayscale(1) brightness(.7);
+}
+.jstep .jname {
+  font-size: 8.5px; letter-spacing: .03em; margin-top: 4px; color: var(--muted);
+  text-align: center; max-width: 64px; line-height: 1.1; opacity: .55; white-space: nowrap;
+}
+.jstep::before { /* connector line to previous dot */
+  content: ""; position: absolute; top: 13px; right: 50%; width: 100%; height: 2px;
+  background: rgba(255,255,255,.10); z-index: -1;
+}
+.jstep:first-child::before { display: none; }
+.jstep.done .jdot { filter: none; border-color: var(--accent2); background: rgba(57,208,198,.18); }
+.jstep.done::before { background: var(--accent2); opacity: .55; }
+.jstep.current .jdot {
+  filter: none; border-color: var(--accent); background: rgba(157,107,255,.25);
+  box-shadow: 0 0 14px var(--accent); transform: scale(1.22);
+  animation: jpulse 1.8s ease-in-out infinite;
+}
+.jstep.current .jname { color: #fff; opacity: 1; font-weight: 700; }
+@keyframes jpulse { 0%,100% { box-shadow: 0 0 10px var(--accent); } 50% { box-shadow: 0 0 20px var(--accent); } }
+#journey-now {
+  display: flex; align-items: center; gap: 9px; font-size: 10px;
+  background: rgba(8,12,18,.55); padding: 4px 11px; border-radius: 99px;
+  border: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(4px);
+}
+#journey-here { color: #fff; font-weight: 700; white-space: nowrap; }
+#journey-next { color: var(--muted); white-space: nowrap; }
+#journey-next b { color: var(--accent2); }
+#journey-bar { width: 120px; height: 5px; background: rgba(255,255,255,.10); border-radius: 99px; overflow: hidden; }
+#journey-fill { height: 100%; width: 0%; border-radius: 99px; background: linear-gradient(90deg, var(--accent2), var(--accent)); transition: width .4s ease; box-shadow: 0 0 8px var(--accent2); }
+@media (max-width: 720px) { .jstep .jname { display: none; } #journey { top: 8px; } }
 /* Organelle EVOLUTION — filling bar toward the next named form */
 .evo-row { display: flex; align-items: center; gap: 7px; width: 100%; }
 .evo-next { white-space: nowrap; color: var(--accent2); font-weight: 700; }
@@ -490,7 +533,7 @@ button, .gen, .node, #creature-canvas, .draft-card, .species-card { touch-action
 /* live archetype + build-score badge under the creature name */
 #archetype-badge {
   position: absolute; left: 50%; transform: translateX(-50%);
-  top: 64px; display: flex; gap: 8px; align-items: center; z-index: 5;
+  top: 112px; display: flex; gap: 8px; align-items: center; z-index: 5;
   pointer-events: none; white-space: nowrap;
 }
 #archetype-badge.hidden { display: none; }

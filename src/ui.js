@@ -24,7 +24,9 @@ import {
   cultureMult, cultureCount,
   digestActive,
   currentArchetype, buildScore, draftHint, lineageBonus,
+  journeyProgress,
 } from "./economy.js";
+import { JOURNEY } from "./data/journey.js";
 import { RESEARCH_TIERS } from "./data/research.js";
 import { COLONY_NODES } from "./data/colony.js";
 import { DRONES, AUTOMATORS, FACTORY } from "./data/machines.js";
@@ -1132,8 +1134,38 @@ function updateUnlocks() {
 }
 
 // Called every frame (cheap DOM writes only). dt (seconds) drives count-up tween.
+// THE JOURNEY ribbon — built once, then class/bar updated each frame.
+let _journeyBuilt = false;
+function buildJourneySteps() {
+  const wrap = document.getElementById("journey-steps");
+  if (!wrap) return;
+  wrap.innerHTML = JOURNEY.map((j) =>
+    `<div class="jstep"><div class="jdot">${j.icon}</div><div class="jname">${j.name}</div></div>`
+  ).join("");
+  _journeyBuilt = true;
+}
+function updateJourney() {
+  if (!_journeyBuilt) buildJourneySteps();
+  const p = journeyProgress();
+  if (!p) return;
+  const steps = document.querySelectorAll("#journey-steps .jstep");
+  steps.forEach((s, i) => {
+    s.classList.toggle("current", i === p.index);
+    s.classList.toggle("done", i < p.index);
+  });
+  const here = document.getElementById("journey-here");
+  const next = document.getElementById("journey-next");
+  const fill = document.getElementById("journey-fill");
+  if (here) here.textContent = `${p.cur.icon} ${p.cur.name}`;
+  if (fill) fill.style.width = p.pct.toFixed(1) + "%";
+  if (next) next.innerHTML = p.maxed
+    ? `<b>journey complete</b>`
+    : `→ <b>${p.next.name}</b> ${p.pct.toFixed(0)}%`;
+}
+
 export function renderUI(rate, dt = 0.016) {
   updateUnlocks();
+  updateJourney();
   // Digest button: grey out + relabel while a surge is active (can't re-spam)
   const digestBtn = document.getElementById("digest-btn");
   if (digestBtn) {

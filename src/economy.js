@@ -20,6 +20,7 @@ import { SEASON_BY_ID } from "./data/seasons.js";
 import { COLONY_NODES, COLONY_BY_ID } from "./data/colony.js";
 import { DRONES, AUTOMATORS, FACTORY, DRONE_BY_ID, AUTOMATOR_BY_ID, FACTORY_BY_ID, LEVELED_BY_ID } from "./data/machines.js";
 import { EVO_STAGES, STAGE_COUNT, stageForRank, nextStageRank } from "./data/stages.js";
+import { JOURNEY, journeyIndex } from "./data/journey.js";
 import { EVO_PATHS, PATH_BY_ID } from "./data/paths.js";
 import { RESEARCH_TIERS, ORG_NAMES } from "./data/research.js";
 import { ATLAS_FAMILIES } from "./data/atlas.js";
@@ -1049,6 +1050,25 @@ export function addBiomass(amount) {
   state.biomass += amount;
   state.lifetimeBiomass += amount;
   state.runBiomass += amount;
+}
+
+// THE JOURNEY — the always-visible destination ladder (lifetime biomass, never
+// resets). Returns where you are, where you're headed, and progress between.
+export function journeyProgress() {
+  const lt = state.lifetimeBiomass || 0;
+  const i = journeyIndex(lt);
+  const cur = JOURNEY[i];
+  const next = JOURNEY[i + 1] || null;
+  if (!next) return { index: i, cur, next: null, pct: 100, remaining: 0, maxed: true, total: JOURNEY.length };
+  // log-scale progress between this location's threshold and the next (orders of
+  // magnitude apart), so the bar fills smoothly instead of snapping at the end.
+  const lo = Math.log10(Math.max(1, cur.at || 1));
+  const hi = Math.log10(next.at);
+  const p = Math.max(0, Math.min(1, (Math.log10(Math.max(1, lt)) - lo) / (hi - lo)));
+  return {
+    index: i, cur, next, maxed: false, total: JOURNEY.length,
+    pct: p * 100, remaining: Math.max(0, next.at - lt),
+  };
 }
 
 // Whether a generator should be visible yet (soft unlock by lifetime biomass).
