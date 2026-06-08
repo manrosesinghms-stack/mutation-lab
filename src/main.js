@@ -8,6 +8,7 @@ import {
   sellGenerator,
   productionPerSecond,
   journeyProgress,
+  museumList,
   effectiveClickPower,
   addBiomass,
   applyOfflineProgress,
@@ -115,6 +116,7 @@ import {
   hasBloom,
   engorgePop,
   exportPhoto,
+  capturePhoto,
   exportSpecimenCard,
   creatureBite,
 } from "./creature.js";
@@ -314,8 +316,10 @@ initUI({
   onSetBackground: (v) => { state.background = v; applyWorld(); save(); },
   onSpeciate: () => {
     const prevStage = evolutionStage().index;
+    const photo = capturePhoto(); // snapshot the creature BEFORE it's reset/reshaped
     const res = doSpeciate();
     if (!res) { flashStatus("can't speciate yet — reach the wall first"); return; }
+    const _m = museumList(); if (_m.length && photo) _m[_m.length - 1].photo = photo; // pin the portrait
     resetParts();        // new lineage starts bald, re-grows as you draft
     applyCreatureSkin(); // ascend the BASE body to the new species tier
     const tier = speciesTier(state.speciations || 0);

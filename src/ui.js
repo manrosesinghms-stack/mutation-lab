@@ -414,22 +414,28 @@ export function renderMuseum() {
     wrap.innerHTML = `<div class="museum-empty">No specimens yet — reach the wall and <b>Speciate</b> to archive your first creature.</div>`;
     return;
   }
-  // newest first so your latest evolutions are on top
+  // newest first so your latest evolutions are on top — each specimen is a
+  // spotlit PEDESTAL in a hall (photo if captured, else a glowing emblem portrait)
   for (let i = list.length - 1; i >= 0; i--) {
     const sp = list[i];
     const col = "#" + (sp.color || 0x66ffcc).toString(16).padStart(6, "0");
     const parts = (sp.parts || []).map((p) => PART_EMOJI[p] || "•").join(" ");
-    const card = document.createElement("div");
-    card.className = "specimen";
-    card.style.setProperty("--sc", col);
-    card.innerHTML = `
-      <div class="spec-emblem" style="background:${col}">${sp.pathIcon || "🧬"}</div>
-      <div class="spec-body">
-        <div class="spec-top"><span class="spec-gen">GEN ${sp.gen}</span> <span class="spec-name">${sp.name}</span></div>
-        <div class="spec-stage">${sp.stage}${sp.path ? "" : " · base form"} · Rank ${sp.rank}</div>
-        <div class="spec-parts">${parts || "<span class='spec-bald'>no mutations</span>"} <span class="spec-muts">${sp.muts} mutation${sp.muts === 1 ? "" : "s"}</span></div>
-      </div>`;
-    wrap.appendChild(card);
+    const display = sp.photo
+      ? `<img class="ped-photo" src="${sp.photo}" alt="${sp.name}" loading="lazy">`
+      : `<div class="ped-emblem" style="--sc:${col}">${sp.pathIcon || "🧬"}</div>`;
+    const ped = document.createElement("div");
+    ped.className = "pedestal";
+    ped.style.setProperty("--sc", col);
+    ped.innerHTML = `
+      <div class="ped-case">
+        <div class="ped-spot"></div>
+        ${display}
+      </div>
+      <div class="ped-plinth">
+        <div class="ped-plate"><span class="ped-gen">GEN ${sp.gen}</span><span class="ped-name">${sp.name}</span></div>
+      </div>
+      <div class="ped-info">${sp.pathIcon ? sp.pathIcon + " " : ""}${sp.stage} · Rank ${sp.rank} · ${sp.muts} mutation${sp.muts === 1 ? "" : "s"}${parts ? ` · ${parts}` : ""}</div>`;
+    wrap.appendChild(ped);
   }
 }
 

@@ -499,6 +499,9 @@ function archiveSpecimen(card) {
     lifetime: Math.floor(state.lifetimeBiomass || 0),
   });
   if (state.museum.length > 500) state.museum = state.museum.slice(-500); // safety cap
+  // Keep full-res photos only for the most recent specimens so the save can't
+  // bloat (older pedestals fall back to the procedural emblem portrait).
+  for (let i = 0; i < state.museum.length - 30; i++) if (state.museum[i].photo) delete state.museum[i].photo;
 }
 
 // ---- Evolution Paths (chosen lineage / build) ----

@@ -1851,6 +1851,28 @@ function applyRim(on) {
 
 // Render a shareable PNG: the creature + a caption bar (name + mutation count).
 // Returns a data URL.
+// Small SQUARE thumbnail of the current creature, for the Museum. Bounded size
+// (JPEG, ~150px) so storing one per specimen never bloats the save. Centered crop
+// on a dark plate so it reads as a framed portrait.
+export function capturePhoto(size = 150) {
+  if (!renderer) return null;
+  try {
+    renderer.render(scene, camera); // ensure the draw buffer is current
+    const src = renderer.domElement;
+    const W = src.width, H = src.height;
+    const s = Math.min(W, H);            // centered square crop
+    const sx = (W - s) / 2, sy = (H - s) * 0.38; // bias up a touch to frame the body
+    const out = document.createElement("canvas");
+    out.width = size; out.height = size;
+    const ctx = out.getContext("2d");
+    const g = ctx.createRadialGradient(size * 0.5, size * 0.42, 0, size * 0.5, size * 0.5, size * 0.72);
+    g.addColorStop(0, "#18232f"); g.addColorStop(1, "#0a0e13");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, size, size);
+    ctx.drawImage(src, sx, sy, s, s, 0, 0, size, size);
+    return out.toDataURL("image/jpeg", 0.6);
+  } catch (e) { return null; }
+}
+
 export function exportPhoto(name, subtitle, scaleRef) {
   if (!renderer) return null;
   renderer.render(scene, camera); // ensure the buffer is current
