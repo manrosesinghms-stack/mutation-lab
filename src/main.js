@@ -114,6 +114,7 @@ import {
   engorgePop,
   exportPhoto,
   exportSpecimenCard,
+  creatureBite,
 } from "./creature.js";
 import { creatureName } from "./data/names.js";
 import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
@@ -774,6 +775,7 @@ initCreature(canvas, (sx, sy) => {
   lastClickAt = now;
   const crit = combo >= 12; // chained-click "critical extraction"
   const gain = click(crit ? 5 : 1); // crit multiplies the actual payout, not just the sparkle
+  creatureBite(); // jaws/anatomy snap on every click
   state.totalClicks = (state.totalClicks || 0) + 1;
   startMusic(); // first user gesture — kick off ambient music
   // escalating combo feedback: the heat ramps from green → gold → orange → magenta

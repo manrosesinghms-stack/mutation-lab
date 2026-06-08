@@ -390,44 +390,73 @@ function buildStageAnatomy(stage, colHex) {
   const col = new THREE.Color(colHex);
   const M = (emi = 0.35, rough = 0.45) => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: emi, roughness: rough, metalness: 0.12, flatShading: true });
   // place a cone/cyl pointing along dir, base at the body surface
-  const radial = (geo, mat, dir, push) => {
+  const radial = (geo, mat, dir, push, role, phase) => {
     const m = new THREE.Mesh(geo, mat);
     m.quaternion.setFromUnitVectors(UP, dir.clone().normalize());
     m.position.copy(dir).normalize().multiplyScalar(push);
+    if (role) m.userData.anim = { type: role, phase: phase || 0, baseQ: m.quaternion.clone() };
     anatomyGroup.add(m); return m;
   };
-  if (stage === 1) { // COLONY — fused budding sub-cells
+  if (stage === 1) { // COLONY — fused budding sub-cells (gently breathing)
     const buds = [[0.95, 0.5, 0.3], [-0.75, 0.6, -0.4], [0.35, -0.75, 0.7], [-0.55, -0.45, 0.65], [0.7, 0.05, -0.85]];
-    for (const [x, y, z] of buds) {
+    buds.forEach(([x, y, z], i) => {
       const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.46, 1), M(0.22, 0.5));
-      m.position.set(x, y, z); anatomyGroup.add(m);
-    }
-  } else if (stage === 2) { // PREDATOR — jaws + tail + dorsal fin + eyes
+      m.position.set(x, y, z); m.userData.anim = { type: "bud", phase: i * 1.3, base: 1 }; anatomyGroup.add(m);
+    });
+  } else if (stage === 2) { // PREDATOR — jaws (chew/bite) + tail (sway) + fin + teeth + eyes
     const jaw = M(0.18, 0.4);
-    const up = new THREE.Mesh(new THREE.ConeGeometry(0.44, 0.85, 6), jaw); up.position.set(0, 0.2, 1.02); up.rotation.x = Math.PI / 2 - 0.32; anatomyGroup.add(up);
-    const lo = new THREE.Mesh(new THREE.ConeGeometry(0.44, 0.85, 6), jaw); lo.position.set(0, -0.2, 1.02); lo.rotation.x = Math.PI / 2 + 0.32; anatomyGroup.add(lo);
-    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.5, 6), M(0.2, 0.5)); tail.position.set(0, 0, -1.05); tail.rotation.x = -Math.PI / 2; anatomyGroup.add(tail);
+    const up = new THREE.Mesh(new THREE.ConeGeometry(0.44, 0.85, 6), jaw); up.position.set(0, 0.2, 1.02); up.rotation.x = Math.PI / 2 - 0.32; up.userData.anim = { type: "jawU", base: up.rotation.x }; anatomyGroup.add(up);
+    const lo = new THREE.Mesh(new THREE.ConeGeometry(0.44, 0.85, 6), jaw); lo.position.set(0, -0.2, 1.02); lo.rotation.x = Math.PI / 2 + 0.32; lo.userData.anim = { type: "jawL", base: lo.rotation.x }; anatomyGroup.add(lo);
+    // teeth — small white cones ringing each jaw (children, so they move with the jaw)
+    const toothMat = new THREE.MeshStandardMaterial({ color: 0xfff4e0, roughness: 0.4, flatShading: true });
+    for (const jawMesh of [up, lo]) for (let k = 0; k < 5; k++) {
+      const t = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.2, 4), toothMat);
+      const ang = (k / 5) * Math.PI - Math.PI / 2;
+      t.position.set(Math.sin(ang) * 0.3, -0.38, Math.cos(ang) * 0.12); jawMesh.add(t);
+    }
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.5, 6), M(0.2, 0.5)); tail.position.set(0, 0, -1.05); tail.rotation.x = -Math.PI / 2; tail.userData.anim = { type: "tail" }; anatomyGroup.add(tail);
     const fin = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.8, 3), M(0.3, 0.4)); fin.scale.set(0.16, 1, 1); fin.position.set(0, 1.0, -0.1); anatomyGroup.add(fin);
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffaa22, emissiveIntensity: 1.3, roughness: 0.3 });
     for (const sx of [-0.34, 0.34]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 10), eyeMat); e.position.set(sx, 0.46, 0.72); anatomyGroup.add(e); }
-  } else if (stage === 3) { // APEX — radial limbs with claws + head
+  } else if (stage === 3) { // APEX — radial clawed limbs (idle sway) + head
     const N = 6;
     for (let i = 0; i < N; i++) {
       const a = (i / N) * Math.PI * 2;
       const dir = new THREE.Vector3(Math.cos(a), -0.55, Math.sin(a));
-      radial(new THREE.CylinderGeometry(0.06, 0.17, 1.25, 6), M(0.16, 0.5), dir, 1.35);
-      radial(new THREE.ConeGeometry(0.13, 0.32, 5), M(0.4, 0.3), dir, 2.0);
+      radial(new THREE.CylinderGeometry(0.06, 0.17, 1.25, 6), M(0.16, 0.5), dir, 1.35, "limb", i * 1.1);
+      radial(new THREE.ConeGeometry(0.13, 0.32, 5), M(0.4, 0.3), dir, 2.0, "limb", i * 1.1);
     }
     const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.52, 1), M(0.28, 0.4)); head.position.set(0, 0.55, 0.95); anatomyGroup.add(head);
-  } else if (stage === 4) { // PLANETARY — orbital ring bands
-    const r1 = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.07, 8, 56), M(0.6, 0.3)); r1.rotation.x = Math.PI * 0.44; anatomyGroup.add(r1);
-    const r2 = new THREE.Mesh(new THREE.TorusGeometry(1.98, 0.04, 8, 56), M(0.5, 0.3)); r2.rotation.x = Math.PI * 0.54; r2.rotation.z = 0.3; anatomyGroup.add(r2);
-  } else if (stage === 5) { // COSMIC — long radiant energy tendrils
+  } else if (stage === 4) { // PLANETARY — orbital ring bands (slow counter-spin)
+    const r1 = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.07, 8, 56), M(0.6, 0.3)); r1.rotation.x = Math.PI * 0.44; r1.userData.anim = { type: "ring", spd: 0.25 }; anatomyGroup.add(r1);
+    const r2 = new THREE.Mesh(new THREE.TorusGeometry(1.98, 0.04, 8, 56), M(0.5, 0.3)); r2.rotation.x = Math.PI * 0.54; r2.rotation.z = 0.3; r2.userData.anim = { type: "ring", spd: -0.18 }; anatomyGroup.add(r2);
+  } else if (stage === 5) { // COSMIC — long radiant energy tendrils (undulating)
     const N = 9;
     for (let i = 0; i < N; i++) {
       const a = (i / N) * Math.PI * 2;
       const dir = new THREE.Vector3(Math.cos(a), Math.sin(i * 1.7) * 0.6, Math.sin(a));
-      radial(new THREE.ConeGeometry(0.09, 1.9, 5), M(0.9, 0.2), dir, 1.55);
+      radial(new THREE.ConeGeometry(0.09, 1.9, 5), M(0.9, 0.2), dir, 1.55, "tendril", i * 0.9);
+    }
+  }
+}
+// Animate the stage anatomy so each creature feels alive (jaws chew + snap on click,
+// tail sways, limbs/tendrils undulate, rings spin, buds breathe).
+let biteT = 0;
+export function creatureBite() { biteT = 1; } // jaws snap shut (call on click)
+function updateStageAnatomy(elapsed) {
+  if (!anatomyGroup) return;
+  if (biteT > 0) biteT = Math.max(0, biteT - 0.06);
+  const sway = reduceMotion ? 0 : 1;
+  for (const m of anatomyGroup.children) {
+    const a = m.userData.anim; if (!a) continue;
+    if (a.type === "jawU") m.rotation.x = a.base - (Math.sin(elapsed * 1.7) * 0.06 + 0.06) * sway - biteT * 0.5;
+    else if (a.type === "jawL") m.rotation.x = a.base + (Math.sin(elapsed * 1.7) * 0.06 + 0.06) * sway + biteT * 0.5;
+    else if (a.type === "tail") m.rotation.z = Math.sin(elapsed * 1.3) * 0.22 * sway;
+    else if (a.type === "ring") m.rotation.z += a.spd * 0.016 * sway;
+    else if (a.type === "bud") m.scale.setScalar(a.base + Math.sin(elapsed * 1.8 + a.phase) * 0.08 * sway);
+    else if (a.type === "limb" || a.type === "tendril") {
+      m.quaternion.copy(a.baseQ);
+      m.rotateX(Math.sin(elapsed * (a.type === "tendril" ? 2.2 : 1.5) + a.phase) * (a.type === "tendril" ? 0.18 : 0.1) * sway);
     }
   }
 }
@@ -1041,6 +1070,7 @@ export function renderCreature(dt, elapsed) {
   updateOrbiters(dt, elapsed);
   updateSwarm(dt, elapsed);
   updateNucleus(elapsed);
+  updateStageAnatomy(elapsed);
   updateAuraParticles(elapsed);
   updateVeins(elapsed);
   if (skinShellMat) skinShellMat.uniforms.uTime.value = elapsed;
