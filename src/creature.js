@@ -19,6 +19,7 @@ let raycaster, pointer;
 // mutation visuals
 let partsGroup;
 let sigGroup; // Evolution-Path signature parts (managed per stage)
+let anatomyGroup; // composite per-stage anatomy (silhouette-defining body parts)
 let partIndex = 0;      // how many parts attached (also the anchor seed)
 let hueShift = 0;       // accumulates per mutation -> creature drifts color
 let stageColor = 0x66ffcc; // the body's base colour = current stage/path identity colour
@@ -315,6 +316,7 @@ export function setStage(idx, seed = 0, pathId = null) {
   setAura(col, s.auraI);                        // glow + orbiting aura particles
   buildOrbiters(s.orbits, col);                 // detached organs / orbiting stars
   setStageParts(p, stageIndex, col);            // grow the path's signature anatomy
+  buildStageAnatomy(stageIndex, col);           // silhouette-defining body parts per stage
   setPathHabitat(pathId, stageIndex);           // theme the WORLD to the lineage
   return true; // caller should re-seat parts (rebuildVisuals)
 }
@@ -347,6 +349,60 @@ function setStageParts(p, stage, col) {
     if (part.userData.seed === undefined) part.userData.seed = i * 1.7;
     part.scale.setScalar(0.0001);
     sigGroup.add(part);
+  }
+}
+
+// Composite per-stage anatomy — the silhouette-defining parts that make each macro
+// stage a different CREATURE (budding colony, jawed predator, limbed apex, ringed
+// planetary, tendrilled cosmic), assembled from low-poly primitives in body space.
+function buildStageAnatomy(stage, colHex) {
+  if (!anatomyGroup) return;
+  while (anatomyGroup.children.length) {
+    const c = anatomyGroup.children[0]; anatomyGroup.remove(c);
+    c.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); });
+  }
+  const col = new THREE.Color(colHex);
+  const M = (emi = 0.35, rough = 0.45) => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: emi, roughness: rough, metalness: 0.12, flatShading: true });
+  // place a cone/cyl pointing along dir, base at the body surface
+  const radial = (geo, mat, dir, push) => {
+    const m = new THREE.Mesh(geo, mat);
+    m.quaternion.setFromUnitVectors(UP, dir.clone().normalize());
+    m.position.copy(dir).normalize().multiplyScalar(push);
+    anatomyGroup.add(m); return m;
+  };
+  if (stage === 1) { // COLONY — fused budding sub-cells
+    const buds = [[0.95, 0.5, 0.3], [-0.75, 0.6, -0.4], [0.35, -0.75, 0.7], [-0.55, -0.45, 0.65], [0.7, 0.05, -0.85]];
+    for (const [x, y, z] of buds) {
+      const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.46, 1), M(0.22, 0.5));
+      m.position.set(x, y, z); anatomyGroup.add(m);
+    }
+  } else if (stage === 2) { // PREDATOR — jaws + tail + dorsal fin + eyes
+    const jaw = M(0.18, 0.4);
+    const up = new THREE.Mesh(new THREE.ConeGeometry(0.44, 0.85, 6), jaw); up.position.set(0, 0.2, 1.02); up.rotation.x = Math.PI / 2 - 0.32; anatomyGroup.add(up);
+    const lo = new THREE.Mesh(new THREE.ConeGeometry(0.44, 0.85, 6), jaw); lo.position.set(0, -0.2, 1.02); lo.rotation.x = Math.PI / 2 + 0.32; anatomyGroup.add(lo);
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.5, 6), M(0.2, 0.5)); tail.position.set(0, 0, -1.05); tail.rotation.x = -Math.PI / 2; anatomyGroup.add(tail);
+    const fin = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.8, 3), M(0.3, 0.4)); fin.scale.set(0.16, 1, 1); fin.position.set(0, 1.0, -0.1); anatomyGroup.add(fin);
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffaa22, emissiveIntensity: 1.3, roughness: 0.3 });
+    for (const sx of [-0.34, 0.34]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 10), eyeMat); e.position.set(sx, 0.46, 0.72); anatomyGroup.add(e); }
+  } else if (stage === 3) { // APEX — radial limbs with claws + head
+    const N = 6;
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2;
+      const dir = new THREE.Vector3(Math.cos(a), -0.55, Math.sin(a));
+      radial(new THREE.CylinderGeometry(0.06, 0.17, 1.25, 6), M(0.16, 0.5), dir, 1.35);
+      radial(new THREE.ConeGeometry(0.13, 0.32, 5), M(0.4, 0.3), dir, 2.0);
+    }
+    const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.52, 1), M(0.28, 0.4)); head.position.set(0, 0.55, 0.95); anatomyGroup.add(head);
+  } else if (stage === 4) { // PLANETARY — orbital ring bands
+    const r1 = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.07, 8, 56), M(0.6, 0.3)); r1.rotation.x = Math.PI * 0.44; anatomyGroup.add(r1);
+    const r2 = new THREE.Mesh(new THREE.TorusGeometry(1.98, 0.04, 8, 56), M(0.5, 0.3)); r2.rotation.x = Math.PI * 0.54; r2.rotation.z = 0.3; anatomyGroup.add(r2);
+  } else if (stage === 5) { // COSMIC — long radiant energy tendrils
+    const N = 9;
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2;
+      const dir = new THREE.Vector3(Math.cos(a), Math.sin(i * 1.7) * 0.6, Math.sin(a));
+      radial(new THREE.ConeGeometry(0.09, 1.9, 5), M(0.9, 0.2), dir, 1.55);
+    }
   }
 }
 
@@ -755,6 +811,10 @@ export function initCreature(canvasEl, onClick) {
   // group so they're managed by stage/path without touching mutation parts
   sigGroup = new THREE.Group();
   organism.add(sigGroup);
+  // composite per-stage anatomy (jaw/tail/limbs/tendrils) — what makes each macro
+  // stage a genuinely different SILHOUETTE, not just a recoloured sphere
+  anatomyGroup = new THREE.Group();
+  organism.add(anatomyGroup);
   applyHue();
 
   // click + drag-to-orbit handling
