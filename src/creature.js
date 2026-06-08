@@ -130,10 +130,17 @@ function bumpAt(n) {
     p.a1 * Math.sin(n.x * p.f1 + n.y * 2.0 + s) +
     p.a2 * Math.sin(n.y * p.f2 + n.z * 3.0 + s * 1.7) +
     p.a3 * Math.cos(n.z * p.f3 + n.x * 5.0 + s * 2.3);
-  if (p.lobe) b += p.lobe * Math.sin(n.y * p.lobeF + s) * Math.cos(n.x * p.lobeF * 0.8 + s);
+  // low-frequency organic asymmetry so the body looks grown, not a noisy ball
+  b += 0.07 * Math.sin(n.x * 1.5 + n.y * 1.1 + s * 0.6) + 0.05 * Math.cos(n.y * 1.3 - n.z * 1.7 + s);
+  // pronounced multi-lobe clustering (cells/colonies bulge into distinct lobes)
+  if (p.lobe) {
+    b += p.lobe * 1.4 * Math.sin(n.y * p.lobeF + s) * Math.cos(n.x * p.lobeF * 0.8 + s);
+    b += p.lobe * 0.6 * Math.sin(n.z * p.lobeF * 1.3 + s * 1.2);
+  }
+  // sharper, taller spikes that actually protrude (predator/void forms)
   if (p.spike) {
     const v = Math.sin(n.x * 7 + s) * Math.sin(n.y * 7 + s * 1.3) * Math.sin(n.z * 7 + s * 0.7);
-    b += p.spike * Math.pow(Math.max(0, v), 3);
+    b += p.spike * 1.6 * Math.pow(Math.max(0, v), 4);
   }
   return b;
 }
