@@ -183,6 +183,45 @@ export const MUTATIONS = [
   { id: "omega", name: "Omega Cell", rarity: "legendary", desc: "×4 production & ×4 click",
     effect: (m) => { m.prodMult *= 4; m.clickMult *= 4; } },
 
+  // ---- HABITAT-GATED (chapter content) — each batch only enters the draft pool
+  // once you REACH that Journey location, so arriving somewhere makes new cards
+  // literally appear. `habitat` = the journey index required. ----
+  // 💧 Aquarium (1) — aquatic
+  { id: "gill_bloom", name: "Gill Bloom", rarity: "common", part: "frond", habitat: 1,
+    desc: "×1.6 production", effect: (m) => { m.prodMult *= 1.6; } },
+  { id: "tidal_meta", name: "Tidal Metabolism", rarity: "rare", habitat: 1,
+    desc: "×1.5 production & ×1.3 click", effect: (m) => { m.prodMult *= 1.5; m.clickMult *= 1.3; } },
+  // 🔬 Laboratory (2) — experimental
+  { id: "growth_serum", name: "Growth Serum", rarity: "common", habitat: 2,
+    desc: "×1.9 click power", effect: (m) => { m.clickMult *= 1.9; } },
+  { id: "gene_splice", name: "Spliced Genome", rarity: "rare", part: "spike", habitat: 2,
+    desc: "×2.2 production", effect: (m) => { m.prodMult *= 2.2; } },
+  // 🏛️ Research Facility (3) — gene sequencing / specimens
+  { id: "dna_sequence", name: "Sequenced DNA", rarity: "rare", habitat: 3,
+    desc: "+7% Evolution Points per mutation owned", effect: (m, i) => { m.epMult *= 1 + 0.07 * i.totalMutations; } },
+  { id: "specimen_x", name: "Specimen X", rarity: "legendary", part: "eye", habitat: 3,
+    desc: "×4 production & ×2 click", effect: (m) => { m.prodMult *= 4; m.clickMult *= 2; } },
+  // 🌐 Bio Dome (4) — symbiosis / plants
+  { id: "symbiont_root", name: "Symbiont Roots", rarity: "rare", part: "frond", habitat: 4,
+    desc: "+8% production per organelle owned", effect: (m, i) => { m.prodMult *= 1 + 0.08 * i.totalGenerators; } },
+  { id: "canopy", name: "Photosynthetic Canopy", rarity: "rare", habitat: 4,
+    desc: "×2.6 production", effect: (m) => { m.prodMult *= 2.6; } },
+  // 🌋 Planetary Ecosystem (5) — geological mega
+  { id: "tectonic", name: "Tectonic Core", rarity: "legendary", habitat: 5,
+    desc: "×6 production", effect: (m) => { m.prodMult *= 6; } },
+  { id: "biosphere", name: "Living Biosphere", rarity: "rare", part: "body", habitat: 5,
+    desc: "+10% production per mutation owned", effect: (m, i) => { m.prodMult *= 1 + 0.10 * i.totalMutations; } },
+  // 🪐 Living Planet (6) — planet-scale
+  { id: "planet_will", name: "Planetary Will", rarity: "legendary", habitat: 6,
+    desc: "×7 production & ×3 click", effect: (m) => { m.prodMult *= 7; m.clickMult *= 3; } },
+  { id: "storm_meta", name: "Storm Metabolism", rarity: "rare", habitat: 6,
+    desc: "×3 production", effect: (m) => { m.prodMult *= 3; } },
+  // 🌌 Cosmic Organism (7) — reality distortion
+  { id: "reality_fold", name: "Reality Fold", rarity: "legendary", part: "spike", habitat: 7,
+    desc: "×9 production", effect: (m) => { m.prodMult *= 9; } },
+  { id: "entropy_engine", name: "Entropy Engine", rarity: "legendary", habitat: 7,
+    desc: "+30% production per organelle owned", effect: (m, i) => { m.prodMult *= 1 + 0.30 * i.totalGenerators; } },
+
   // ---- genetic defects (high-risk "cursed" cards) ----
   { id: "blind", name: "Blind", rarity: "rare", defect: true,
     desc: "−90% click power, but ×6 production",

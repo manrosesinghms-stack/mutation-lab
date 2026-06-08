@@ -1385,7 +1385,10 @@ export function todaySeed() { return Math.floor(Date.now() / 864e5); } // day nu
 export function rollDraft(n = 3) {
   const rnd = seededRand || Math.random;
   const weights = { common: 60, rare: 30, legendary: 10 };
-  const pool = MUTATIONS.filter((m) => !m.alien);
+  // Chapter gating: a habitat-tagged mutation only enters the pool once you've
+  // REACHED that Journey location, so arriving at a new place makes new cards appear.
+  const ji = journeyProgress().index;
+  const pool = MUTATIONS.filter((m) => !m.alien && (!m.habitat || ji >= m.habitat));
   const picks = [];
   while (picks.length < n && pool.length > 0) {
     const total = pool.reduce((s, m) => s + weights[m.rarity], 0);

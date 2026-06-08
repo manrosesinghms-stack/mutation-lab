@@ -252,10 +252,11 @@ button, .gen, .node, #creature-canvas, .draft-card, .species-card { touch-action
 /* THE JOURNEY — always-visible destination ladder at top-center of the stage */
 #journey {
   position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
-  z-index: 6; pointer-events: none; width: min(640px, 78vw);
+  z-index: 6; pointer-events: auto; cursor: pointer; width: min(640px, 78vw);
   display: flex; flex-direction: column; align-items: center; gap: 7px;
   font-family: inherit; user-select: none;
 }
+#journey:hover .jstep.current .jdot { box-shadow: 0 0 22px var(--accent); }
 #journey-steps { display: flex; align-items: center; gap: 0; width: 100%; }
 .jstep { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; }
 .jstep .jdot {
@@ -521,7 +522,7 @@ button, .gen, .node, #creature-canvas, .draft-card, .species-card { touch-action
 /* genome lab + stats + settings + help modals */
 #genome-modal, #stats-modal, #settings-modal, #help-modal, #codex-modal,
 #colony-modal, #garden-modal, #reactor-modal, #pantheon-modal, #symbiote-modal,
-#mutagen-modal, #market-modal, #upgrades-modal, #machines-modal, #paths-modal, #museum-modal,
+#mutagen-modal, #market-modal, #upgrades-modal, #machines-modal, #paths-modal, #museum-modal, #chapters-modal,
 #helix-modal, #splice-modal, #chal-modal, #card-modal, #tree-modal {
   position: fixed; inset: 0; z-index: 100;
   display: flex; align-items: center; justify-content: center;
@@ -529,8 +530,38 @@ button, .gen, .node, #creature-canvas, .draft-card, .species-card { touch-action
 }
 #genome-modal.hidden, #stats-modal.hidden, #settings-modal.hidden, #help-modal.hidden, #codex-modal.hidden,
 #colony-modal.hidden, #garden-modal.hidden, #reactor-modal.hidden, #pantheon-modal.hidden, #symbiote-modal.hidden,
-#mutagen-modal.hidden, #market-modal.hidden, #upgrades-modal.hidden, #machines-modal.hidden, #paths-modal.hidden, #museum-modal.hidden,
+#mutagen-modal.hidden, #market-modal.hidden, #upgrades-modal.hidden, #machines-modal.hidden, #paths-modal.hidden, #museum-modal.hidden, #chapters-modal.hidden,
 #helix-modal.hidden, #splice-modal.hidden, #chal-modal.hidden, #card-modal.hidden, #tree-modal.hidden { display: none; }
+
+/* Journey Chapters list */
+#chapters-list { display: flex; flex-direction: column; gap: 9px; overflow-y: auto; max-height: 64vh; margin-top: 10px; }
+.chapter { border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 11px; padding: 11px 13px; background: rgba(255,255,255,.015); }
+.chapter.done { border-left-color: var(--accent2); }
+.chapter.current { border-left-color: var(--accent); background: rgba(157,107,255,.08); box-shadow: 0 0 16px -6px var(--accent); }
+.chapter.locked { opacity: .55; }
+.chapter-head { display: flex; align-items: center; gap: 9px; }
+.chapter-ico { font-size: 18px; }
+.chapter-name { font-weight: 700; font-size: 14px; color: var(--ink); }
+.chapter-tag { margin-left: auto; font-size: 10px; letter-spacing: .04em; color: var(--muted); }
+.chapter.current .chapter-tag { color: var(--accent); font-weight: 700; }
+.chapter.done .chapter-tag { color: var(--accent2); }
+.chapter-blurb { font-size: 11px; color: var(--muted); margin: 4px 0 6px; font-style: italic; }
+.chapter-unlocks { margin: 0; padding-left: 18px; }
+.chapter-unlocks li { font-size: 11.5px; color: var(--accent2); margin: 2px 0; }
+.chapter.locked .chapter-unlocks li { color: var(--muted); }
+
+/* "New Chapter" reveal banner */
+#chapter-banner {
+  position: fixed; top: 16%; left: 50%; transform: translate(-50%, -12px); z-index: 130;
+  pointer-events: none; text-align: center; padding: 18px 34px; border-radius: 16px;
+  background: radial-gradient(120% 140% at 50% 0%, rgba(20,30,42,.96), rgba(8,11,16,.92));
+  border: 1px solid var(--accent); box-shadow: 0 0 40px -8px var(--accent), inset 0 0 30px rgba(157,107,255,.12);
+  opacity: 0; transition: opacity .5s ease, transform .5s ease;
+}
+#chapter-banner.show { opacity: 1; transform: translate(-50%, 0); }
+.cb-kicker { font-size: 11px; letter-spacing: .35em; color: var(--accent); font-weight: 800; }
+.cb-title { font-size: 26px; font-weight: 800; margin: 5px 0 9px; background: linear-gradient(90deg, var(--accent2), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cb-unlock { font-size: 12.5px; color: var(--accent2); margin: 3px 0; }
 
 /* Tree of Life */
 #tree-canvas-wrap { margin-top: 12px; overflow: auto; max-height: 70vh; border: 1px solid var(--line); border-radius: 12px; background: radial-gradient(120% 100% at 50% 0%, #101b16, #0a0e13); }

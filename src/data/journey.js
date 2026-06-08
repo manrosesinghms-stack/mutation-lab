@@ -6,14 +6,22 @@
 // Tracked on state.lifetimeBiomass (all-time). The journey only ever advances.
 
 export const JOURNEY = [
-  { name: "Petri Dish",          icon: "🧫", at: 0,     blurb: "A single cell in a drop of nutrient." },
-  { name: "Aquarium",            icon: "💧", at: 1e4,   blurb: "Your colony outgrew the dish." },
-  { name: "Laboratory",          icon: "🔬", at: 1e6,   blurb: "Scientists take notice and move you indoors." },
-  { name: "Research Facility",   icon: "🏛️", at: 1e9,   blurb: "A whole team now studies your organism." },
-  { name: "Bio Dome",            icon: "🌐", at: 1e12,  blurb: "Too large to contain — sealed in a dome." },
-  { name: "Planetary Ecosystem", icon: "🌋", at: 1e15,  blurb: "Your life-forms reshape a landscape." },
-  { name: "Living Planet",       icon: "🪐", at: 1e18,  blurb: "The planet itself is alive — and it's you." },
-  { name: "Cosmic Organism",     icon: "🌌", at: 1e21,  blurb: "A being the size of the void between stars." },
+  { name: "Petri Dish",          icon: "🧫", at: 0,     blurb: "A single cell in a drop of nutrient.",
+    unlocks: ["The basics — click & grow organelles"] },
+  { name: "Aquarium",            icon: "💧", at: 1e4,   blurb: "Your colony outgrew the dish.",
+    unlocks: ["💧 Aquatic mutations appear (Gill Bloom, Tidal Metabolism)", "A glass tank world"] },
+  { name: "Laboratory",          icon: "🔬", at: 1e6,   blurb: "Scientists take notice and move you indoors.",
+    unlocks: ["🔬 Experimental mutations (Growth Serum, Spliced Genome)", "Lab crew & equipment"] },
+  { name: "Research Facility",   icon: "🏛️", at: 1e9,   blurb: "A whole team now studies your organism.",
+    unlocks: ["🧬 Gene-sequencing mutations", "Specimen X (legendary)"] },
+  { name: "Bio Dome",            icon: "🌐", at: 1e12,  blurb: "Too large to contain — sealed in a dome.",
+    unlocks: ["🌿 Symbiotic & plant mutations", "An ecosystem grows around you"] },
+  { name: "Planetary Ecosystem", icon: "🌋", at: 1e15,  blurb: "Your life-forms reshape a landscape.",
+    unlocks: ["🌋 Geological mega-mutations (Tectonic Core)"] },
+  { name: "Living Planet",       icon: "🪐", at: 1e18,  blurb: "The planet itself is alive — and it's you.",
+    unlocks: ["🪐 Planet-scale mutations (Planetary Will)"] },
+  { name: "Cosmic Organism",     icon: "🌌", at: 1e21,  blurb: "A being the size of the void between stars.",
+    unlocks: ["🌌 Reality-warping cosmic mutations (Reality Fold, Entropy Engine)"] },
 ];
 
 // Current location index for a given lifetime-biomass value.

@@ -125,13 +125,14 @@ import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabe
          renderGenomeLab, genomeStatus, openHelp, showChoice, renderChallenges,
          renderHelix, renderSplicer, spliceResult, renderUpgrades, renderMarket,
          renderMutagen, renderReactor, renderPantheon, renderSymbiote, renderGarden,
-         renderColony, renderMachines, renderPaths, openPaths } from "./ui.js";
+         renderColony, renderMachines, renderPaths, openPaths, chapterReveal } from "./ui.js";
 import { SPELLS } from "./data/spells.js";
 import { SEASON_BY_ID } from "./data/seasons.js";
 import { formatNumber } from "./format.js";
 import { getMutation, EDITIONS, MUTATIONS } from "./data/mutations.js";
 import { backendOn, setBackendUrl, backendUrl, submitDailyScore, cloudPutSave, cloudGetSave, newSyncCode } from "./net.js";
 import { GENERATORS } from "./data/generators.js";
+import { JOURNEY } from "./data/journey.js";
 import * as audio from "./audio.js";
 import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme, hasTheme, setMusicStress, setMusicDanger } from "./music.js";
 import { initCinematic, playCinematic } from "./cinematic.js";
@@ -847,6 +848,7 @@ function applyWorld() {
 applyWorld();
 setHabitat(state.biome); // theme the 3D habitat to the run's biome
 setJourneyHabitat(journeyProgress().index); // build the Journey-location world on boot
+if (state.maxJourney === undefined) state.maxJourney = journeyProgress().index; // seed so existing saves don't replay chapter reveals
 setVariant(state.variant); // apply any rare run variant
 applyCreatureSkin();       // base body = cosmetic skin, else current species tier
 // (crown/aura/orbiters already restored by setStage() above — driven by permanent rank)
@@ -1676,6 +1678,18 @@ function update() {
     setJourneyHabitat(_ji); // swap the 3D WORLD to match the Journey location
     if ((state.background || "world") === "world" && _ji !== _lastWorldStage) {
       _lastWorldStage = _ji; setJourneyStage(_ji); // backdrop theme tracks the Journey too
+    }
+    // CHAPTER reveal: first time you reach a new location, celebrate + announce what
+    // it unlocks (new mutations now appear in your draft). Existing saves seed
+    // maxJourney on boot so they don't replay reveals.
+    if (_ji > (state.maxJourney || 0)) {
+      state.maxJourney = _ji;
+      chapterReveal(_ji);
+      audio.playMilestone(); flash("rgba(157,107,255,.4)");
+      const jb = document.getElementById("lab-bulletin");
+      const jc = JOURNEY[_ji];
+      if (jb && jc) jb.textContent = `🗺️ NEW CHAPTER — ${jc.icon} ${jc.name}: ${(jc.unlocks || [])[0] || "new content unlocked"}`;
+      save();
     }
     updateCoach(); updateLabCrew(); // button gating lives in ui.js
     // ambient pond microbes multiply with colony size + macro-stage

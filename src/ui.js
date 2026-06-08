@@ -185,6 +185,9 @@ export function initUI(handlers) {
   document.getElementById("paths-close").addEventListener("click", () => el.pathsModal.classList.add("hidden"));
   document.getElementById("museum-btn").addEventListener("click", () => openMuseum());
   document.getElementById("museum-close").addEventListener("click", () => el.museumModal.classList.add("hidden"));
+  // the Journey ribbon is clickable → chapter overview (what each place unlocks)
+  document.getElementById("journey")?.addEventListener("click", () => openChapters());
+  document.getElementById("chapters-close")?.addEventListener("click", () => document.getElementById("chapters-modal").classList.add("hidden"));
   document.getElementById("evo-rank").addEventListener("click", () => openPaths()); // rank strip opens the path picker
   document.getElementById("splice-close").addEventListener("click", () => el.spliceModal.classList.add("hidden"));
   document.getElementById("splice-go").addEventListener("click", () => {
@@ -1167,6 +1170,37 @@ function updateJourney() {
   if (next) next.innerHTML = p.maxed
     ? `<b>journey complete</b>`
     : `→ <b>${p.next.name}</b> ${p.pct.toFixed(0)}%`;
+}
+
+// THE JOURNEY chapters overview — click the ribbon to see every location, what it
+// unlocks, and what's still ahead (anticipation).
+export function openChapters() {
+  const ji = journeyProgress().index;
+  const wrap = document.getElementById("chapters-list");
+  if (wrap) wrap.innerHTML = JOURNEY.map((j, i) => {
+    const st = i < ji ? "done" : (i === ji ? "current" : "locked");
+    const tag = st === "done" ? "✓ reached" : (st === "current" ? "you are here" : "🔒 locked");
+    const unlocks = (j.unlocks || []).map((u) => `<li>${u}</li>`).join("");
+    return `<div class="chapter ${st}">
+      <div class="chapter-head"><span class="chapter-ico">${j.icon}</span>
+        <span class="chapter-name">${j.name}</span><span class="chapter-tag">${tag}</span></div>
+      <div class="chapter-blurb">${j.blurb}</div>
+      <ul class="chapter-unlocks">${unlocks}</ul></div>`;
+  }).join("");
+  document.getElementById("chapters-modal").classList.remove("hidden");
+}
+
+// The "NEW CHAPTER" reveal banner, fired the first time you reach a location.
+export function chapterReveal(i) {
+  const j = JOURNEY[i]; const b = document.getElementById("chapter-banner");
+  if (!j || !b) return;
+  const unlocks = (j.unlocks || []).map((u) => `<div class="cb-unlock">${u}</div>`).join("");
+  b.innerHTML = `<div class="cb-kicker">NEW CHAPTER</div><div class="cb-title">${j.icon} ${j.name}</div>${unlocks}`;
+  b.classList.remove("hidden"); requestAnimationFrame(() => b.classList.add("show"));
+  clearTimeout(b._t); b._t = setTimeout(() => {
+    b.classList.remove("show");
+    setTimeout(() => b.classList.add("hidden"), 600);
+  }, 4500);
 }
 
 export function renderUI(rate, dt = 0.016) {
