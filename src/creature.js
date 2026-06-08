@@ -191,6 +191,42 @@ function makeOrganismGeometry(detail = 3, radius = 1) {
   return geo;
 }
 
+// Glowing nucleus + inner organelle motes — what makes the body read as a living
+// CELL instead of a low-poly rock. Additive, depth-test off, so they shine through
+// the membrane from within. Children of `organism` so they spin/scale with it.
+let nucleusCore, nucleusHalo, innerMotes;
+function buildNucleus() {
+  if (!organism || nucleusCore) return;
+  const coreMat = new THREE.MeshBasicMaterial({ color: 0xd6fff0, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+  nucleusCore = new THREE.Mesh(new THREE.SphereGeometry(0.28, 18, 18), coreMat);
+  nucleusCore.renderOrder = 6;
+  const haloMat = new THREE.MeshBasicMaterial({ color: 0x66ffcc, transparent: true, opacity: 0.30, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+  nucleusHalo = new THREE.Mesh(new THREE.SphereGeometry(0.6, 18, 18), haloMat);
+  nucleusHalo.renderOrder = 5;
+  innerMotes = new THREE.Group(); innerMotes.renderOrder = 6;
+  const moteMat = new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+  for (let i = 0; i < 5; i++) {
+    const mote = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), moteMat);
+    mote.userData.r = 0.35 + Math.random() * 0.35;
+    mote.userData.a = Math.random() * 6.28;
+    mote.userData.b = Math.random() * 6.28;
+    mote.userData.s = 0.3 + Math.random() * 0.5;
+    innerMotes.add(mote);
+  }
+  organism.add(nucleusHalo); organism.add(nucleusCore); organism.add(innerMotes);
+}
+function updateNucleus(elapsed) {
+  if (!nucleusCore) return;
+  const p = reduceMotion ? 1 : 1 + Math.sin(elapsed * 2.2) * 0.12;
+  nucleusCore.scale.setScalar(p);
+  nucleusCore.material.opacity = 0.7 + (reduceMotion ? 0 : Math.sin(elapsed * 2.2) * 0.18);
+  if (nucleusHalo) nucleusHalo.scale.setScalar(1 + (reduceMotion ? 0 : Math.sin(elapsed * 1.6 + 1) * 0.08));
+  if (innerMotes && !reduceMotion) for (const m of innerMotes.children) {
+    const a = m.userData.a + elapsed * m.userData.s;
+    m.position.set(Math.cos(a) * m.userData.r, Math.sin(a * 0.8 + m.userData.b) * m.userData.r * 0.7, Math.sin(a) * m.userData.r);
+  }
+}
+
 // ---- Species Tier "ascension crown": orbiting glowing shards + halo rings that
 // escalate with each Speciation, so a higher lineage instantly looks grander. ----
 let tierGroup, tierIndex = 0;
@@ -688,6 +724,7 @@ export function initCreature(canvasEl, onClick) {
   });
   organism = new THREE.Mesh(geo, mat);
   scene.add(organism);
+  buildNucleus(); // glowing nucleus + inner motes → reads as a living cell
 
   buildHabitat();
 
@@ -897,6 +934,7 @@ export function renderCreature(dt, elapsed) {
   updateTierCrown(dt, elapsed);
   updateOrbiters(dt, elapsed);
   updateSwarm(dt, elapsed);
+  updateNucleus(elapsed);
   updateAuraParticles(elapsed);
   updateVeins(elapsed);
   if (skinShellMat) skinShellMat.uniforms.uTime.value = elapsed;
