@@ -21,6 +21,7 @@ let partsGroup;
 let sigGroup; // Evolution-Path signature parts (managed per stage)
 let partIndex = 0;      // how many parts attached (also the anchor seed)
 let hueShift = 0;       // accumulates per mutation -> creature drifts color
+let stageColor = 0x66ffcc; // the body's base colour = current stage/path identity colour
 let stress = 0;         // 0..1 metabolic stress (near the production wall)
 let stressTarget = 0;
 let engorge = 0;        // transient swell from Digest
@@ -214,11 +215,11 @@ function makeOrganismGeometry(detail = 3, radius = 1) {
 let nucleusCore, nucleusHalo, innerMotes;
 function buildNucleus() {
   if (!organism || nucleusCore) return;
-  const coreMat = new THREE.MeshBasicMaterial({ color: 0xd6fff0, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
-  nucleusCore = new THREE.Mesh(new THREE.SphereGeometry(0.28, 18, 18), coreMat);
+  const coreMat = new THREE.MeshBasicMaterial({ color: 0xd6fff0, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+  nucleusCore = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), coreMat);
   nucleusCore.renderOrder = 6;
-  const haloMat = new THREE.MeshBasicMaterial({ color: 0x66ffcc, transparent: true, opacity: 0.30, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
-  nucleusHalo = new THREE.Mesh(new THREE.SphereGeometry(0.6, 18, 18), haloMat);
+  const haloMat = new THREE.MeshBasicMaterial({ color: 0x66ffcc, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+  nucleusHalo = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 16), haloMat);
   nucleusHalo.renderOrder = 5;
   innerMotes = new THREE.Group(); innerMotes.renderOrder = 6;
   const moteMat = new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
@@ -236,7 +237,7 @@ function updateNucleus(elapsed) {
   if (!nucleusCore) return;
   const p = reduceMotion ? 1 : 1 + Math.sin(elapsed * 2.2) * 0.12;
   nucleusCore.scale.setScalar(p);
-  nucleusCore.material.opacity = 0.7 + (reduceMotion ? 0 : Math.sin(elapsed * 2.2) * 0.18);
+  nucleusCore.material.opacity = 0.42 + (reduceMotion ? 0 : Math.sin(elapsed * 2.2) * 0.12);
   if (nucleusHalo) nucleusHalo.scale.setScalar(1 + (reduceMotion ? 0 : Math.sin(elapsed * 1.6 + 1) * 0.08));
   if (innerMotes && !reduceMotion) for (const m of innerMotes.children) {
     const a = m.userData.a + elapsed * m.userData.s;
@@ -308,6 +309,8 @@ export function setStage(idx, seed = 0, pathId = null) {
   rebuildBody();
   // colour identity: path colour if chosen, else the generic stage colour
   const col = p ? p.color : s.color;
+  stageColor = col;                             // the BODY takes this colour, not just the aura
+  applyHue();                                   // recolour the body to the new stage identity
   buildCrown(s.crown, s.rings, col);          // grandeur ladder (shards + rings)
   setAura(col, s.auraI);                        // glow + orbiting aura particles
   buildOrbiters(s.orbits, col);                 // detached organs / orbiting stars
@@ -962,11 +965,17 @@ export function renderCreature(dt, elapsed) {
 // ---- mutation visuals ----
 function applyHue() {
   if (!organism) return;
-  const h = (skin.h + hueShift) % 1;
-  organism.material.color.setHSL(h, skin.s, skin.l);
-  organism.material.emissive.setHSL(h, skin.s, 0.12);
+  // Body colour = the current stage/path identity colour (so each stage looks
+  // different), drifted by accumulated mutations. (Equip a skin to override the hue.)
+  const sc = {}; new THREE.Color(stageColor).getHSL(sc);
+  const useSkin = Math.abs(skin.h - 0.42) > 0.001; // a non-default skin was equipped
+  const baseH = useSkin ? skin.h : sc.h;
+  const sat = useSkin ? skin.s : Math.max(0.5, sc.s);
+  const h = (baseH + hueShift) % 1;
+  organism.material.color.setHSL(h, sat, skin.l);
+  organism.material.emissive.setHSL(h, sat, 0.14);
   // keep the bioluminescent rim-glow in sync with the body hue (brighter membrane)
-  if (rimMat) rimMat.uniforms.uColor.value.setHSL(h, Math.min(1, skin.s + 0.1), Math.min(0.85, skin.l + 0.3));
+  if (rimMat) rimMat.uniforms.uColor.value.setHSL(h, Math.min(1, sat + 0.1), Math.min(0.85, skin.l + 0.3));
 }
 
 const glossy = (color, extra = {}) =>
