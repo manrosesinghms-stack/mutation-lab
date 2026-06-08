@@ -454,6 +454,26 @@ export function nextResearch(genId) {
   for (const t of RESEARCH_TIERS) if (o < t.at) return t;
   return null;
 }
+// Evolution progress for the organelle row: a filling bar toward the NEXT named
+// form, so every purchase reads as "X more → Molecular Forge" (anticipation),
+// not a static multiplier. Returns null for organelles with no name ladder.
+export function researchProgress(genId) {
+  const names = ORG_NAMES[genId];
+  if (!names) return null;
+  const o = state.owned[genId] || 0;
+  const tier = researchTiers(genId);
+  const curName = names[Math.min(tier, names.length - 1)];
+  const next = nextResearch(genId);
+  if (!next) return { maxed: true, tier, curName, total: RESEARCH_TIERS.length };
+  const prevAt = tier > 0 ? RESEARCH_TIERS[tier - 1].at : 0;
+  const span = Math.max(1, next.at - prevAt);
+  const pct = Math.max(0, Math.min(100, ((o - prevAt) / span) * 100));
+  return {
+    maxed: false, tier, curName, total: RESEARCH_TIERS.length,
+    pct, remaining: Math.max(0, next.at - o), nextAt: next.at, nextMult: next.mult,
+    nextName: names[Math.min(tier + 1, names.length - 1)],
+  };
+}
 
 // ---- Species Museum (permanent lineage archive) ----
 // A specimen is recorded every Speciation and NEVER reset. The museum is your

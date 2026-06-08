@@ -36,7 +36,7 @@ import {
   claimColonyNode,
   evolutionStage,
   researchTiers,
-  researchName,
+  researchName, researchMult,
   masteriesComplete,
   chooseEvoPath,
   pathChoiceDue,
@@ -156,7 +156,7 @@ initUI({
         audio.playMilestone(); cinematicPulse(); flash("rgba(120,220,255,.3)");
         const c = stageCenter();
         burst(c.x, c.y, { count: 40, color: "#7be3ff", spread: 160, life: 900 });
-        flashStatus(`⚗ RESEARCH UNLOCKED — evolved into ${researchName(genId)}!`);
+        flashStatus(`🧬 EVOLVED → ${researchName(genId)}!  (×${researchMult(genId).toFixed(1)} output)`);
       } else {
         flashStatus(n > 1 ? `+${n} organelles acquired` : "organelle acquired");
       }

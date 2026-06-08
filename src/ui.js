@@ -19,7 +19,7 @@ import {
   automatorOwned, automatorOn,
   evolutionStage, evoPathId,
   museumList, museumCount,
-  researchName, researchTiers, nextResearch,
+  researchName, researchTiers, nextResearch, researchProgress,
   atlasFamilies, masteriesComplete,
   cultureMult, cultureCount,
   digestActive,
@@ -1314,18 +1314,26 @@ export function renderUI(rate, dt = 0.016) {
       row.title = `${researchName(g.id) || g.name}\n+${formatNumber(_bd.each[g.id] || 0)}/sec each` +
         (state.owned[g.id] ? ` · ${share.toFixed(share < 10 ? 1 : 0)}% of production` : " (none owned yet)");
     }
-    // research: rename the organelle to its current tier + show next milestone
-    const rName = researchName(g.id);
-    if (rName) {
+    // EVOLUTION: rename the organelle to its current form + a filling bar toward
+    // the NEXT named form, so every purchase reads as anticipation ("3 → Forge").
+    const prog = researchProgress(g.id);
+    if (prog) {
       const nameEl = row.querySelector(".name");
-      if (nameEl.textContent !== rName) nameEl.textContent = rName;
-      const tiers = researchTiers(g.id);
-      const next = nextResearch(g.id);
+      const stars = "✦".repeat(prog.tier);
+      const display = prog.curName + (prog.tier ? ` <span class="evo-stars">${stars}</span>` : "");
+      if (nameEl.innerHTML !== display) nameEl.innerHTML = display;
       const rEl = row.querySelector(".research");
-      rEl.textContent = next
-        ? `⚗ research ${tiers}/${RESEARCH_TIERS.length} · next ×${next.mult} at ${next.at}`
-        : `⚗ research MAXED ${tiers}/${RESEARCH_TIERS.length}`;
-      rEl.classList.toggle("ready", !!next && (state.owned[g.id] || 0) >= next.at);
+      if (prog.maxed) {
+        rEl.innerHTML = `<span class="evo-max">✦ fully evolved · Form ${prog.total + 1}/${prog.total + 1}</span>`;
+        rEl.classList.remove("ready");
+      } else {
+        const ready = (state.owned[g.id] || 0) >= prog.nextAt;
+        rEl.innerHTML =
+          `<span class="evo-row"><span class="evo-next">▸ ${prog.nextName}` +
+          ` <em>in ${prog.remaining}</em></span>` +
+          `<span class="evo-bar"><span class="evo-fill" style="width:${prog.pct.toFixed(1)}%"></span></span></span>`;
+        rEl.classList.toggle("ready", ready);
+      }
     }
   }
 }
