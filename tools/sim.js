@@ -64,7 +64,9 @@ function costOf(s, g) {
 }
 
 function epForReset(s, mods) {
-  return Math.max(0, Math.floor(Math.sqrt((s.runBiomass || 0) / 1e4) * mods.epMult));
+  const raw = Math.sqrt((s.runBiomass || 0) / 1e4) * mods.epMult;
+  if ((s.prestiges || 0) === 0 && (s.runBiomass || 0) >= 2000) return Math.max(1, Math.floor(raw));
+  return Math.max(0, Math.floor(raw));
 }
 
 // --- the simulated player ---

@@ -10,6 +10,37 @@ export function setBackgroundReduceMotion(v) { reduceMotion = !!v; }
 let dnaStorm = false;
 export function setDnaStorm(on) { on = !!on; if (on !== dnaStorm) { dnaStorm = on; seed(); } }
 
+// Ambient pond life: tiny non-interactive microbes drifting in the background that
+// MULTIPLY as your colony grows — the world feels alive and populated, not empty.
+let microbes = [];
+let microbeTarget = 0;
+const MICROBE_COLORS = ["#7be3b0", "#9fe8ff", "#b8f5cf", "#ffd0a6"];
+export function setMicrobeCount(n) {
+  n = Math.max(0, Math.min(54, n | 0));
+  if (n === microbeTarget && microbes.length === n) return; // steady state — skip churn
+  microbeTarget = n;
+  const w = W || 1200, h = H || 700;
+  while (microbes.length < microbeTarget) microbes.push({
+    x: Math.random() * w, y: Math.random() * h, r: 1.4 + Math.random() * 3.2,
+    vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10,
+    ph: Math.random() * 6.28, col: MICROBE_COLORS[(Math.random() * MICROBE_COLORS.length) | 0],
+  });
+  if (microbes.length > microbeTarget) microbes.length = microbeTarget;
+}
+function drawMicrobes(dt) {
+  if (!microbes.length || reduceMotion) return;
+  for (const m of microbes) {
+    m.x += (m.vx + Math.sin(t * 0.8 + m.ph) * 4) * dt;
+    m.y += (m.vy + Math.cos(t * 0.6 + m.ph) * 4) * dt;
+    if (m.x < -8) m.x = W + 8; if (m.x > W + 8) m.x = -8;
+    if (m.y < -8) m.y = H + 8; if (m.y > H + 8) m.y = -8;
+    ctx.fillStyle = hexA(m.col, 0.5);
+    ctx.beginPath(); ctx.ellipse(m.x, m.y, m.r, m.r * 0.78, m.ph, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(6,18,14,0.5)";
+    ctx.beginPath(); ctx.arc(m.x + m.r * 0.25, m.y - m.r * 0.2, m.r * 0.38, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
 const THEMES = {
   aurora: { name: "Aurora", a: [16, 28, 40], b: [24, 64, 54], c: [46, 30, 80], p: "#56e39f", n: 40, stars: 0, kind: "ocean" },
   abyss: { name: "Deep Sea", a: [6, 12, 24], b: [10, 26, 46], c: [8, 36, 52], p: "#5aa0ff", n: 50, stars: 0, kind: "ocean" },
@@ -21,15 +52,96 @@ const THEMES = {
 };
 const ORDER = ["aurora", "abyss", "cosmos", "ember", "meadow", "voidd"];
 
-export const BACKGROUNDS = Object.keys(THEMES).map((id) => ({ id, name: THEMES[id].name }));
+// "🌍 Living World" is listed first so it's the obvious default: the backdrop
+// tracks your Evolution stage, so the WORLD visibly grows around the creature
+// (micro pond → ocean → volcanic surface → planet → cosmos → void) the way Cookie
+// Clicker escalates kitchen → factory → universe. Picking any specific theme below
+// locks the backdrop to that theme instead.
+export const BACKGROUNDS = [{ id: "world", name: "🌍 Living World" }]
+  .concat(Object.keys(THEMES).map((id) => ({ id, name: THEMES[id].name })));
 export function setBackground(id) { if (THEMES[id]) { themeId = id; seed(); } }
-export function hasBackground(id) { return !!THEMES[id]; }
+export function hasBackground(id) { return id === "world" || !!THEMES[id]; }
+
+// One backdrop per Evolution stage (indices match EVO_STAGES in data/stages.js).
+const STAGE_THEMES = ["aurora", "meadow", "abyss", "ember", "cosmos", "voidd"];
+// Escalate the backdrop to match the creature's macro-stage. Cheap: only reseeds
+// when the stage actually changes a theme, so it's safe to call every frame.
+export function setWorldStage(idx) {
+  const id = STAGE_THEMES[Math.max(0, Math.min(STAGE_THEMES.length - 1, idx | 0))];
+  if (THEMES[id] && id !== themeId) { themeId = id; seed(); }
+}
+
+// ---- WebGL nebula: a real animated, domain-warped fractal-noise backdrop drawn
+// on its own canvas behind the 2D decor. This is the "actual graphics, not just
+// colours" layer; it's tinted live by the current world palette. Falls back to the
+// 2D gradient if WebGL is unavailable. ----
+let gl = null, glCanvas = null, glProg = null, glLoc = {}, glOK = false;
+const NEBULA_FS = `precision highp float;
+uniform float uTime; uniform vec2 uRes; uniform vec3 uA, uB, uC;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453123); }
+float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  float a=hash(i), b=hash(i+vec2(1,0)), c=hash(i+vec2(0,1)), d=hash(i+vec2(1,1));
+  return mix(mix(a,b,f.x), mix(c,d,f.x), f.y); }
+float fbm(vec2 p){ float v=0.0, a=0.5; for(int i=0;i<6;i++){ v+=a*noise(p); p*=2.03; a*=0.5; } return v; }
+void main(){
+  vec2 p = (gl_FragCoord.xy - 0.5*uRes) / uRes.y;
+  float t = uTime*0.025;
+  vec2 q = vec2(fbm(p*1.4 + vec2(0.0,t)), fbm(p*1.4 + vec2(4.3,-t)));   // domain warp
+  float n  = fbm(p*1.8 + q*1.6 + t*0.4);
+  float n2 = fbm(p*3.4 - q*1.0 - t*0.25);
+  vec3 col = mix(uA, uB, smoothstep(0.15, 0.85, n));
+  col = mix(col, uC, n2*n2*0.85);
+  float d = length(p * vec2(uRes.x/uRes.y, 1.0));
+  col += uC * exp(-d*1.7) * 0.55;                                        // core glow
+  float st = step(0.9975, hash(floor(gl_FragCoord.xy*0.5) + floor(t*3.0))); // sparse stars
+  col += st*0.6;
+  col *= 1.0 - 0.45*d;                                                    // vignette
+  gl_FragColor = vec4(max(col, 0.0), 1.0);
+}`;
+function compile(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; }
+function initGL() {
+  glCanvas = document.getElementById("bg-gl");
+  if (!glCanvas) return;
+  gl = glCanvas.getContext("webgl") || glCanvas.getContext("experimental-webgl");
+  if (!gl) return;
+  const vs = compile(gl.VERTEX_SHADER, "attribute vec2 p; void main(){ gl_Position=vec4(p,0.0,1.0); }");
+  const fs = compile(gl.FRAGMENT_SHADER, NEBULA_FS);
+  glProg = gl.createProgram(); gl.attachShader(glProg, vs); gl.attachShader(glProg, fs); gl.linkProgram(glProg);
+  if (!gl.getProgramParameter(glProg, gl.LINK_STATUS)) return; // fall back to 2D
+  gl.useProgram(glProg);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW); // fullscreen tri
+  const loc = gl.getAttribLocation(glProg, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  glLoc = { t: gl.getUniformLocation(glProg, "uTime"), r: gl.getUniformLocation(glProg, "uRes"),
+            a: gl.getUniformLocation(glProg, "uA"), b: gl.getUniformLocation(glProg, "uB"), c: gl.getUniformLocation(glProg, "uC") };
+  glOK = true;
+  resizeGL();
+}
+function resizeGL() {
+  if (!glOK || !glCanvas.parentElement) return;
+  const w = glCanvas.parentElement.clientWidth, h = glCanvas.parentElement.clientHeight;
+  if (w < 2 || h < 2) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  glCanvas.width = w * dpr; glCanvas.height = h * dpr;
+  gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+}
+function renderGL(th) {
+  if (!glOK) return;
+  gl.useProgram(glProg);
+  gl.uniform1f(glLoc.t, t);
+  gl.uniform2f(glLoc.r, glCanvas.width, glCanvas.height);
+  const set = (loc, c, m = 1) => gl.uniform3f(loc, (c[0] / 255) * m, (c[1] / 255) * m, (c[2] / 255) * m);
+  set(glLoc.a, th.a, 1.1); set(glLoc.b, th.b, 1.25);
+  const p = th.p || "#56e39f"; set(glLoc.c, [parseInt(p.slice(1, 3), 16), parseInt(p.slice(3, 5), 16), parseInt(p.slice(5, 7), 16)], 1.0);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
 
 export function initBackground(canvasEl) {
   canvas = canvasEl;
   ctx = canvas.getContext("2d");
   resizeBackground();
   window.addEventListener("resize", resizeBackground);
+  try { initGL(); } catch (e) { glOK = false; }
   seed();
 }
 
@@ -39,6 +151,7 @@ export function resizeBackground() {
   if (w < 2 || h < 2) return;
   W = canvas.width = w;
   H = canvas.height = h;
+  resizeGL();
 }
 
 function seed() {
@@ -107,16 +220,36 @@ export function renderBackground(dt) {
   if (!ctx || W < 2) return;
   t += dt;
   const th = activeTheme();
-  // breathing radial gradient
-  const k = (Math.sin(t * 0.12) + 1) / 2;
-  const inner = lerpC(th.b, th.c, k);
-  const cx = W * (0.5 + Math.sin(t * 0.05) * 0.13);
-  const cy = H * (0.42 + Math.cos(t * 0.04) * 0.13);
-  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.85);
-  g.addColorStop(0, rgb(inner));
-  g.addColorStop(1, rgb(th.a));
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
+  // The WebGL nebula is the base "graphics" layer; render it, then the 2D canvas
+  // is cleared transparent so decor/bokeh/microbes float over the shader. If GL is
+  // unavailable, fall back to the original opaque breathing gradient.
+  if (glOK) {
+    renderGL(th);
+    ctx.clearRect(0, 0, W, H);
+  } else {
+    const k = (Math.sin(t * 0.12) + 1) / 2;
+    const inner = lerpC(th.b, th.c, k);
+    const cx = W * (0.5 + Math.sin(t * 0.05) * 0.13);
+    const cy = H * (0.42 + Math.cos(t * 0.04) * 0.13);
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.85);
+    g.addColorStop(0, rgb(inner));
+    g.addColorStop(1, rgb(th.a));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+  // bioluminescent core glow — the world breathes light from where the specimen sits
+  {
+    const pulse = reduceMotion ? 1 : 1 + Math.sin(t * 0.45) * 0.09;
+    const col = th.p || "#56e39f";
+    const cg = ctx.createRadialGradient(W * 0.5, H * 0.46, 0, W * 0.5, H * 0.46, Math.min(W, H) * 0.6);
+    cg.addColorStop(0, hexA(col, 0.11 * pulse));
+    cg.addColorStop(0.5, hexA(col, 0.035));
+    cg.addColorStop(1, hexA(col, 0));
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = cg;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "source-over";
+  }
   // stars
   if (stars.length) {
     for (const s of stars) {
@@ -126,6 +259,7 @@ export function renderBackground(dt) {
     }
   }
   drawDecor(th, dt);
+  drawMicrobes(dt); // ambient pond life that multiplies with your colony
   // drifting bokeh
   ctx.globalCompositeOperation = "lighter";
   for (const p of parts) {

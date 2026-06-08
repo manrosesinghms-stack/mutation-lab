@@ -2,7 +2,7 @@
 
 import { state, nowSeconds } from "./state.js";
 import { GENERATORS } from "./data/generators.js";
-import { MUTATIONS, MUT_BY_ID } from "./data/mutations.js";
+import { MUTATIONS, MUT_BY_ID, EDITIONS, rollEdition } from "./data/mutations.js";
 import { TUN, softknee } from "./data/tunables.js";
 import { NODE_BY_ID, nodeLevel, nodeCost } from "./data/genomeNodes.js";
 import { ACHIEVEMENTS } from "./data/achievements.js";
@@ -59,22 +59,29 @@ const GEN_BY_ID = Object.fromEntries(GENERATORS.map((g) => [g.id, g]));
 // This keeps the exponential cost wall meaningful (the game's actual progression
 // engine) instead of a runaway multiplier trivializing it. Works for every
 // existing mutation with no per-mutation rewrite.
-function applyMutationEffects(mods, mutList) {
+function applyMutationEffects(mods, mutList, editions) {
   const counts = {};
   for (const id of mutList) counts[id] = (counts[id] || 0) + 1;
   const totalGenerators = GENERATORS.reduce((s, g) => s + (state.owned[g.id] || 0), 0);
   const info = { counts, totalMutations: mutList.length, totalGenerators };
+  const ed = editions || null; // edition map (live run only); species use base
   let prodB = 0, clickB = 0, epB = 0;
   const genB = {};
+  const cursedDone = new Set(); // flat Cursed click-penalty applies ONCE per id, not per stacked copy
   for (const id of mutList) {
     const def = MUT_BY_ID[id];
     if (!def || !def.effect) continue;
     const u = { clickMult: 1, prodMult: 1, epMult: 1, genMult: {} };
     def.effect(u, info);
-    prodB += u.prodMult - 1;
-    clickB += u.clickMult - 1;
-    epB += u.epMult - 1;
-    for (const k in u.genMult) genB[k] = (genB[k] || 0) + (u.genMult[k] - 1);
+    // editions amplify the WHOLE effect by `power` (Foil/Prismatic/Cursed); Cursed
+    // adds a flat click penalty as its risk/reward cost (charged once per mutation).
+    const edDef = ed && ed[id] ? EDITIONS[ed[id]] : null;
+    const p = edDef ? edDef.power : 1;
+    prodB += (u.prodMult - 1) * p;
+    clickB += (u.clickMult - 1) * p;
+    if (edDef && edDef.clickPenalty && !cursedDone.has(id)) { clickB -= edDef.clickPenalty; cursedDone.add(id); }
+    epB += (u.epMult - 1) * p;
+    for (const k in u.genMult) genB[k] = (genB[k] || 0) + (u.genMult[k] - 1) * p;
   }
   mods.prodMult *= Math.max(0.1, 1 + prodB);
   mods.clickMult *= Math.max(0.1, 1 + clickB);
@@ -85,7 +92,7 @@ function applyMutationEffects(mods, mutList) {
 // Build the full modifier bag: live mutations + EP + equipped Species + temp buffs.
 export function getModifiers() {
   const mods = { clickMult: 1, prodMult: 1, epMult: 1, genMult: {} };
-  applyMutationEffects(mods, state.mutations);
+  applyMutationEffects(mods, state.mutations, state.editions);
   // Evolution Point payoff — softcapped so it can't run away (see tunables.js)
   mods.prodMult *= epPayoffMult(state.evolutionPoints || 0);
   // synergies (combo traits) + completed set bonuses
@@ -109,6 +116,7 @@ export function getModifiers() {
     mods.prodMult *= Math.sqrt(Math.max(1, sm.prodMult));
     mods.clickMult *= Math.sqrt(Math.max(1, sm.clickMult));
   }
+  mods.prodMult *= lineageBonus(); // Tree of Life: dynasty diversity bonus
   // temporary buffs (blooms / Digest): collect now, but APPLY at the very end so
   // they burst ON TOP of the soft-capped permanent multiplier (a Frenzy should
   // still feel like a real ×4, not get swallowed by the cap).
@@ -200,6 +208,11 @@ export function getModifiers() {
     if (u.gen) mods.genMult[u.gen] = (mods.genMult[u.gen] || 1) * u.mult;
     if (u.click) mods.clickMult *= u.click;
     if (u.prod) mods.prodMult *= u.prod;
+    // Symbiosis: the "to" organelle scales with how many "from" organelles you own
+    if (u.synergy) {
+      const ownedFrom = state.owned[u.synergy.from] || 0;
+      if (ownedFrom > 0) mods.genMult[u.synergy.to] = (mods.genMult[u.synergy.to] || 1) * (1 + u.synergy.per * ownedFrom);
+    }
   }
   // Organelle Research — ownership-milestone tiers multiply each organelle
   for (const g of GENERATORS) {
@@ -713,7 +726,7 @@ export function doTranscend() {
   state.species = []; state.equippedSpecies = [];
   state.genomeNodes = {};
   state.speciations = 0;
-  state.evolutionPoints = 0; state.mutations = []; state.prestiges = 0;
+  state.evolutionPoints = 0; state.mutations = []; state.editions = {}; state.prestiges = 0;
   state.lastMilestoneExp = 2;
   for (const g of GENERATORS) state.owned[g.id] = 0;
   state.biomass = startBoostBiomass() + (hs > 0 ? Math.pow(10, hs) : 0);
@@ -824,6 +837,61 @@ export function buy(genId) {
   return true;
 }
 
+// ---- Bulk buy (×10 / ×100 / Max) — the Cookie-Clicker QoL muscle memory ----
+// Total cost to buy the next `n` of a generator (geometric, per-unit ceil).
+// Per-organelle production breakdown for the hover tooltip (Cookie-Clicker detail):
+// how much each unit makes and what share of total /sec the organelle provides.
+export function productionBreakdown() {
+  const mods = getModifiers();
+  const per = {}; let total = 0;
+  for (const g of GENERATORS) {
+    let gen = (state.owned[g.id] || 0) * g.baseProduction * (mods.genMult[g.id] || 1);
+    gen = softknee(gen, TUN.genSaturation.threshold, TUN.genSaturation.exp);
+    const contrib = gen * mods.prodMult;
+    per[g.id] = contrib; total += contrib;
+  }
+  const each = {};
+  for (const g of GENERATORS) {
+    const owned = state.owned[g.id] || 0;
+    each[g.id] = owned > 0 ? per[g.id] / owned : g.baseProduction * (mods.genMult[g.id] || 1) * mods.prodMult;
+  }
+  return { per, each, total };
+}
+
+export function costForN(genId, n) {
+  const g = GEN_BY_ID[genId];
+  const owned = state.owned[genId] || 0;
+  let total = 0;
+  for (let i = 0; i < n; i++) total += Math.ceil(g.baseCost * Math.pow(g.costGrowth, owned + i));
+  return total;
+}
+// How many you could afford right now (capped so the loop can't run away).
+export function maxAffordable(genId) {
+  if (challengeRule() === "noGenerators") return 0;
+  const g = GEN_BY_ID[genId];
+  let owned = state.owned[genId] || 0;
+  let bm = state.biomass, n = 0;
+  while (n < 100000) {
+    const c = Math.ceil(g.baseCost * Math.pow(g.costGrowth, owned + n));
+    if (c > bm) break;
+    bm -= c; n++;
+  }
+  return n;
+}
+// Buy up to `n` (stops when unaffordable). Returns how many were actually bought.
+export function buyN(genId, n) {
+  if (challengeRule() === "noGenerators") return 0;
+  let bought = 0;
+  for (let i = 0; i < n; i++) {
+    const cost = costOf(genId);
+    if (state.biomass < cost) break;
+    state.biomass -= cost;
+    state.owned[genId] = (state.owned[genId] || 0) + 1;
+    bought++;
+  }
+  return bought;
+}
+
 // Raw biomass/sec BEFORE the global production softcap (per-generator saturation
 // already applied). Shared by productionPerSecond + pressureLevel.
 function rawProduction() {
@@ -849,6 +917,85 @@ export function productionSoftcapThreshold() {
 // 0..1+ : how close production is to the wall (drives the Phase-1 Pressure meter).
 export function pressureLevel() {
   return rawProduction() / productionSoftcapThreshold();
+}
+
+// ---- Build identity (roguelike "what am I building" + a chase-able score) ----
+// The single headline label for the current run's build, derived from the
+// strongest thing the player has assembled: a completed Set Form > a synergy
+// (legendaries first) > the chosen Path > the dominant body part > Primordial.
+const PART_ARCHETYPE = { eye: "Watcher", spike: "Bristler", tentacle: "Grasper",
+  jaw: "Devourer", frond: "Photophyte", body: "Brood-Cell", cilia: "Drifter" };
+export function currentArchetype() {
+  const muts = state.mutations || [];
+  const sets = completedSets(muts);
+  if (sets.length) return { name: sets[0].form, kind: "set", flavor: `${sets[0].name} set complete` };
+  const syns = activeSynergies(muts);
+  if (syns.length) {
+    const best = syns.slice().sort((a, b) => (b.hidden ? 1 : 0) - (a.hidden ? 1 : 0))[0];
+    return { name: best.name, kind: best.hidden ? "legendary" : "synergy", flavor: best.flavor || "" };
+  }
+  if (state.evoPath && PATH_BY_ID[state.evoPath]) return { name: `${PATH_BY_ID[state.evoPath].name} Lineage`, kind: "path", flavor: "" };
+  const parts = partCounts(muts);
+  const top = Object.keys(parts).sort((a, b) => parts[b] - parts[a])[0];
+  if (top) return { name: PART_ARCHETYPE[top] || "Mutant", kind: "part", flavor: "" };
+  return { name: "Primordial Cell", kind: "none", flavor: "Unmutated — for now." };
+}
+
+// Would drafting this mutation complete a Set Form or synergy? Drives the draft
+// "completes Leviathan!" hint that turns picking into deliberate build-crafting.
+export function draftHint(id) {
+  const cur = state.mutations || [];
+  const next = cur.concat([id]);
+  const beforeSets = new Set(completedSets(cur).map((s) => s.id));
+  for (const s of completedSets(next)) if (!beforeSets.has(s.id)) return { text: `completes ${s.form}!`, strong: true };
+  const beforeSyn = new Set(activeSynergies(cur).map((s) => s.id));
+  const newSyn = activeSynergies(next).filter((s) => !beforeSyn.has(s.id));
+  const leg = newSyn.find((s) => s.hidden);
+  if (leg) return { text: "★ unlocks a legendary evolution!", strong: true };
+  if (newSyn.length) return { text: `completes ${newSyn[0].name}!`, strong: true };
+  return null;
+}
+
+// ---- Tree of Life lineage bonus ----
+function rootIdOf(sp, byId) {
+  let cur = sp, guard = 0;
+  while (cur && cur.parentId && byId[cur.parentId] && guard++ < 64) cur = byId[cur.parentId];
+  return cur ? cur.id : sp.id;
+}
+// Building a diverse evolutionary tree (many species, distinct lineages, deep
+// branches) grants a permanent production bonus — rewards growing a DYNASTY, not
+// just one strong species. Contributions are capped and also pass through the
+// global mult softcap, so it boosts steadily without ever running away.
+export function lineageBonus() {
+  const sp = state.species || [];
+  if (!sp.length) return 1;
+  const byId = Object.fromEntries(sp.map((s) => [s.id, s]));
+  const roots = new Set(sp.map((s) => rootIdOf(s, byId)));
+  const maxDepth = sp.reduce((m, s) => Math.max(m, s.gen || 0), 0);
+  return 1 + 0.015 * Math.min(sp.length, 20)   // breadth: species count
+           + 0.04 * Math.min(roots.size, 6)    // diversity: distinct lineages
+           + 0.03 * Math.min(maxDepth, 10);    // depth: longest branch
+}
+
+// A single legible number summarizing how strong/spicy the current build is.
+// Production is LOG-scaled so the score can never explode the way raw production
+// once did; synergies, completed sets, legendaries, rank and speciations add flat
+// weight so wild builds and deep runs score higher (the thing players chase/share).
+export function buildScore() {
+  const muts = state.mutations || [];
+  const distinct = new Set(muts).size;
+  const prod = Math.max(1, productionPerSecond());
+  const syns = activeSynergies(muts);
+  const hidden = syns.filter((s) => s.hidden).length;
+  const sets = completedSets(muts).length;
+  const score = Math.log10(prod) * 4
+    + distinct * 2
+    + (syns.length - hidden) * 6
+    + hidden * 12
+    + sets * 18
+    + (state.evolutionRank || 0) * 1.5
+    + (state.speciations || 0) * 10;
+  return Math.max(0, Math.floor(score));
 }
 
 // Total passive biomass/sec, with the global production softcap (the wall) applied.
@@ -878,6 +1025,7 @@ export function click(critMult = 1) {
 }
 
 export function addBiomass(amount) {
+  if (!Number.isFinite(amount)) return; // never let an overflow corrupt the save
   state.biomass += amount;
   state.lifetimeBiomass += amount;
   state.runBiomass += amount;
@@ -896,6 +1044,10 @@ export function epForReset() {
   const mods = getModifiers();
   const epNode = 1 + 0.25 * nodeLevel(state, "ep_boost");
   const raw = Math.sqrt((state.runBiomass || 0) / 1e4) * mods.epMult * epNode;
+  // Snappier FIRST Evolve: the mutation draft is the game's best hook, so let the
+  // very first Evolve land early (run-biomass >= 2000 ≈ a few minutes) without
+  // changing the overall EP curve — only the first reset gets this floor.
+  if ((state.prestiges || 0) === 0 && (state.runBiomass || 0) >= 2000) return Math.max(1, Math.floor(raw));
   return Math.max(0, Math.floor(raw));
 }
 
@@ -945,21 +1097,37 @@ export function currentWeekly() {
 export function startDailyRun() {
   setDraftSeed(todaySeed());
   state.dailyActive = true;
-  state.evolutionPoints = 0; state.mutations = []; state.prestiges = 0;
+  state.evolutionPoints = 0; state.mutations = []; state.editions = {}; state.prestiges = 0;
   state.biomass = 0; state.runBiomass = 0; state.lastMilestoneExp = 2;
   state.instabilityResolved = false; state.embraceChaos = false; state.stabilizeBonus = 1;
   for (const g of GENERATORS) state.owned[g.id] = 0;
 }
 export function endDailyRun() {
   state.dailyBest = state.dailyBest || {};
+  state.dailyScores = state.dailyScores || {}; // seed -> { score, biomass, name } personal best
   const seed = String(todaySeed());
+  const score = buildScore();
+  const prev = state.dailyScores[seed];
+  const improved = !prev || score > (prev.score || 0);
+  if (improved) state.dailyScores[seed] = { score, biomass: state.runBiomass || 0, name: state.dailyName || "Specimen" };
   state.dailyBest[seed] = Math.max(state.dailyBest[seed] || 0, state.runBiomass || 0);
   setDraftSeed(null);
   state.dailyActive = false;
+  return { seed, score, biomass: state.runBiomass || 0, improved };
 }
 export function dailyBestToday() {
   state.dailyBest = state.dailyBest || {};
   return state.dailyBest[String(todaySeed())] || 0;
+}
+export function dailyScoreToday() {
+  state.dailyScores = state.dailyScores || {};
+  return state.dailyScores[String(todaySeed())] || null;
+}
+// Personal "leaderboard": your best daily scores, most recent first.
+export function dailyHistory(limit = 8) {
+  const sc = state.dailyScores || {};
+  return Object.keys(sc).map((seed) => ({ seed, ...sc[seed] }))
+    .sort((a, b) => Number(b.seed) - Number(a.seed)).slice(0, limit);
 }
 
 function speciesStrength(mutList) {
@@ -1006,6 +1174,15 @@ export function doSpeciate() {
       .map((d) => d.part),
     strength: speciesStrength(state.mutations),
   };
+  // Tree of Life lineage: the new species descends from the species you had
+  // equipped (your "active lineage"), else the most recent one, else it's a new
+  // root. gen = depth in the tree. Drives the Tree of Life view + lineage bonus.
+  const parentSp = (state.equippedSpecies && state.equippedSpecies[0])
+    ? (state.species || []).find((s) => s.id === state.equippedSpecies[0])
+    : (state.species || [])[(state.species || []).length - 1];
+  card.parentId = parentSp ? parentSp.id : null;
+  card.gen = parentSp ? (parentSp.gen || 0) + 1 : 0;
+  card.bornRank = state.evolutionRank || 0;
   // declutter: drop worthless empty cards (0 mutations, not equipped) — these
   // come from rushing the wall on generators alone and just flood the lab.
   state.species = (state.species || []).filter(
@@ -1030,7 +1207,7 @@ export function doSpeciate() {
   archiveSpecimen(card); // record this generation in the permanent Museum (after the rank bump)
   // wipe the entire Evolve layer (EP + mutations + generators); Species cards persist
   state.evolutionPoints = 0;
-  state.mutations = [];
+  state.mutations = []; state.editions = {};
   state.prestiges = 0;
   state.lastMilestoneExp = 2;
   state.biomass = startBoostBiomass();
@@ -1071,7 +1248,7 @@ export function hasNode(id) {
 export function startChallenge(id) {
   if (!CHALLENGE_BY_ID[id]) return false;
   state.challenge = id;
-  state.evolutionPoints = 0; state.mutations = []; state.prestiges = 0;
+  state.evolutionPoints = 0; state.mutations = []; state.editions = {}; state.prestiges = 0;
   state.biomass = 0; state.runBiomass = 0; state.lastMilestoneExp = 2;
   state.instabilityResolved = false; state.embraceChaos = false; state.stabilizeBonus = 1;
   for (const g of GENERATORS) state.owned[g.id] = 0;
@@ -1079,7 +1256,7 @@ export function startChallenge(id) {
 }
 export function abandonChallenge() {
   state.challenge = null;
-  state.biomass = 0; state.runBiomass = 0; state.mutations = []; state.evolutionPoints = 0;
+  state.biomass = 0; state.runBiomass = 0; state.mutations = []; state.editions = {}; state.evolutionPoints = 0;
   for (const g of GENERATORS) state.owned[g.id] = 0;
 }
 export function checkChallenge() {
@@ -1186,11 +1363,26 @@ export function rollDraft(n = 3) {
   return picks;
 }
 
-export function acquireMutation(id) {
+// Roll an edition for each offered draft id (uses the daily seed when active so
+// editions are deterministic per seed). Returns { id: editionId|null }.
+export function rollEditions(ids) {
+  const rnd = seededRand || Math.random;
+  const out = {};
+  for (const id of ids) out[id] = rollEdition(rnd);
+  return out;
+}
+
+export function acquireMutation(id, edition) {
   if (MUT_BY_ID[id]) {
     state.mutations.push(id);
     state.discovered = state.discovered || {};
     state.discovered[id] = true; // for the collection / completionist achievement
+    if (edition && EDITIONS[edition]) {
+      state.editions = state.editions || {};
+      const cur = state.editions[id];
+      // a duplicate pick keeps the strongest edition
+      if (!cur || (EDITIONS[edition].power || 1) > (EDITIONS[cur] ? EDITIONS[cur].power : 1)) state.editions[id] = edition;
+    }
   }
 }
 

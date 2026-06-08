@@ -3,10 +3,10 @@
 import { state } from "./state.js";
 import { GENERATORS } from "./data/generators.js";
 import {
-  costOf, canAfford, isUnlocked,
+  costOf, canAfford, isUnlocked, costForN, maxAffordable, productionBreakdown,
   epForReset, canPrestige, effectiveClickPower, pressureLevel,
   canSpeciate, genomeForSpeciate, equipSlots, activeBuffs,
-  currentWeekly, dailyBestToday, todaySeed,
+  currentWeekly, dailyBestToday, todaySeed, dailyScoreToday, dailyHistory,
   canTranscend, transcendGain, helixNodeLevel, helixNodeCost,
   canSplice, spliceCooldownLeft, splicesFound,
   availableUpgrades, affordableUpgradeCount,
@@ -23,6 +23,7 @@ import {
   atlasFamilies, masteriesComplete,
   cultureMult, cultureCount,
   digestActive,
+  currentArchetype, buildScore, draftHint, lineageBonus,
 } from "./economy.js";
 import { RESEARCH_TIERS } from "./data/research.js";
 import { COLONY_NODES } from "./data/colony.js";
@@ -37,7 +38,8 @@ import { ANCESTRAL_GENES, GENE_BY_ID, PANTHEON_SLOTS, SYMBIOTE_STAGES, SYMBIOTE_
 import { PART_TYPES, PART_LABEL, HYBRID_LIST } from "./data/hybrids.js";
 import { partCounts } from "./data/synergies.js";
 import { formatNumber } from "./format.js";
-import { getMutation, RARITY, MUTATIONS } from "./data/mutations.js";
+import { getMutation, RARITY, MUTATIONS, EDITIONS } from "./data/mutations.js";
+import { backendOn, fetchDailyLeaderboard } from "./net.js";
 import { GENOME_NODES, nodeCost, nodeLevel } from "./data/genomeNodes.js";
 import { ACHIEVEMENTS } from "./data/achievements.js";
 import { SYNERGIES, synergyProgress } from "./data/synergies.js";
@@ -51,6 +53,17 @@ import { creatureName } from "./data/names.js";
 const el = {};
 let onBuy = null;
 let sellMode = false;
+let activeTab = "grow"; // which panel tab is showing (grow | evolve | lab)
+let buyAmt = 1; // bulk-buy amount: 1 | 10 | 100 | "max"
+let _genHeavyAt = 0, _bdCache = null; // throttle the expensive cost-label/tooltip recompute
+// resolve how many to buy from the selector + click modifiers (Shift=10, Ctrl=100)
+function amountFor(e, genId) {
+  let n = buyAmt;
+  if (e && e.shiftKey) n = 10;
+  if (e && (e.ctrlKey || e.metaKey)) n = 100;
+  if (n === "max") return Math.max(1, maxAffordable(genId));
+  return n;
+}
 
 export function initUI(handlers) {
   onBuy = handlers.onBuy;
@@ -118,6 +131,20 @@ export function initUI(handlers) {
     el.buysellToggle.textContent = sellMode ? "Mode: Sell" : "Mode: Buy";
     el.buysellToggle.classList.toggle("off", sellMode);
   });
+  // bulk-buy amount selector (×1 / ×10 / ×100 / Max)
+  const amtBox = document.getElementById("buy-amt");
+  if (amtBox) amtBox.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    buyAmt = b.dataset.amt === "max" ? "max" : parseInt(b.dataset.amt, 10);
+    amtBox.querySelectorAll("button").forEach((x) => x.classList.toggle("active", x === b));
+    _genHeavyAt = 0; // refresh cost labels immediately, don't wait for the next throttle tick
+  }));
+  // Grow / Evolve / Lab tabs — keeps the panel to one screen, no scrolling
+  el.evolveDot = document.getElementById("evolve-dot");
+  document.querySelectorAll("#panel-tabs .ptab").forEach((b) => b.addEventListener("click", () => {
+    activeTab = b.dataset.tab;
+    document.querySelectorAll("#panel-tabs .ptab").forEach((x) => x.classList.toggle("active", x === b));
+    document.querySelectorAll("#panel .tabp").forEach((p) => p.classList.toggle("active", p.dataset.tab === activeTab));
+  }));
 
   document.getElementById("save-btn").addEventListener("click", handlers.onSave);
   document.getElementById("wipe-btn").addEventListener("click", handlers.onWipe);
@@ -131,6 +158,8 @@ export function initUI(handlers) {
   document.getElementById("helix-close").addEventListener("click", () => el.helixModal.classList.add("hidden"));
   el.upgradesBtn.addEventListener("click", () => openUpgrades());
   document.getElementById("upgrades-close").addEventListener("click", () => el.upgradesModal.classList.add("hidden"));
+  document.getElementById("tree-btn").addEventListener("click", () => openTreeOfLife());
+  document.getElementById("tree-close").addEventListener("click", () => document.getElementById("tree-modal").classList.add("hidden"));
   document.getElementById("splice-btn").addEventListener("click", () => openSplicer());
   document.getElementById("market-btn").addEventListener("click", () => openMarket());
   document.getElementById("market-close").addEventListener("click", () => el.marketModal.classList.add("hidden"));
@@ -255,6 +284,7 @@ export function renderUpgrades() {
       <div class="node-top"><span>${u.name}</span>
         <span class="node-cost">${formatNumber(u.cost)}</span></div>
       <div class="node-desc">${u.desc}</div>
+      ${u.flavor ? `<div class="node-flavor">"${u.flavor}"</div>` : ""}
       <div class="node-lvl">${u.cond}</div>`;
     if (!broke) row.addEventListener("click", () => uiHandlers.onBuyUpgrade(u.id));
     list.appendChild(row);
@@ -664,12 +694,16 @@ export function renderChallenges() {
   const active = state.challenge;
   const wk = currentWeekly();
   const daily = state.dailyActive;
+  const todayScore = dailyScoreToday();
+  const hist = dailyHistory(6);
   el.chalBody.innerHTML = `
     <div class="trait"><div class="tn">📅 Weekly Event — ${wk.name}</div><div class="tf">${wk.desc} · active for everyone this week</div></div>
     <div class="trait ${daily ? "got" : ""}">
-      <div class="tn">🎲 Daily Seed #${todaySeed()}</div>
-      <div class="tf">Same mutation draws for everyone today. Today's best: ${formatNumber(dailyBestToday())} biomass</div>
-      ${daily ? `<button class="ghost" id="daily-end">Finish daily run</button>` : `<button class="ghost" id="daily-start">Start daily run (resets run)</button>`}
+      <div class="tn">🎲 Daily Monster · Seed #${todaySeed()}</div>
+      <div class="tf">Everyone gets the same draws today — grow the best monster you can, then share your Build Score. ${todayScore ? `Today's best: <b>BUILD ${todayScore.score}</b> (${formatNumber(todayScore.biomass)} biomass)` : "Not attempted yet today."}</div>
+      ${daily ? `<button class="ghost" id="daily-end">Finish &amp; share monster</button>` : `<button class="ghost" id="daily-start">Start daily run (resets run)</button>`}
+      ${hist.length ? `<div class="daily-ladder"><div class="dl-h">Your recent dailies</div>${hist.map((h) => `<div class="dl-row"><span>#${h.seed}</span><span>BUILD <b>${h.score}</b></span><span>${formatNumber(h.biomass)}</span></div>`).join("")}</div>` : ""}
+      ${backendOn() ? `<div id="global-board" class="daily-ladder"></div>` : ""}
     </div>
     <h3>Challenge Runs</h3>
     ${active && active !== "daily" ? `<div class="trait got"><div class="tn">⚔️ Active challenge</div><div class="tf">Reach the goal — or abandon below.</div></div>` : `<p class="help-tip" style="margin-bottom:10px">Starting a challenge resets your current run (your Species, Genome &amp; achievements are kept).</p>`}
@@ -688,6 +722,21 @@ export function renderChallenges() {
   if (ds) ds.addEventListener("click", () => uiHandlers.onStartDaily());
   const de = document.getElementById("daily-end");
   if (de) de.addEventListener("click", () => uiHandlers.onEndDaily());
+  if (backendOn()) fillGlobalBoard(todaySeed());
+}
+
+// Async-fill the online daily leaderboard (degrades silently if the backend is
+// unreachable; the local ladder above always shows regardless).
+async function fillGlobalBoard(seed) {
+  const box = document.getElementById("global-board");
+  if (!box) return;
+  box.innerHTML = `<div class="dl-h">🌐 Global top — loading…</div>`;
+  const rows = await fetchDailyLeaderboard(seed, 10);
+  const b = document.getElementById("global-board");
+  if (!b) return; // modal closed / re-rendered while awaiting
+  if (!rows || !rows.length) { b.innerHTML = `<div class="dl-h">🌐 Global top — no scores yet today</div>`; return; }
+  b.innerHTML = `<div class="dl-h">🌐 Global top today</div>` +
+    rows.map((r, i) => `<div class="dl-row"><span>${i + 1}. ${tlEsc(r.name || "Anon")}</span><span>BUILD <b>${r.score | 0}</b></span><span>${formatNumber(r.biomass || 0)}</span></div>`).join("");
 }
 
 // ---- codex: species traits + set forms + mutation encyclopedia + museum ----
@@ -946,6 +995,78 @@ export function renderGenomeLab() {
   }
 }
 
+// ---- Tree of Life: render banked species as an evolutionary dynasty (SVG) ----
+function tlEsc(s) { return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+function layoutTree(species) {
+  const byId = Object.fromEntries(species.map((s) => [s.id, s]));
+  const children = {}, roots = [];
+  for (const s of species) {
+    const pid = (s.parentId && byId[s.parentId]) ? s.parentId : null;
+    if (pid) (children[pid] = children[pid] || []).push(s); else roots.push(s);
+  }
+  const byStr = (a, b) => (b.strength || 1) - (a.strength || 1);
+  roots.sort(byStr); for (const k in children) children[k].sort(byStr);
+  const pos = {}; let row = 0;
+  const seen = new Set(); // guard against parentId cycles in corrupt/imported saves
+  const dfs = (node, depth) => {
+    if (pos[node.id]) return pos[node.id].y; // already placed (cycle / diamond)
+    if (seen.has(node.id)) { pos[node.id] = { x: depth, y: row++ }; return pos[node.id].y; }
+    seen.add(node.id);
+    const kids = children[node.id] || [];
+    if (!kids.length) { pos[node.id] = { x: depth, y: row++ }; return pos[node.id].y; }
+    const ys = kids.map((k) => dfs(k, depth + 1));
+    pos[node.id] = { x: depth, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
+    return pos[node.id].y;
+  };
+  for (const r of roots) dfs(r, 0);
+  // place any species not reachable from a root (orphans / parentId cycles) so the
+  // renderer always has a position for every node and can't deref undefined
+  for (const s of species) if (!pos[s.id]) dfs(s, 0);
+  return { pos, rows: Math.max(1, row) };
+}
+export function renderTreeOfLife() {
+  const svg = document.getElementById("tree-svg");
+  const species = state.species || [];
+  const bonusPct = Math.round((lineageBonus() - 1) * 100);
+  const hint = document.getElementById("tree-hint");
+  if (hint) hint.textContent = `${species.length} species across your dynasty · lineage bonus: +${bonusPct}% production. Tap a node to equip it.`;
+  if (!species.length) {
+    svg.setAttribute("width", 460); svg.setAttribute("height", 90);
+    svg.innerHTML = `<text x="24" y="48" class="tl-sub">No species yet — hit the wall and Speciate to grow your first branch.</text>`;
+    return;
+  }
+  const { pos, rows } = layoutTree(species);
+  const colW = 220, rowH = 64, padX = 70, padY = 38;
+  const maxDepth = species.reduce((m, s) => Math.max(m, pos[s.id].x), 0);
+  const W = padX * 2 + maxDepth * colW + 170;
+  const H = padY * 2 + rows * rowH;
+  const X = (d) => padX + d * colW, Y = (r) => padY + r * rowH;
+  const equipped = new Set(state.equippedSpecies || []);
+  let out = "";
+  for (const s of species) { // links first (behind nodes)
+    if (s.parentId && pos[s.parentId]) {
+      const x1 = X(pos[s.parentId].x) + 20, y1 = Y(pos[s.parentId].y);
+      const x2 = X(pos[s.id].x) - 20, y2 = Y(pos[s.id].y), mx = (x1 + x2) / 2;
+      out += `<path class="tl-link" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"/>`;
+    }
+  }
+  for (const s of species) {
+    const cx = X(pos[s.id].x), cy = Y(pos[s.id].y), eq = equipped.has(s.id);
+    const mult = formatNumber(Math.sqrt(Math.max(1, s.strength || 1)));
+    out += `<g class="tl-node${eq ? " equipped" : ""}" data-id="${s.id}">
+      <circle cx="${cx}" cy="${cy}" r="20"/>
+      ${eq ? `<text class="tl-eq" x="${cx}" y="${cy + 4}" text-anchor="middle">✓</text>` : ""}
+      <text class="tl-label" x="${cx + 30}" y="${cy - 2}">${tlEsc(s.name)}</text>
+      <text class="tl-sub" x="${cx + 30}" y="${cy + 14}">${(s.mutations || []).length} mut · ×${mult} equipped</text>
+    </g>`;
+  }
+  svg.setAttribute("width", W); svg.setAttribute("height", H);
+  svg.innerHTML = out;
+  svg.querySelectorAll(".tl-node").forEach((n) =>
+    n.addEventListener("click", () => { uiHandlers.onToggleEquip(n.dataset.id); renderTreeOfLife(); }));
+}
+export function openTreeOfLife() { renderTreeOfLife(); document.getElementById("tree-modal").classList.remove("hidden"); }
+
 export function setMuteLabel(muted) {
   if (!el.muteBtn) return;
   const ico = el.muteBtn.querySelector(".ico");
@@ -965,9 +1086,9 @@ function buildGeneratorRows() {
       <div class="cost">${formatNumber(g.baseCost)}</div>
       <div class="owned">0</div>
       <div class="research"></div>`;
-    row.addEventListener("click", () => {
+    row.addEventListener("click", (e) => {
       if (sellMode) uiHandlers.onSell(g.id);
-      else if (onBuy) onBuy(g.id, row.getBoundingClientRect());
+      else if (onBuy) onBuy(g.id, row.getBoundingClientRect(), amountFor(e, g.id));
     });
     el.genList.appendChild(row);
     el.genRows[g.id] = row;
@@ -987,7 +1108,8 @@ const GATED_BTNS = [
   { id: "mutagen-btn",  name: "Mutagen",          when: (s) => (s.speciations || 0) >= 1 },
   { id: "colony-btn",   name: "Colonization Map", when: (s) => (s.speciations || 0) >= 1 },
   { id: "museum-btn",   name: "Species Museum",   when: (s) => ((s.museum || []).length) >= 1 },
-  { id: "chal-btn",     name: "Challenges",       when: (s) => (s.speciations || 0) >= 2 },
+  { id: "genome-btn",   name: "Genome Lab",       when: (s) => (s.speciations || 0) >= 1 },
+  { id: "chal-btn",     name: "Challenges & Daily Monster", when: (s) => (s.speciations || 0) >= 1 || (s.prestiges || 0) >= 3 },
 ];
 let _unlockInit = false;
 const _announced = new Set();
@@ -1067,6 +1189,8 @@ export function renderUI(rate, dt = 0.016) {
   el.evolveBtn.disabled = !ready;
   el.evolveBtn.classList.toggle("ready", ready);
   el.evolveGain.textContent = `+${formatNumber(gain)} EP`;
+  // ping the Evolve tab when a reset is ready but the player is on another tab
+  if (el.evolveDot) el.evolveDot.classList.toggle("hidden", !((ready || (typeof canSpeciate === "function" && canSpeciate())) && activeTab !== "evolve"));
 
   // metabolic pressure meter — fills toward the soft-cap, then reads SATURATED
   // (calm, not an alarm: production keeps growing past here, just diminished).
@@ -1134,19 +1258,62 @@ export function renderUI(rate, dt = 0.016) {
     el.creatureName.textContent = creatureName(state.mutations, state.namingStyle || "scientific");
   }
 
+  // live archetype + build-score badge under the creature name (throttled ~2/s)
+  const badge = el.archetypeBadge || (el.archetypeBadge = document.getElementById("archetype-badge"));
+  if (badge) {
+    const nowMs = Date.now();
+    if (nowMs - (el._badgeAt || 0) > 500) {
+      el._badgeAt = nowMs;
+      if (state.mutations.length === 0) badge.classList.add("hidden");
+      else {
+        const a = currentArchetype();
+        badge.classList.remove("hidden");
+        badge.dataset.kind = a.kind;
+        badge.innerHTML = `<span class="arche-name">${a.kind === "legendary" ? "★ " : ""}${a.name}</span>` +
+          `<span class="arche-score">BUILD ${buildScore()}</span>`;
+      }
+    }
+  }
+
+  // The cost labels + tooltips need a full production breakdown + (in Max mode)
+  // an affordability scan per organelle — too heavy for 60fps, so recompute them
+  // at ~5Hz. Cheap per-frame work (locked/affordable highlight, owned count) stays.
+  const heavy = Date.now() - _genHeavyAt > 200;
+  if (heavy) { _genHeavyAt = Date.now(); _bdCache = productionBreakdown(); }
+  const _bd = _bdCache || { per: {}, each: {}, total: 0 };
+  let lockedShown = 0;
   for (const g of GENERATORS) {
     const row = el.genRows[g.id];
     const unlocked = isUnlocked(g.id);
     if (!unlocked) {
-      if (!row.classList.contains("locked")) row.classList.add("locked");
+      row.classList.add("locked");
+      // show only the NEXT locked organelle as a teaser; hide the rest so the Grow
+      // tab stays scroll-free and the list reads as "what's next", not a wall.
+      lockedShown++;
+      row.style.display = lockedShown <= 1 ? "" : "none";
       continue;
     }
+    row.style.display = "";
     row.classList.remove("locked");
-    const cost = costOf(g.id);
-    const affordable = canAfford(g.id);
-    row.classList.toggle("affordable", affordable);
-    row.querySelector(".cost").textContent = formatNumber(cost);
+    row.classList.toggle("affordable", canAfford(g.id)); // can buy at least one (cheap, per-frame)
     row.querySelector(".owned").textContent = `×${state.owned[g.id] || 0}`;
+    if (heavy) {
+      // cost label reflects the bulk-buy amount (×1 / ×10 / ×100 / Max)
+      let costLabel;
+      if (buyAmt === "max") {
+        const m = maxAffordable(g.id);
+        costLabel = m >= 1 ? `Max ${m} · ${formatNumber(costForN(g.id, m))}` : formatNumber(costOf(g.id));
+      } else if (buyAmt === 1) {
+        costLabel = formatNumber(costOf(g.id));
+      } else {
+        costLabel = `×${buyAmt} · ${formatNumber(costForN(g.id, buyAmt))}`;
+      }
+      row.querySelector(".cost").textContent = costLabel;
+      // hover tooltip: exact /sec each + share of total production (CC-style detail)
+      const share = _bd.total > 0 ? (_bd.per[g.id] / _bd.total * 100) : 0;
+      row.title = `${researchName(g.id) || g.name}\n+${formatNumber(_bd.each[g.id] || 0)}/sec each` +
+        (state.owned[g.id] ? ` · ${share.toFixed(share < 10 ? 1 : 0)}% of production` : " (none owned yet)");
+    }
     // research: rename the organelle to its current tier + show next milestone
     const rName = researchName(g.id);
     if (rName) {
@@ -1180,27 +1347,32 @@ function renderMutationChips() {
 }
 
 const DRAFT_GLYPH = { eye: "👁️", spike: "🦴", tentacle: "🐙", jaw: "🦷", frond: "🌿", cilia: "✨", body: "🦠" };
-// Show the mutation draft. onPick(id) when chosen; onReroll() if a reroll token is spent.
-export function showDraft(ids, onPick, onReroll, onSkip) {
+// Show the mutation draft. onPick(id, edition) when chosen; onReroll() if a reroll
+// token is spent. `editions` maps id -> edition (Foil/Prismatic/Cursed) or null.
+export function showDraft(ids, onPick, onReroll, onSkip, editions) {
   el.draftCards.innerHTML = "";
   let di = 0;
   for (const id of ids) {
     const def = getMutation(id);
     if (!def) continue;
     const r = RARITY[def.rarity];
-    const high = def.alien || def.rarity === "legendary" || def.rarity === "epic";
+    const ed = editions && editions[id] ? EDITIONS[editions[id]] : null;
+    const high = def.alien || def.rarity === "legendary" || def.rarity === "epic" || !!ed;
     const card = document.createElement("div");
-    card.className = "draft-card reveal" + (high ? " glow" : "") + (def.defect ? " defect" : "") + (def.alien ? " alien" : "");
+    card.className = "draft-card reveal" + (high ? " glow" : "") + (def.defect ? " defect" : "") + (def.alien ? " alien" : "") + (ed ? " editioned" : "");
     card.style.animationDelay = (di++ * 0.1).toFixed(2) + "s";
-    card.style.setProperty("--rarity", def.alien ? "#39d0c6" : def.defect ? "#ff6b6b" : r.color);
+    card.style.setProperty("--rarity", ed ? ed.color : def.alien ? "#39d0c6" : def.defect ? "#ff6b6b" : r.color);
     const glyph = def.alien ? "👽" : (DRAFT_GLYPH[def.part] || "🧬");
+    const hint = draftHint(id);
     card.innerHTML = `
       <div class="rarity">${def.alien ? "👽 ALIEN DNA" : def.defect ? "⚠ CURSED" : r.label}</div>
+      ${ed ? `<div class="edition-tag" style="color:${ed.color};border-color:${ed.color}">${ed.tag} ×${ed.power}${ed.clickPenalty ? " · ½ click" : ""}</div>` : ""}
       <div class="draft-spin"><span>${glyph}</span></div>
       <div class="mname">${def.name}</div>
       ${def.part ? `<div class="part-tag">＋ grows a ${def.part}</div>` : ""}
-      <div class="mdesc">${def.desc}</div>`;
-    card.addEventListener("click", () => { el.draftModal.classList.add("hidden"); onPick(id); });
+      <div class="mdesc">${def.desc}</div>
+      ${hint ? `<div class="draft-synergy">${hint.text}</div>` : ""}`;
+    card.addEventListener("click", () => { el.draftModal.classList.add("hidden"); onPick(id, editions ? editions[id] : null); });
     el.draftCards.appendChild(card);
   }
   // reroll button (spends a token)
@@ -1250,16 +1422,16 @@ export function showChoice(title, sub, options, onPick) {
 }
 
 // Floating "+N" number at a screen position.
-export function spawnFloatNumber(x, y, text) {
+export function spawnFloatNumber(x, y, text, variant) {
   const node = document.createElement("div");
-  node.className = "float-num";
+  node.className = variant ? "float-num float-num--" + variant : "float-num";
   node.textContent = text;
   node.style.left = x + "px";
   node.style.top = y + "px";
   // small horizontal jitter so rapid clicks fan out
   node.style.transform = `translateX(${(Math.random() * 24 - 12) | 0}px)`;
   el.fx.appendChild(node);
-  setTimeout(() => node.remove(), 900);
+  setTimeout(() => node.remove(), variant === "passive" ? 1700 : 900);
 }
 
 export function flashStatus(msg) {

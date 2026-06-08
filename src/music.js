@@ -5,6 +5,7 @@
 // progress) thickens the groove.
 
 import { getContext, getMaster, isMuted } from "./audio.js";
+import { TRACKS } from "./data/tracks.js";
 
 let started = false;
 let musicGain = null;
@@ -67,7 +68,38 @@ const THEMES = {
 let theme = THEMES.lofi;
 
 export const MUSIC_THEMES = Object.keys(THEMES).map((id) => ({ id, name: THEMES[id].name }));
-export function setMusicTheme(id) { if (THEMES[id]) theme = THEMES[id]; }
+// per-theme "space" depth — ambient/dark themes get lush reverb, chip/pulse stay dry
+const REVERB = { lofi: 0.32, lullaby: 0.62, pulse: 0.16, bloom: 0.46, chiptune: 0.1, eldritch: 0.72 };
+let curThemeId = "lofi";
+export function setMusicTheme(id) {
+  if (!THEMES[id]) return;
+  theme = THEMES[id]; curThemeId = id;
+  if (musicSend) musicSend.gain.value = REVERB[id] != null ? REVERB[id] : 0.4;
+  applyTrack(id); // play a bundled track if this theme has one, else fall back to synth
+}
+
+// ---- Optional bundled audio tracks (play instead of the synth when present) ----
+let trackEl = null, trackGain = null, usingTrack = false;
+function applyTrack(id) {
+  const url = TRACKS[id];
+  if (!started) return;            // startMusic() will call this again once running
+  const ctx = getContext();
+  if (url && ctx) {
+    if (!trackGain) { trackGain = ctx.createGain(); trackGain.gain.value = volume; trackGain.connect(getMaster()); }
+    if (!trackEl) {
+      trackEl = new Audio(); trackEl.loop = true; trackEl.crossOrigin = "anonymous";
+      try { ctx.createMediaElementSource(trackEl).connect(trackGain); } catch (e) { /* routed via element volume */ }
+    }
+    if (trackEl.dataset.src !== url) { trackEl.src = url; trackEl.dataset.src = url; }
+    const p = trackEl.play(); if (p && p.catch) p.catch(() => { usingTrack = false; if (musicGain) musicGain.gain.value = volume * 0.22; });
+    usingTrack = true;
+    if (musicGain) musicGain.gain.value = 0; // mute the synth while a real track plays
+  } else {
+    usingTrack = false;
+    if (trackEl) { try { trackEl.pause(); } catch (e) {} }
+    if (musicGain) musicGain.gain.value = volume * 0.22;
+  }
+}
 export function getMusicTheme() { return Object.keys(THEMES).find((k) => THEMES[k] === theme); }
 export function hasTheme(id) { return !!THEMES[id]; }
 
@@ -77,9 +109,12 @@ export function setMusicStress(v) { musicStress = Math.max(0, Math.min(1, v || 0
 export function setMusicDanger(b) { musicDanger = !!b; }                                // boss danger layer
 export function setMusicVolume(v) {
   volume = Math.max(0, Math.min(1, v));
-  if (musicGain) musicGain.gain.value = volume * 0.22;
+  if (musicGain) musicGain.gain.value = usingTrack ? 0 : volume * 0.22;
+  if (trackGain) trackGain.gain.value = volume;
 }
 export function getMusicVolume() { return volume; }
+
+let musicSend = null; // wet "space" bus (feedback delay → lowpass) for depth/character
 
 export function startMusic() {
   if (started) return;
@@ -89,9 +124,21 @@ export function startMusic() {
   musicGain = ctx.createGain();
   musicGain.gain.value = volume * 0.22;
   musicGain.connect(getMaster());
+  // reverb-ish space: a filtered feedback delay melodic voices send into, so the
+  // music has air and depth instead of dry beeps. Per-theme depth differentiates moods.
+  musicSend = ctx.createGain(); musicSend.gain.value = REVERB[curThemeId] != null ? REVERB[curThemeId] : 0.4;
+  const d1 = ctx.createDelay(1.0); d1.delayTime.value = 0.27;
+  const d2 = ctx.createDelay(1.0); d2.delayTime.value = 0.41;
+  const fb = ctx.createGain(); fb.gain.value = 0.34;
+  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2400;
+  const wet = ctx.createGain(); wet.gain.value = 0.5;
+  musicSend.connect(d1); musicSend.connect(d2);
+  d1.connect(lp); d2.connect(lp); lp.connect(fb); fb.connect(d1); fb.connect(d2);
+  lp.connect(wet); wet.connect(musicGain);
   nextStepTime = ctx.currentTime + 0.15;
   step = 0;
   setInterval(scheduler, 40);
+  applyTrack(curThemeId); // if the current theme has a bundled track, play it now
 }
 
 // ---- synthesis helpers ----
@@ -112,7 +159,8 @@ function tone(t, freq, type, gain, dur, attack = 0.01, release = 0.12) {
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(Math.max(0.0003, gain), t + attack);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur + release);
-  o.connect(g).connect(musicGain);
+  o.connect(g); g.connect(musicGain);          // dry
+  if (musicSend) g.connect(musicSend);          // wet (space) — melodic voices only
   o.start(t); o.stop(t + dur + release + 0.02);
 }
 

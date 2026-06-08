@@ -2,8 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mutation Lab — prototype</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Mutation Lab</title>
+  <!-- PWA: installable, offline-capable, mobile-friendly -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0d1622" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Mutation Lab" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
   <link rel="stylesheet" href="styles/style.css" />
   <!-- Three.js via import map (browser-native ES modules, no bundler) -->
   <script type="importmap">
@@ -18,13 +27,18 @@
   <div id="app">
     <!-- 3D creature lives here -->
     <div id="stage">
+      <canvas id="bg-gl"></canvas>
       <canvas id="bg-canvas"></canvas>
       <canvas id="creature-canvas"></canvas>
+      <div id="lab-crew" aria-hidden="true"></div>
       <div id="creature-name"></div>
+      <div id="archetype-badge" class="hidden"></div>
       <div id="creature-hint">click the organism · drag to spin</div>
+      <div id="coach" class="hidden"><span class="coach-text"></span><button id="coach-dismiss" title="Dismiss tips">✕</button></div>
       <div id="scale-badge" class="hidden"></div>
       <div id="photo-bar" class="hidden">
         <button id="photo-scale" class="ghost">📏 Scale: off</button>
+        <button id="photo-card" class="ghost">🪪 Specimen Card</button>
         <button id="photo-shot" class="ghost">📸 Save screenshot</button>
         <button id="photo-dna" class="ghost">🧬 Copy creature DNA</button>
         <button id="photo-exit" class="ghost">✕ Exit photo mode</button>
@@ -40,7 +54,7 @@
     <aside id="panel">
       <header id="panel-head">
         <h1>MUTATION&nbsp;LAB</h1>
-        <p class="tag">working title · low-poly 3D prototype</p>
+        <p class="tag" id="lab-bulletin">📰 Lab Bulletin: the specimen stirs…</p>
       </header>
 
       <section id="resources">
@@ -63,15 +77,30 @@
         <div class="evo-rank-bar"><div id="evo-rank-fill"></div></div>
       </section>
 
+      <nav id="panel-tabs">
+        <button class="ptab active" data-tab="grow">🦠 Grow</button>
+        <button class="ptab" data-tab="evolve">🧬 Evolve<span id="evolve-dot" class="ptab-dot hidden"></span></button>
+        <button class="ptab" data-tab="lab">🔬 Lab</button>
+      </nav>
+
+      <div class="tabp active" data-tab="grow">
       <section id="generators">
         <h2>Organelles <button id="buysell-toggle" class="autobuy">Mode: Buy</button><button id="autobuy-toggle" class="autobuy hidden">Auto-buy: ON</button></h2>
+        <div id="buy-amt" class="buy-amt" title="How many to buy per click (or hold Shift = ×10, Ctrl = ×100)">
+          <button data-amt="1" class="active">×1</button>
+          <button data-amt="10">×10</button>
+          <button data-amt="100">×100</button>
+          <button data-amt="max">Max</button>
+        </div>
         <div id="upgrade-tray-wrap" class="hidden">
           <div class="tray-head">⬆ Upgrades available <b id="upgrades-badge">0</b><button id="upgrades-btn" class="tray-all">see all ▸</button></div>
           <div id="upgrade-tray"><!-- compact buyable upgrade chips, injected by ui.js --></div>
         </div>
         <div id="generator-list"><!-- injected by ui.js --></div>
       </section>
+      </div><!-- /tab grow -->
 
+      <div class="tabp" data-tab="evolve">
       <section id="evolution">
         <h2>Evolution</h2>
         <div id="pressure">
@@ -101,7 +130,9 @@
         <button id="helix-btn" class="ghost genome-open hidden">🌀 Helix Tree · <b id="helix-value">0</b></button>
         <div id="mutation-collection"><!-- chips injected by ui.js --></div>
       </section>
+      </div><!-- /tab evolve -->
 
+      <div class="tabp" data-tab="lab">
       <footer id="panel-foot">
         <button id="save-btn" class="ghost">Save</button>
         <button id="wipe-btn" class="ghost danger">Wipe</button>
@@ -123,8 +154,10 @@
         <button id="settings-btn" class="ghost" title="Settings"><span class="ico">⚙️</span> Settings</button>
         <button id="photo-btn" class="ghost" title="Photo mode"><span class="ico">📸</span> Photo</button>
         <button id="mute-btn" class="ghost" title="Toggle sound"><span class="ico">🔊</span> Sound</button>
-        <span id="status"></span>
       </footer>
+      </div><!-- /tab lab -->
+
+      <div id="status"></div>
     </aside>
   </div>
 
@@ -265,8 +298,9 @@
           <div id="node-list"></div>
         </div>
         <div class="genome-col">
-          <h3>Species · <span id="species-count">0</span> banked · <span id="equip-info">0/1 equipped</span></h3>
-          <p class="genome-hint">Each Speciation banks a Species card. Equip them for permanent bonuses (more slots via the “Lineage Slots” upgrade).</p>
+          <h3>Species · <span id="species-count">0</span> banked · <span id="equip-info">0/1 equipped</span>
+            <button id="tree-btn" class="ghost" style="float:right;font-size:12px;padding:3px 10px">🌳 Tree of Life</button></h3>
+          <p class="genome-hint">Each Speciation banks a Species card. Equip them for permanent bonuses (more slots via the “Lineage Slots” upgrade). Build a diverse tree for a lineage bonus.</p>
           <div id="species-list"></div>
         </div>
       </div>
@@ -280,7 +314,15 @@
         <button id="export-btn" class="ghost">Export save</button>
         <button id="import-btn" class="ghost">Import save</button>
         <button id="viewdna-btn" class="ghost">🧬 View shared DNA</button>
+        <button id="cloud-up" class="ghost">☁ Cloud upload</button>
+        <button id="cloud-down" class="ghost">☁ Cloud load</button>
         <span id="genome-status"></span>
+      </div>
+      <div class="genome-foot" style="margin-top:6px">
+        <span style="font-size:11px;color:var(--muted)">Online (optional):</span>
+        <input id="backend-url" type="text" placeholder="https://your-api… (leave blank for offline)"
+          style="flex:1;min-width:160px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:6px 9px;font-size:12px" />
+        <button id="backend-save" class="ghost">Connect</button>
       </div>
     </div>
   </div>
@@ -405,6 +447,36 @@
     </div>
   </div>
 
+  <!-- Specimen Card: shareable portrait of your monster + its build -->
+  <div id="card-modal" class="hidden">
+    <div class="card-inner">
+      <div class="genome-head">
+        <h2>🪪 SPECIMEN CARD</h2>
+        <button id="card-close" class="ghost">✕ Close</button>
+      </div>
+      <p class="genome-hint" style="margin:8px 0 12px">A portrait of the monster you grew — share it, or load someone else's DNA to grow theirs.</p>
+      <img id="card-img" alt="Your specimen card" />
+      <div class="card-actions">
+        <button id="card-copy" class="ghost">📋 Copy image</button>
+        <button id="card-download" class="ghost">⬇ Download</button>
+        <button id="card-share" class="ghost hidden">📤 Share</button>
+        <button id="card-dna" class="ghost">🧬 Copy DNA code</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tree of Life: your evolutionary dynasty of banked species -->
+  <div id="tree-modal" class="hidden">
+    <div class="genome-inner codex-inner">
+      <div class="genome-head">
+        <h2>🌳 TREE OF LIFE</h2>
+        <button id="tree-close" class="ghost">✕ Close</button>
+      </div>
+      <p class="genome-hint" id="tree-hint" style="margin-top:8px">Every species you Speciate branches from your active lineage. Tap a node to equip it. A wider, deeper tree grants a bigger lineage bonus.</p>
+      <div id="tree-canvas-wrap"><svg id="tree-svg"></svg></div>
+    </div>
+  </div>
+
   <!-- Gene Splicer minigame modal -->
   <div id="splice-modal" class="hidden">
     <div class="genome-inner codex-inner">
@@ -457,5 +529,11 @@
   </div>
 
   <script type="module" src="src/main.js"></script>
+  <script>
+    // register the PWA service worker (offline + installable); harmless if unsupported
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+    }
+  </script>
 </body>
 </html>

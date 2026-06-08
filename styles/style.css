@@ -21,11 +21,21 @@ html, body {
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   overflow: hidden;
   user-select: none;
+  /* mobile: kill the 300ms tap delay + double-tap-zoom, stop pull-to-refresh,
+     remove the grey tap flash — essential for a tap-heavy clicker */
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
+button, .gen, .node, #creature-canvas, .draft-card, .species-card { touch-action: manipulation; }
+/* respect device safe areas (notches) so the HUD isn't clipped on phones */
+#app { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 
 #app {
   display: grid;
   grid-template-columns: 1fr 360px;
+  grid-template-rows: 100%; /* definite row height so the panel's flex tabs resolve (no global scroll) */
   height: 100%;
 }
 
@@ -34,6 +44,12 @@ html, body {
   position: relative;
   overflow: hidden;
 }
+/* cinematic vignette: darken the edges so the glowing specimen draws the eye */
+#stage::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3;
+  background: radial-gradient(125% 100% at 50% 44%, transparent 52%, rgba(2,5,8,.5) 100%);
+}
+#bg-gl { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
 #bg-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
 #creature-canvas { position: relative; z-index: 1; display: block; width: 100%; height: 100%; cursor: pointer; }
 #creature-hint {
@@ -87,6 +103,18 @@ html, body {
 #app.photo-mode #panel { display: none; }
 #app.photo-mode #creature-hint { display: none; }
 @keyframes pulse { 0%,100% { opacity:.35 } 50% { opacity:.9 } }
+
+/* ---------- Mobile: stack the creature on top, scrollable panel below ---------- */
+@media (max-width: 760px) {
+  #app { display: flex; flex-direction: column; }
+  #stage { flex: 0 0 44vh; height: 44vh; min-height: 260px; }
+  #panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #app.photo-mode #stage { flex: 1 1 auto; height: auto; }
+  #creature-name { font-size: 17px; top: 12px; }
+  #archetype-badge { top: 44px; }
+  #lab-crew { max-height: 26%; }
+  .gen { padding: 12px 12px; } /* roomier tap targets on touch */
+}
 
 /* ---------- Panel ---------- */
 #panel {
@@ -420,7 +448,7 @@ html, body {
 #genome-modal, #stats-modal, #settings-modal, #help-modal, #codex-modal,
 #colony-modal, #garden-modal, #reactor-modal, #pantheon-modal, #symbiote-modal,
 #mutagen-modal, #market-modal, #upgrades-modal, #machines-modal, #paths-modal, #museum-modal,
-#helix-modal, #splice-modal, #chal-modal {
+#helix-modal, #splice-modal, #chal-modal, #card-modal, #tree-modal {
   position: fixed; inset: 0; z-index: 100;
   display: flex; align-items: center; justify-content: center;
   background: rgba(4,7,11,.85); backdrop-filter: blur(6px); animation: fadeIn .2s ease;
@@ -428,7 +456,125 @@ html, body {
 #genome-modal.hidden, #stats-modal.hidden, #settings-modal.hidden, #help-modal.hidden, #codex-modal.hidden,
 #colony-modal.hidden, #garden-modal.hidden, #reactor-modal.hidden, #pantheon-modal.hidden, #symbiote-modal.hidden,
 #mutagen-modal.hidden, #market-modal.hidden, #upgrades-modal.hidden, #machines-modal.hidden, #paths-modal.hidden, #museum-modal.hidden,
-#helix-modal.hidden, #splice-modal.hidden, #chal-modal.hidden { display: none; }
+#helix-modal.hidden, #splice-modal.hidden, #chal-modal.hidden, #card-modal.hidden, #tree-modal.hidden { display: none; }
+
+/* Tree of Life */
+#tree-canvas-wrap { margin-top: 12px; overflow: auto; max-height: 70vh; border: 1px solid var(--line); border-radius: 12px; background: radial-gradient(120% 100% at 50% 0%, #101b16, #0a0e13); }
+#tree-svg { display: block; }
+#tree-svg .tl-link { stroke: #2f4a3e; stroke-width: 2; fill: none; }
+#tree-svg .tl-node { cursor: pointer; }
+#tree-svg .tl-node circle { fill: #16202c; stroke: #56e39f; stroke-width: 2; transition: fill .15s; }
+#tree-svg .tl-node.equipped circle { fill: #1c3a2c; stroke: #ffd76b; stroke-width: 3; }
+#tree-svg .tl-node:hover circle { fill: #1f2e3c; }
+#tree-svg .tl-label { fill: #cfe0ee; font: 600 12px 'Segoe UI', system-ui, sans-serif; }
+#tree-svg .tl-sub { fill: #7e93a8; font: 11px 'Segoe UI', system-ui, sans-serif; }
+#tree-svg .tl-eq { fill: #ffd76b; font: 700 10px 'Segoe UI', system-ui, sans-serif; }
+
+/* Specimen Card modal */
+.card-inner {
+  width: min(640px, 94vw); max-height: 92vh; overflow-y: auto;
+  background: linear-gradient(180deg, #121a24, #0a0e13);
+  border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px;
+  display: flex; flex-direction: column;
+}
+/* live archetype + build-score badge under the creature name */
+#archetype-badge {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  top: 64px; display: flex; gap: 8px; align-items: center; z-index: 5;
+  pointer-events: none; white-space: nowrap;
+}
+#archetype-badge.hidden { display: none; }
+#archetype-badge .arche-name {
+  font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  padding: 3px 11px; border-radius: 12px;
+  background: rgba(0,0,0,.35); border: 1px solid var(--accent2); color: var(--accent2);
+  text-shadow: 0 1px 4px rgba(0,0,0,.6);
+}
+#archetype-badge[data-kind="set"] .arche-name { border-color: #ff7ac0; color: #ff7ac0; }
+#archetype-badge[data-kind="legendary"] .arche-name { border-color: #ffd76b; color: #ffd76b; }
+#archetype-badge[data-kind="part"] .arche-name { border-color: var(--accent); color: var(--accent); }
+#archetype-badge .arche-score {
+  font-size: 11px; font-weight: 800; color: #ffd76b;
+  padding: 3px 9px; border-radius: 12px; background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,215,107,.4); text-shadow: 0 1px 4px rgba(0,0,0,.6);
+}
+/* Daily Monster personal ladder */
+.daily-ladder { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.daily-ladder .dl-h { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 6px; }
+.daily-ladder .dl-row { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: #cfe0ee; padding: 2px 0; }
+.daily-ladder .dl-row b { color: #ffd76b; }
+/* mutation edition tag on a draft card (Foil/Prismatic/Cursed) */
+.edition-tag {
+  display: inline-block; margin: 2px auto 0; padding: 2px 9px;
+  font-size: 10.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+  border: 1px solid currentColor; border-radius: 10px; background: rgba(0,0,0,.25);
+}
+.draft-card.editioned { box-shadow: 0 0 22px -2px var(--rarity, #7fd8ff); }
+/* draft card "completes X" synergy hint */
+.draft-synergy {
+  margin-top: 8px; font-size: 11px; font-weight: 800; letter-spacing: .03em;
+  color: #ffd76b; text-transform: uppercase;
+  background: rgba(255,215,107,.1); border: 1px solid rgba(255,215,107,.4);
+  border-radius: 8px; padding: 4px 8px;
+}
+/* Lab Crew: scientists + equipment that accumulate along the bench as you grow
+   (our version of Cookie Clicker's building sprites filling the screen) */
+#lab-crew {
+  position: absolute; left: 14px; right: 14px; bottom: 8px;
+  z-index: 6; pointer-events: none;
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 10px;
+  max-height: 38%; overflow: hidden;
+}
+.crew {
+  font-size: 30px; line-height: 1;
+  filter: drop-shadow(0 3px 5px rgba(0,0,0,.55));
+  transform-origin: bottom center;
+  animation: crewIn .5s cubic-bezier(.2,1.4,.4,1) both, crewBob 3.4s ease-in-out infinite;
+}
+@keyframes crewIn { 0% { transform: translateY(16px) scale(.2); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+@keyframes crewBob { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-4px) rotate(1deg); } }
+@media (max-width: 640px) { .crew { font-size: 22px; } }
+/* bulk-buy amount selector (×1 / ×10 / ×100 / Max) */
+.buy-amt { display: flex; gap: 4px; margin: 2px 0 8px; }
+.buy-amt button {
+  flex: 1; font-size: 11px; font-weight: 700; padding: 5px 0; cursor: pointer;
+  background: var(--bg2); color: var(--muted); border: 1px solid var(--line); border-radius: 7px;
+}
+.buy-amt button.active { background: #16352a; color: var(--accent); border-color: var(--accent); }
+/* Lab Bulletin news ticker fade-in */
+#lab-bulletin { transition: none; min-height: 1.2em; }
+.bull-in { animation: bullIn .5s ease; }
+@keyframes bullIn { 0% { opacity: 0; transform: translateY(-3px); } 100% { opacity: 1; transform: translateY(0); } }
+/* crew reactions: cheer on Evolve, work during a Frenzy, duck during a Wrath */
+.crew.react-cheer { animation: crewCheer .7s cubic-bezier(.2,1.5,.4,1); }
+.crew.react-work  { animation: crewWork .24s ease-in-out 3; }
+.crew.react-duck  { animation: crewDuck .7s ease; }
+@keyframes crewCheer { 0%{transform:translateY(0)} 35%{transform:translateY(-18px) rotate(-8deg) scale(1.12)} 65%{transform:translateY(-3px) rotate(4deg)} 100%{transform:translateY(0)} }
+@keyframes crewWork  { 0%,100%{transform:translateY(0) rotate(-2deg)} 50%{transform:translateY(-7px) rotate(3deg)} }
+@keyframes crewDuck  { 0%{transform:translateY(0)} 30%{transform:translateY(7px) scale(.86)} 100%{transform:translateY(0)} }
+/* the lab grows into a facility as crew accumulate: a bench, then a back wall */
+#lab-crew.facility { padding-bottom: 6px; border-bottom: 2px solid rgba(86,227,159,.18); background: linear-gradient(0deg, rgba(86,227,159,.06), transparent 70%); border-radius: 0 0 10px 10px; }
+#lab-crew.facility-2 { background: linear-gradient(0deg, rgba(86,227,159,.10), rgba(123,227,255,.05) 50%, transparent 80%); box-shadow: inset 0 -1px 0 rgba(123,227,255,.18); }
+/* first-session coach: one gentle, dismissible next-step nudge at a time */
+#coach {
+  position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
+  z-index: 40; display: flex; align-items: center; gap: 10px;
+  max-width: 80%; padding: 9px 12px 9px 15px; border-radius: 22px;
+  background: rgba(12,20,28,.92); border: 1px solid var(--accent);
+  box-shadow: 0 6px 24px rgba(0,0,0,.45), 0 0 18px rgba(86,227,159,.18);
+  animation: coachPulse 2.2s ease-in-out infinite;
+}
+#coach.hidden { display: none; }
+#coach .coach-text { color: #d8f3e6; font-size: 13px; font-weight: 600; }
+#coach #coach-dismiss {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: 13px; padding: 2px 4px; line-height: 1;
+}
+#coach #coach-dismiss:hover { color: #fff; }
+@keyframes coachPulse { 0%,100% { box-shadow: 0 6px 24px rgba(0,0,0,.45), 0 0 14px rgba(86,227,159,.14); } 50% { box-shadow: 0 6px 24px rgba(0,0,0,.45), 0 0 24px rgba(86,227,159,.32); } }
+#card-img { width: 100%; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; justify-content: center; }
+.card-actions button { flex: 1 1 auto; min-width: 130px; }
 
 /* codex */
 .codex-inner { width: min(720px, 94vw); }
@@ -614,6 +760,7 @@ html, body {
 .node .node-top { display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; }
 .node .node-cost { color: var(--accent2); }
 .node .node-desc { color: var(--muted); font-size: 11px; margin-top: 3px; }
+.node .node-flavor { color: var(--accent2); font-size: 10.5px; font-style: italic; opacity: .82; margin: 3px 0 1px; line-height: 1.3; }
 .node .node-lvl { color: var(--accent); font-size: 11px; }
 .mach-h { font-size: 12px; color: var(--accent2); margin: 16px 0 8px; letter-spacing: .04em; text-transform: uppercase; }
 .mk-lvl { color: var(--accent); font-size: 11px; font-weight: 700; }
@@ -705,8 +852,63 @@ html, body {
 .ghost:hover { color: var(--ink); border-color: var(--accent); transform: translateY(-1px); }
 .ghost:active { transform: translateY(1px) scale(.97); }
 .ghost.danger:hover { color: var(--danger); border-color: var(--danger); }
+
+/* ===== Bioluminescent polish: soft living glow, premium chrome, a11y focus ===== */
+/* keyboard focus ring everywhere (was missing) */
+button:focus-visible, .gen:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+/* buttons glow softly when hovered, like bioluminescence reacting to touch */
+.ghost:hover { background: rgba(86,227,159,.07); box-shadow: 0 0 14px -4px var(--accent); }
+.buy-amt button.active { box-shadow: 0 0 12px -3px var(--accent); }
+/* the hero biomass number reads as alive */
+#biomass-value { text-shadow: 0 0 20px rgba(86,227,159,.45); }
+/* panel: a faint luminous inner edge + soft depth shadow */
+#panel { box-shadow: inset 1px 0 0 rgba(86,227,159,.14), -10px 0 26px -14px rgba(0,0,0,.7); }
+#panel-head h1 { text-shadow: 0 0 24px rgba(86,227,159,.35); }
+/* premium themed scrollbars for the panel + modals */
+#panel, .genome-inner, .card-inner, .codex-body, .settings-body, #tree-canvas-wrap, #paths-list, #museum-list {
+  scrollbar-width: thin; scrollbar-color: #28384a transparent;
+}
+#panel::-webkit-scrollbar, .genome-inner::-webkit-scrollbar, .card-inner::-webkit-scrollbar { width: 9px; height: 9px; }
+#panel::-webkit-scrollbar-thumb, .genome-inner::-webkit-scrollbar-thumb, .card-inner::-webkit-scrollbar-thumb {
+  background: #223141; border-radius: 8px; border: 2px solid transparent; background-clip: padding-box;
+}
+#panel::-webkit-scrollbar-thumb:hover { background: #2e445a; background-clip: padding-box; }
+#panel::-webkit-scrollbar-track { background: transparent; }
+/* affordable organelle: a gentle luminous wash so the next buy invites the eye */
+.gen.affordable { background: linear-gradient(100deg, rgba(86,227,159,.10), rgba(86,227,159,.02) 60%); }
+
+/* ===== No-scroll tabbed panel (Grow / Evolve / Lab) ===== */
+#panel { overflow: hidden; } /* the active tab owns any overflow, not the whole panel */
+#panel-tabs { display: flex; gap: 6px; margin: 12px 0 10px; flex: 0 0 auto; }
+.ptab {
+  flex: 1; position: relative; cursor: pointer; font-weight: 800; font-size: 12.5px;
+  padding: 9px 0; border-radius: 10px; color: var(--muted);
+  background: var(--bg2); border: 1px solid var(--line);
+  transition: color .12s, background .12s, border-color .12s, box-shadow .12s;
+}
+.ptab:hover { color: var(--ink); border-color: var(--accent); }
+.ptab.active { color: #08110d; background: var(--accent); border-color: var(--accent); box-shadow: 0 4px 16px -5px var(--accent); }
+.ptab-dot { position: absolute; top: 5px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 9px var(--danger); animation: pulse 1.3s ease-in-out infinite; }
+.ptab-dot.hidden { display: none; }
+.tabp { display: none; flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.tabp.active { display: flex; flex-direction: column; }
+#status { color: var(--muted); font-size: 11px; min-height: 15px; margin-top: 8px; flex: 0 0 auto; text-align: center; }
+/* Lab tab: a clean icon grid (Cell-to-Singularity style), not a wrapping list */
+#panel-foot {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0;
+}
+#panel-foot .ghost {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  padding: 11px 4px; font-size: 10px; line-height: 1.1; text-align: center; min-height: 58px; border-radius: 12px;
+}
+#panel-foot .ghost .ico { font-size: 20px; line-height: 1; }
+/* slightly compact organelle rows so a full set fits the Grow tab without scrolling */
+.gen { padding: 9px 11px; }
+
 #volume { width: 64px; accent-color: var(--accent); cursor: pointer; }
-#status { color: var(--muted); font-size: 11px; flex-basis: 100%; margin-top: 2px; }
+#status { color: var(--muted); font-size: 11px; flex: 0 0 auto; margin-top: 2px; }
 
 /* ---------- floating click fx ---------- */
 #fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
@@ -722,6 +924,20 @@ html, body {
   0%   { opacity: 1; transform: translateY(0) scale(.8); }
   20%  { transform: translateY(-6px) scale(1.15); }
   100% { opacity: 0; transform: translateY(-60px) scale(1); }
+}
+/* passive-income readout: dimmer + smaller, drifts higher and slower than a click
+   number so it reads as "the colony is earning" rather than a tap reward */
+.float-num--passive {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(123,227,176,.72);
+  text-shadow: 0 1px 6px rgba(0,0,0,.55);
+  animation: floatUpPassive 1.6s ease-out forwards;
+}
+@keyframes floatUpPassive {
+  0%   { opacity: 0; transform: translateY(0) scale(.7); }
+  18%  { opacity: .85; transform: translateY(-10px) scale(1); }
+  100% { opacity: 0; transform: translateY(-78px) scale(.95); }
 }
 
 /* particles (biomass splatter, purchase bursts, mutation confetti) */

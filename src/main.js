@@ -4,6 +4,7 @@ import { state, save, wipe } from "./state.js";
 import {
   click,
   buy,
+  buyN,
   sellGenerator,
   productionPerSecond,
   effectiveClickPower,
@@ -12,6 +13,7 @@ import {
   canPrestige,
   doPrestige,
   rollDraft,
+  rollEditions,
   acquireMutation,
   pressureLevel,
   doSpeciate,
@@ -69,8 +71,12 @@ import {
   grantFossil,
   startDailyRun,
   endDailyRun,
+  dailyScoreToday,
+  todaySeed,
   currentWeekly,
   buySkin,
+  currentArchetype,
+  buildScore,
 } from "./economy.js";
 import { SKIN_BY_ID } from "./data/skins.js";
 import { speciesTier, speciesTierColor } from "./data/tiers.js";
@@ -107,6 +113,8 @@ import {
   hasBloom,
   engorgePop,
   exportPhoto,
+  exportSpecimenCard,
+  creatureBite,
 } from "./creature.js";
 import { creatureName } from "./data/names.js";
 import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabel,
@@ -117,13 +125,14 @@ import { initUI, renderUI, spawnFloatNumber, flashStatus, showDraft, setMuteLabe
 import { SPELLS } from "./data/spells.js";
 import { SEASON_BY_ID } from "./data/seasons.js";
 import { formatNumber } from "./format.js";
-import { getMutation } from "./data/mutations.js";
+import { getMutation, EDITIONS, MUTATIONS } from "./data/mutations.js";
+import { backendOn, setBackendUrl, backendUrl, submitDailyScore, cloudPutSave, cloudGetSave, newSyncCode } from "./net.js";
 import { GENERATORS } from "./data/generators.js";
 import * as audio from "./audio.js";
 import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme, hasTheme, setMusicStress, setMusicDanger } from "./music.js";
 import { initCinematic, playCinematic } from "./cinematic.js";
 import { initJuice, burst, shake, updateJuice, flash, setShakeScale, setJuiceReduceMotion, ripple, flyToCounter } from "./juice.js";
-import { initBackground, renderBackground, setBackground, hasBackground, resizeBackground, setBackgroundReduceMotion, setDnaStorm } from "./background.js";
+import { initBackground, renderBackground, setBackground, setWorldStage, hasBackground, resizeBackground, setBackgroundReduceMotion, setDnaStorm, setMicrobeCount } from "./background.js";
 
 // screen-center of the 3D stage, for big bursts
 function stageCenter() {
@@ -133,14 +142,15 @@ function stageCenter() {
 
 // ---- wire UI ----
 initUI({
-  onBuy: (genId, rect) => {
+  onBuy: (genId, rect, amount = 1) => {
     const tiersBefore = researchTiers(genId);
-    if (buy(genId)) {
+    const n = buyN(genId, amount || 1);
+    if (n > 0) {
       const tier = GENERATORS.findIndex((g) => g.id === genId); // 0..4
       audio.playBuy(tier);
       if (rect) burst(rect.left + rect.width / 2, rect.top + rect.height / 2,
-                      { count: 12 + tier * 4, color: "#56e39f", spread: 80 + tier * 15 });
-      pulse(0.5); // the cell reacts — a new organelle joins the colony on screen
+                      { count: 12 + tier * 4 + Math.min(n, 20), color: "#56e39f", spread: 80 + tier * 15 });
+      pulse(0.5); // the cell reacts — new organelles join the colony on screen
       // research milestone crossed → a satisfying unlock moment
       if (researchTiers(genId) > tiersBefore) {
         audio.playMilestone(); cinematicPulse(); flash("rgba(120,220,255,.3)");
@@ -148,7 +158,7 @@ initUI({
         burst(c.x, c.y, { count: 40, color: "#7be3ff", spread: 160, life: 900 });
         flashStatus(`⚗ RESEARCH UNLOCKED — evolved into ${researchName(genId)}!`);
       } else {
-        flashStatus("organelle acquired");
+        flashStatus(n > 1 ? `+${n} organelles acquired` : "organelle acquired");
       }
     } else {
       flashStatus("not enough biomass");
@@ -253,6 +263,7 @@ initUI({
     const c = stageCenter();
     burst(c.x, c.y, { count: 60, color: "#b88cff", spread: 200, up: 0, life: 900 });
     flashStatus(`evolved! +${formatNumber(gained)} EP · Evolution Rank ${evolutionStage().rank}`);
+    crewReact("cheer");
     openDraft();
     startNewRun();
     maybeStageUp(prevStage);
@@ -298,7 +309,7 @@ initUI({
     save();
   },
   onSetNaming: (v) => { state.namingStyle = v; save(); },
-  onSetBackground: (v) => { state.background = v; setBackground(v); save(); },
+  onSetBackground: (v) => { state.background = v; applyWorld(); save(); },
   onSpeciate: () => {
     const prevStage = evolutionStage().index;
     const res = doSpeciate();
@@ -417,20 +428,27 @@ initUI({
     save();
   },
   onEndDaily: () => {
-    endDailyRun();
-    flashStatus("daily run finished — best score recorded");
+    state.dailyName = creatureName(state.mutations, state.namingStyle || "scientific");
+    const res = endDailyRun();
+    flashStatus(res && res.improved ? `🎲 Daily done — NEW BEST · Build Score ${res.score}!` : `🎲 Daily done — Build Score ${res ? res.score : 0}`);
     renderChallenges();
     save();
+    // submit to the online leaderboard if a backend is configured (fire-and-forget)
+    if (res && backendOn()) submitDailyScore({ seed: res.seed, score: res.score, biomass: Math.round(res.biomass), name: state.dailyName, dna: creatureDNACode(), ts: Date.now() });
+    // the share moment: show the Specimen Card stamped with today's seed + score
+    setTimeout(() => openSpecimenCard(), 400);
   },
 });
 
 // --- creature DNA sharing: copy your creature as a code, or view a shared one ---
-function copyCreatureDNA() {
-  const code = "MLAB1." + btoa(unescape(encodeURIComponent(JSON.stringify({
+function creatureDNACode() {
+  return "MLAB1." + btoa(unescape(encodeURIComponent(JSON.stringify({
     n: creatureName(state.mutations, state.namingStyle || "scientific"),
     m: state.mutations, v: state.variant,
   }))));
-  if (navigator.clipboard) navigator.clipboard.writeText(code);
+}
+function copyCreatureDNA() {
+  if (navigator.clipboard) navigator.clipboard.writeText(creatureDNACode());
   flashStatus("🧬 creature DNA copied — share it!");
 }
 function viewSharedDNA() {
@@ -448,13 +466,34 @@ function viewSharedDNA() {
 }
 document.getElementById("photo-dna").addEventListener("click", copyCreatureDNA);
 document.getElementById("viewdna-btn").addEventListener("click", viewSharedDNA);
+// cloud save + backend config (all optional; offline by default)
+document.getElementById("cloud-up").addEventListener("click", cloudUpload);
+document.getElementById("cloud-down").addEventListener("click", cloudDownload);
+{
+  const bi = document.getElementById("backend-url");
+  if (bi) bi.value = backendUrl();
+  document.getElementById("backend-save").addEventListener("click", () => {
+    const u = setBackendUrl(document.getElementById("backend-url").value);
+    genomeStatus(u ? "🌐 connected: " + u : "🌐 offline mode");
+    renderChallenges();
+  });
+}
 
 // open the mutation draft with reroll support
 function openDraft() {
-  showDraft(rollDraft(draftSize()), pickMutation, () => {
+  const ids = rollDraft(draftSize());
+  // First-ever draft: guarantee at least one body-part mutation so the creature
+  // VISIBLY transforms on the first Evolve (the payoff that hooks new players).
+  // Skipped during daily runs so the seeded draws stay identical for everyone.
+  if (!state.dailyActive && (state.prestiges || 0) === 0 && (state.mutations || []).length === 0 && !ids.some((id) => (getMutation(id) || {}).part)) {
+    const parts = MUTATIONS.filter((m) => m.part && m.rarity !== "legendary" && !m.alien && !m.defect);
+    if (parts.length) ids[0] = parts[(Math.random() * parts.length) | 0].id;
+  }
+  const editions = rollEditions(ids); // map id -> edition (or null), seeded on daily
+  showDraft(ids, pickMutation, () => {
     if (useReroll()) openDraft();
     else flashStatus("no reroll tokens");
-  }, () => flashStatus("skipped — no mutation taken"));
+  }, () => flashStatus("skipped — no mutation taken"), editions);
 }
 
 // build-dependent aura: colour the creature's glow by its dominant body part
@@ -549,11 +588,28 @@ function exportSave() {
   } catch (e) { genomeStatus("export failed"); }
 }
 
+// Validate + repair an externally-sourced save (import string or cloud) before we
+// merge it over state — never let malformed data corrupt the game or crash views.
+function sanitizeSave(obj) {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return null;
+  for (const k of ["biomass", "runBiomass", "lifetimeBiomass", "evolutionPoints", "genome", "prestiges", "speciations", "evolutionRank"]) {
+    if (k in obj && !Number.isFinite(obj[k])) obj[k] = 0;
+  }
+  if (typeof obj.owned !== "object" || !obj.owned || Array.isArray(obj.owned)) obj.owned = {};
+  if (!Array.isArray(obj.mutations)) obj.mutations = [];
+  if (!Array.isArray(obj.species)) obj.species = [];
+  // drop dangling/self parentId refs so the Tree of Life can't form a broken graph
+  const ids = new Set(obj.species.map((s) => s && s.id).filter(Boolean));
+  for (const s of obj.species) if (s && (s.parentId === s.id || !ids.has(s.parentId))) s.parentId = null;
+  return obj;
+}
+
 function importSave() {
   const str = prompt("Paste your exported save string:");
   if (!str) return;
   try {
-    const data = JSON.parse(decodeURIComponent(escape(atob(str.trim()))));
+    const data = sanitizeSave(JSON.parse(decodeURIComponent(escape(atob(str.trim())))));
+    if (!data) { genomeStatus("invalid save string"); return; }
     Object.assign(state, data);
     save();
     genomeStatus("imported — reloading");
@@ -561,9 +617,38 @@ function importSave() {
   } catch (e) { genomeStatus("invalid save string"); }
 }
 
-function pickMutation(id) {
+// ---- Cloud save (cross-device via a short code; needs a backend) ----
+async function cloudUpload() {
+  if (!backendOn()) { genomeStatus("set a backend URL in Settings → Online first"); return; }
+  const code = newSyncCode();
+  const data = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+  genomeStatus("☁ uploading…");
+  const ok = await cloudPutSave(code, data);
+  if (ok) {
+    if (navigator.clipboard) navigator.clipboard.writeText(code);
+    genomeStatus(`☁ Uploaded! Sync code: ${code} (copied) — use it on another device`);
+  } else genomeStatus("cloud upload failed");
+}
+async function cloudDownload() {
+  if (!backendOn()) { genomeStatus("set a backend URL in Settings → Online first"); return; }
+  const code = prompt("Enter your cloud sync code (MLAB-XXXX-XXXX):");
+  if (!code) return;
+  genomeStatus("☁ fetching…");
+  const data = await cloudGetSave(code.trim());
+  if (!data) { genomeStatus("no save found for that code"); return; }
+  try {
+    const obj = sanitizeSave(JSON.parse(decodeURIComponent(escape(atob(data)))));
+    if (!obj) { genomeStatus("cloud save was corrupt"); return; }
+    Object.assign(state, obj);
+    save();
+    genomeStatus("☁ loaded — reloading");
+    setTimeout(() => location.reload(), 600);
+  } catch (e) { genomeStatus("cloud save was corrupt"); }
+}
+
+function pickMutation(id, edition) {
   const masteriesBefore = masteriesComplete();
-  acquireMutation(id);
+  acquireMutation(id, edition);
   const def = getMutation(id);
   onMutationGained(def && def.part); // hue drift + squash + grow a part
   const rarity = def ? def.rarity : "common";
@@ -590,7 +675,16 @@ function pickMutation(id) {
     const color = isRare ? "#56a0ff" : "#9fb3c8";
     burst(c.x, c.y, { count: isRare ? 44 : 24, color, spread: isRare ? 180 : 130, up: 0, life: isRare ? 900 : 750 });
   }
-  flashStatus(`mutation gained: ${def ? def.name : id}`);
+  const edTag = edition && EDITIONS[edition] ? ` ${EDITIONS[edition].tag}` : "";
+  if (edition && EDITIONS[edition]) { audio.playMilestone(); flash(EDITIONS[edition].color + "55"); burst(c.x, c.y, { count: 50, color: EDITIONS[edition].color, spread: 200, life: 1000 }); }
+  // first-ever mutation: a big, memorable "it begins to change" beat
+  if (!state.sawFirstMutation) {
+    state.sawFirstMutation = true;
+    audio.playRoar(); cinematicPulse(); shake(16); flash("rgba(86,227,159,.5)");
+    burst(c.x, c.y, { count: 80, color: "#56e39f", spread: 240, up: 0, life: 1100 });
+    playCinematic("🧬 FIRST MUTATION", def && def.part ? `It grows a ${def.part}… it begins to change.` : "Your cell will never be the same.", "#56e39f");
+  }
+  flashStatus(`mutation gained: ${def ? def.name : id}${edTag}`);
   // Genome Atlas: completing a mastery family is a permanent, celebrated milestone
   if (masteriesComplete() > masteriesBefore) {
     audio.playMilestone(); audio.playRoar(); cinematicPulse();
@@ -681,6 +775,7 @@ initCreature(canvas, (sx, sy) => {
   lastClickAt = now;
   const crit = combo >= 12; // chained-click "critical extraction"
   const gain = click(crit ? 5 : 1); // crit multiplies the actual payout, not just the sparkle
+  creatureBite(); // jaws/anatomy snap on every click
   state.totalClicks = (state.totalClicks || 0) + 1;
   startMusic(); // first user gesture — kick off ambient music
   // escalating combo feedback: the heat ramps from green → gold → orange → magenta
@@ -736,8 +831,14 @@ setReduceMotion(!!state.reduceMotion);
 setJuiceReduceMotion(!!state.reduceMotion);
 setBackgroundReduceMotion(!!state.reduceMotion);
 setEyeTracking(!!state.eyeTrack);
-if (!hasBackground(state.background)) state.background = "aurora";
-setBackground(state.background);
+if (!hasBackground(state.background)) state.background = "world"; // default: backdrop escalates with evolution stage
+// Apply the backdrop: "world" = stage-driven escalation, anything else = locked theme.
+let _lastWorldStage = -1;
+function applyWorld() {
+  if ((state.background || "world") === "world") { _lastWorldStage = evolutionStage().index; setWorldStage(_lastWorldStage); }
+  else setBackground(state.background);
+}
+applyWorld();
 setHabitat(state.biome); // theme the 3D habitat to the run's biome
 setVariant(state.variant); // apply any rare run variant
 applyCreatureSkin();       // base body = cosmetic skin, else current species tier
@@ -746,9 +847,10 @@ if (pathChoiceDue() && !state.pathPrompted) { state.pathPrompted = true; setTime
 
 const BIOME_ICON = { ocean: "🌊", volcanic: "🌋", verdant: "🌿", glacial: "❄️", abyssal: "🌌", voidrift: "🕳️" };
 function startNewRun(silent) {
-  // roll a biome → sets the backdrop + a build buff for this run
+  // roll a biome → sets a build buff + 3D habitat for this run. In "world" mode the
+  // 2D backdrop tracks your evolution stage (not the biome), so the world escalates.
   const biome = rollBiome();
-  setBackground(biome.background);
+  if ((state.background || "world") === "world") applyWorld(); else setBackground(biome.background);
   setHabitat(biome.id);
   // re-roll the per-run silhouette jitter, then apply the PERMANENT evolution
   // stage (drives body + crown + aura + orbiters). Rank never resets, so the
@@ -774,6 +876,7 @@ function maybeStageUp(prevStageIdx) {
   const c = stageCenter();
   burst(c.x, c.y, { count: 130, color: col, spread: 340, up: 0, life: 1500 });
   audio.playRoar();
+  crewReact("cheer");
   playCinematic(`✦ STAGE ${ns.index + 1}: ${ns.name.toUpperCase()} ✦`, ns.blurb, col);
   setTimeout(() => flashStatus(`✦ NEW STAGE — your creature is now a ${ns.name}! (Evolution Rank ${ns.rank})`), 30);
   maybePromptPath();
@@ -816,16 +919,33 @@ if (!state.seenHelp) {
 }
 
 // --- Mitogen Bloom: golden clickable spawn -> frenzy buff (active-play upside) ---
+// Blooms CHAIN (catching one can immediately sprout the next, escalating the
+// reward "CHAIN ×N") and combo (stacked buffs multiply), and a rare Mutagen Storm
+// floods the cell with blooms — our take on Cookie Clicker's golden-cookie combos.
+let bloomChain = 0;
+let lastBloomAt = 0;
+let stormUntil = 0;
+const CHAIN_WINDOW = 14000; // ms gap that breaks a chain
+function activeBuffCount() {
+  const now = Date.now();
+  return (state.tempBuffs || []).filter((b) => (!b.expiresAt || b.expiresAt > now) && ((b.prodMult || 1) > 1 || (b.clickMult || 1) > 1)).length;
+}
 setBloomCallback((sx, sy) => {
   state.bloomCaught = true;
   const prod = productionPerSecond();
+  const nowT = Date.now();
+  if (nowT - lastBloomAt > CHAIN_WINDOW) bloomChain = 0; // chain broke
+  lastBloomAt = nowT;
+  bloomChain = Math.min(bloomChain + 1, 9);
+  const chainMult = 1 + (bloomChain - 1) * 0.5;     // lumps grow with the chain
+  const chainTag = bloomChain > 1 ? ` · CHAIN ×${bloomChain}` : "";
   const r = Math.random();
   let label, sub, color = "#ffd76b";
   if (r < 0.42) {                       // Frenzy
     addTempBuff({ id: "bloom", prodMult: 4, durationMs: 20000 });
     label = "⚡ MITOGEN FRENZY"; sub = "×4 production · 20s";
   } else if (r < 0.66) {                // Lucky — instant biomass lump
-    const lump = Math.max(50, Math.floor(prod * 600 + state.biomass * 0.10));
+    const lump = Math.max(50, Math.floor((prod * 600 + state.biomass * 0.10) * chainMult));
     addBiomass(lump); color = "#56e39f";
     label = "🍀 LUCKY!"; sub = `+${formatNumber(lump)} biomass`;
   } else if (r < 0.84) {                // Click Frenzy
@@ -836,7 +956,7 @@ setBloomCallback((sx, sy) => {
     label = "🌌 COSMIC BLOOM"; sub = "×7 production · 25s";
   } else {                              // Wrath — risky 60/40
     if (Math.random() < 0.6) {
-      const jackpot = Math.max(100, Math.floor(prod * 1800 + state.biomass * 0.25));
+      const jackpot = Math.max(100, Math.floor((prod * 1800 + state.biomass * 0.25) * chainMult));
       addBiomass(jackpot); color = "#ff6b6b";
       label = "💀 WRATH → JACKPOT"; sub = `+${formatNumber(jackpot)} biomass`;
     } else {
@@ -845,13 +965,36 @@ setBloomCallback((sx, sy) => {
       label = "💀 WRATH"; sub = "backfired — production halved 12s";
     }
   }
+  // combo readout when buffs are stacking on top of each other
+  const buffs = activeBuffCount();
+  const comboTag = buffs >= 2 ? ` · 🔥 COMBO ×${buffs}` : "";
   audio.playMilestone();
   cinematicPulse();
   flash(color + "88"); // hex8: ~53% alpha tint
-  burst(sx, sy, { count: 60, color, spread: 200, life: 1000 });
-  playCinematic(label, sub, color);
-  flashStatus(`${label} — ${sub}`);
+  burst(sx, sy, { count: 60 + bloomChain * 8, color, spread: 200 + bloomChain * 12, life: 1000 });
+  playCinematic(label + chainTag, sub + comboTag, color);
+  flashStatus(`${label}${chainTag}${comboTag} — ${sub}`);
+  crewReact(label.includes("WRATH") && sub.includes("halved") ? "duck" : "work");
+  // chain continuation: a caught bloom can immediately sprout the next one
+  const stormOn = nowT < stormUntil;
+  const contP = stormOn ? 1 : Math.max(0.15, 0.62 - bloomChain * 0.06);
+  if (bloomChain < 9 && Math.random() < contP) {
+    setTimeout(() => { if (!hasBloom()) spawnBloom(); }, stormOn ? 350 : 500 + Math.random() * 700);
+  }
 });
+// Mutagen Storm: a rare flurry — catch as many as you can for a runaway chain.
+function mutagenStorm() {
+  stormUntil = Date.now() + 9000;
+  bloomChain = 0; lastBloomAt = Date.now();
+  audio.playMilestone(); flash("#ffd76b88");
+  playCinematic("🌪️ MUTAGEN STORM", "catch every bloom — chain them!", "#ffd76b");
+  flashStatus("🌪️ MUTAGEN STORM — catch them all!");
+  let n = 0;
+  const iv = setInterval(() => {
+    if (n++ >= 16 || Date.now() > stormUntil) { clearInterval(iv); return; }
+    if (!hasBloom()) spawnBloom();
+  }, 650);
+}
 // ---- Leeches (parasites that drain production; pop for a refund + interest) ----
 const leechStage = document.getElementById("stage");
 let leeches = [];
@@ -890,7 +1033,10 @@ setInterval(() => {
 
 // ~one bloom per minute when none is active; explain it the first time
 setInterval(() => {
-  if (hasBloom() || Math.random() >= 0.5) return;
+  if (hasBloom() || Date.now() < stormUntil) return;
+  // rare Mutagen Storm once the player is established (mid-game+)
+  if (((state.prestiges || 0) >= 1 || (state.speciations || 0) >= 1) && Math.random() < 0.04) { mutagenStorm(); return; }
+  if (Math.random() >= 0.5) return;
   spawnBloom();
   if (!state.seenBloomHint) {
     state.seenBloomHint = true;
@@ -1027,6 +1173,75 @@ document.getElementById("photo-shot").addEventListener("click", () => {
   flashStatus("📸 screenshot saved");
 });
 
+// --- Specimen Card: shareable portrait of the monster + its build stats ---
+let _cardURL = null;
+function specimenLines() {
+  const st = evolutionStage();
+  const lines = [];
+  if (state.dailyActive || dailyScoreToday()) lines.push(`🎲 Daily #${todaySeed()} — beat my Build Score!`);
+  lines.push(`${st.name} · Day ${(state.prestiges || 0) + 1}`);
+  lines.push(`${formatNumber(productionPerSecond())} biomass/sec`);
+  lines.push(`${new Set(state.mutations).size} mutations · ${state.prestiges || 0} evolutions · ${state.speciations || 0} species`);
+  return lines;
+}
+function topMutations(n = 6) {
+  const order = { legendary: 0, rare: 1, common: 2 };
+  const seen = new Set(), out = [];
+  const list = state.mutations.map(getMutation).filter(Boolean)
+    .sort((a, b) => (order[a.rarity] ?? 3) - (order[b.rarity] ?? 3));
+  for (const d of list) { if (seen.has(d.id)) continue; seen.add(d.id); out.push({ name: d.name, rarity: d.rarity }); if (out.length >= n) break; }
+  return out;
+}
+function openSpecimenCard() {
+  const url = exportSpecimenCard({
+    name: creatureName(state.mutations, state.namingStyle || "scientific"),
+    archetype: currentArchetype(),
+    score: buildScore(),
+    lines: specimenLines(),
+    muts: topMutations(6),
+    dna: creatureDNACode(),
+    scaleRef: SCALE_REFS[scaleIdx],
+  });
+  if (!url) { flashStatus("card render failed"); return; }
+  _cardURL = url;
+  document.getElementById("card-img").src = url;
+  document.getElementById("card-modal").classList.remove("hidden");
+}
+async function copyCardImage() {
+  try {
+    const blob = await (await fetch(_cardURL)).blob();
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    flashStatus("📋 card image copied — paste it anywhere!");
+  } catch (e) { flashStatus("copy not supported — use Download instead"); }
+}
+async function shareCard() {
+  try {
+    const blob = await (await fetch(_cardURL)).blob();
+    const file = new File([blob], "mutation-lab-specimen.png", { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: "My Mutation Lab specimen", text: "Look what I grew in Mutation Lab 🧬" });
+    } else { flashStatus("share not supported here"); }
+  } catch (e) { /* user cancelled */ }
+}
+document.getElementById("photo-card").addEventListener("click", openSpecimenCard);
+document.getElementById("card-close").addEventListener("click", () => document.getElementById("card-modal").classList.add("hidden"));
+document.getElementById("card-copy").addEventListener("click", copyCardImage);
+document.getElementById("card-download").addEventListener("click", () => {
+  if (!_cardURL) return;
+  const a = document.createElement("a");
+  a.href = _cardURL;
+  a.download = creatureName(state.mutations, state.namingStyle || "scientific").replace(/[^a-z0-9]+/gi, "_") + "_card.png";
+  a.click();
+  flashStatus("⬇ card downloaded");
+});
+document.getElementById("card-dna").addEventListener("click", copyCreatureDNA);
+{
+  const shareBtn = document.getElementById("card-share");
+  if (navigator.share) { shareBtn.classList.remove("hidden"); shareBtn.addEventListener("click", shareCard); }
+}
+// expose so milestone moments (new stage / Speciate) can offer the card
+window.__openSpecimenCard = openSpecimenCard;
+
 // --- Digest button (opt-in biomass sink -> production surge) ---
 document.getElementById("digest-btn").addEventListener("click", () => {
   if (digestActive()) { flashStatus("🍴 still digesting — wait for the surge to finish"); return; }
@@ -1151,6 +1366,136 @@ setInterval(() => {
   if (mm && !mm.classList.contains("hidden")) renderMarket();
 }, 4000);
 
+// ---- First-session coach: a single gentle, dismissible next-step nudge that
+// advances with the player (tap → buy → Evolve) and then retires itself forever.
+// Only ever shows for a brand-new player; never nags after the first Evolve.
+const coachEl = document.getElementById("coach");
+const coachTextEl = coachEl ? coachEl.querySelector(".coach-text") : null;
+function coachMessage() {
+  if (state.coachDone || (state.prestiges || 0) > 0) return null; // graduated
+  const owned = state.owned || {};
+  const totalOwned = Object.values(owned).reduce((a, b) => a + b, 0);
+  if (totalOwned === 0 && (state.biomass || 0) < 15) return "👆 Tap the cell to grow biomass";
+  if (totalOwned === 0) return "Nice! Now buy your first organelle on the right → it earns biomass for you";
+  const evolveBtn = document.getElementById("evolve-btn");
+  if (evolveBtn && !evolveBtn.disabled) return "✦ Evolve is ready — Evolve to mutate your creature!";
+  return "Keep growing — buy organelles until you can Evolve";
+}
+function updateCoach() {
+  if (!coachEl) return;
+  const msg = coachMessage();
+  if (!msg) { coachEl.classList.add("hidden"); if ((state.prestiges || 0) > 0) state.coachDone = true; return; }
+  if (coachTextEl.textContent !== msg) coachTextEl.textContent = msg;
+  coachEl.classList.remove("hidden");
+}
+if (coachEl) document.getElementById("coach-dismiss").addEventListener("click", () => {
+  state.coachDone = true; coachEl.classList.add("hidden"); save();
+});
+
+// ---- Lab Crew: scientists + equipment that visibly accumulate along the bottom
+// of the lab as you grow — our take on Cookie Clicker's building sprites filling
+// the screen (the "look at everything I've built" payoff). Each prop pops in once
+// at its milestone (sticky), with a one-time toast. Themed to a bio-lab, escalating
+// from a lone technician to an orbital uplink. Reuses the milestone metrics.
+const totalOwnedCount = (s) => Object.values(s.owned || {}).reduce((a, b) => a + b, 0);
+const LAB_CREW = [
+  { id: "tech",     icon: "🧑‍🔬", label: "A lab technician clocks in",  when: (s) => totalOwnedCount(s) >= 1 },
+  { id: "scope",    icon: "🔬",   label: "Microscope installed",        when: (s) => (s.lifetimeBiomass || 0) >= 500 },
+  { id: "rack",     icon: "🧫",   label: "Culture rack added",          when: (s) => (s.lifetimeBiomass || 0) >= 5e3 },
+  { id: "senior",   icon: "👩‍🔬", label: "A senior researcher joins",   when: (s) => (s.prestiges || 0) >= 1 },
+  { id: "terminal", icon: "🖥️",   label: "Data terminal online",        when: (s) => (s.lifetimeBiomass || 0) >= 5e4 },
+  { id: "dna",      icon: "🧬",   label: "Gene-sequencer wheeled in",   when: (s) => new Set(s.mutations).size >= 4 },
+  { id: "flask",    icon: "⚗️",   label: "Reagent station built",       when: (s) => (s.lifetimeBiomass || 0) >= 2.5e5 },
+  { id: "robot",    icon: "🦾",   label: "Robotic arm deployed",        when: (s) => (s.lifetimeBiomass || 0) >= 1e6 },
+  { id: "server",   icon: "🗄️",   label: "Server rack humming",         when: (s) => (s.lifetimeBiomass || 0) >= 5e7 },
+  { id: "director", icon: "🥼",   label: "Lab Director appointed",      when: (s) => (s.speciations || 0) >= 1 },
+  // biome/stage-matched crew — they suit up for where the creature now lives
+  { id: "diver",    icon: "🤿",   label: "A diver suits up for the deep", when: (s) => (s.evolutionRank || 0) >= 15 },
+  { id: "satellite",icon: "🛰️",   label: "Orbital lab uplink online",   when: (s) => (s.evolutionRank || 0) >= 60 },
+  { id: "scope2",   icon: "🔭",   label: "An astronomer joins the lab", when: (s) => (s.evolutionRank || 0) >= 60 },
+  { id: "astronaut",icon: "🧑‍🚀", label: "An astronaut boards the lab", when: (s) => (s.evolutionRank || 0) >= 120 },
+];
+const crewLayer = document.getElementById("lab-crew");
+function updateLabCrew() {
+  if (!crewLayer) return;
+  state.labCrew = state.labCrew || {};
+  const firstPass = !state.labCrewInit;
+  for (const p of LAB_CREW) {
+    if (state.labCrew[p.id]) continue;
+    if (!p.when(state)) continue;
+    state.labCrew[p.id] = true;
+    const el = document.createElement("span");
+    el.className = "crew"; el.textContent = p.icon; el.title = p.label;
+    el.style.animationDelay = "0s, " + (Math.random() * 2).toFixed(2) + "s"; // stagger the idle bob
+    crewLayer.appendChild(el);
+    if (!firstPass) { flashStatus(`🔬 ${p.label}`); audio.playMilestone(); }
+  }
+  // the lab visibly grows into a facility as the crew accumulates
+  const n = crewLayer.children.length;
+  crewLayer.classList.toggle("facility", n >= 5);
+  crewLayer.classList.toggle("facility-2", n >= 9);
+  if (firstPass) state.labCrewInit = true;
+}
+// Make the whole crew react together (cheer on Evolve, work during a Frenzy, duck
+// during a Wrath) — gives the lab life beyond the idle bob. Skipped if reduce-motion.
+function crewReact(kind) {
+  if (!crewLayer || state.reduceMotion) return;
+  const cls = "react-" + kind;
+  crewLayer.querySelectorAll(".crew").forEach((n, i) => {
+    setTimeout(() => { n.classList.add(cls); setTimeout(() => n.classList.remove(cls), 720); }, i * 45);
+  });
+}
+updateLabCrew(); // restore the crew on boot (no toasts)
+
+// ---- Lab Bulletin: a rotating, context-aware news ticker (Cookie Clicker's news
+// feed, themed to our lab). Headlines escalate with the creature's macro-stage and
+// reference live state (name, biomass, latest mutation, crew size) for charm. ----
+function pickBulletin() {
+  const idx = evolutionStage().index;
+  const name = creatureName(state.mutations, state.namingStyle || "scientific");
+  const bio = formatNumber(state.lifetimeBiomass || 0);
+  const crew = Object.keys(state.labCrew || {}).length;
+  const last = state.mutations.length ? (getMutation(state.mutations[state.mutations.length - 1]) || {}).name : null;
+  const POOLS = [
+    [ `Scientists baffled: a single cell is now worth ${bio} biomass.`,
+      `Lab intern asks whether "${name}" is "supposed to wiggle like that."`,
+      `Ethics board "looking into" the ${bio}-biomass petri dish.`,
+      `Op-ed: is clicking one cell this many times a personality trait?` ],
+    [ `"${name}" forms a colony; neighbouring microbes file noise complaints.`,
+      `Facility expands to ${crew} staff to contain the growing specimen.`,
+      `Mutation watch: "${last || "something"}" is spreading through the culture.`,
+      `Colony tops ${bio} biomass; the night shift requests hazard pay.` ],
+    [ `WARNING: "${name}" has developed a taste for things that move.`,
+      `Residents near the lab advised to "stay indoors, probably."`,
+      `Predator-class specimen passes ${bio} biomass; funding quietly doubled.` ],
+    [ `"${name}" declared apex organism of the facility — possibly the county.`,
+      `Unmarked observers seen near the lab. No comment given.`,
+      `Apex specimen at ${bio} biomass; the fire exits have been "reconsidered."` ],
+    [ `"${name}" is now visible from orbit. Astronomers are "concerned."`,
+      `Planetary biomass reserves hit ${bio}; tide schedules rewritten.`,
+      `"${name}" grows a moon. The actual Moon is reportedly nervous.` ],
+    [ `"${name}" reshapes local spacetime; calendars are now optional.`,
+      `Cosmic entity reaches ${bio} biomass; nearby stars file for relocation.`,
+      `Physicists confirm "${name}" has opinions about the speed of light.` ],
+  ];
+  const pool = POOLS[Math.min(idx, POOLS.length - 1)];
+  return "📰 " + pool[(Math.random() * pool.length) | 0];
+}
+let _lastBulletin = "";
+function rotateBulletin() {
+  const el = document.getElementById("lab-bulletin");
+  if (!el) return;
+  let h, guard = 0;
+  do { h = pickBulletin(); } while (h === _lastBulletin && guard++ < 5);
+  _lastBulletin = h;
+  el.textContent = h;
+  if (!state.reduceMotion) { el.classList.remove("bull-in"); void el.offsetWidth; el.classList.add("bull-in"); }
+}
+setInterval(rotateBulletin, 9000);
+rotateBulletin();
+
+let _unlockAt = 0; // shared throttle timer for the coach + lab crew updates
+
 // ---- offline progress welcome ----
 const offline = applyOfflineProgress();
 if (offline.earned > 1 && offline.seconds > 5) {
@@ -1172,6 +1517,7 @@ let droneFxGain = 0;
 // working-producer throttle: organelles emit biomass motes toward the counter,
 // at a rate scaled by production/sec (so the screen SHOWS the economy running)
 let prodMoteAccum = 0;
+let prodFloatAccum = 0; // throttle for the readable "+N/s" passive-income float
 
 function update() {
   const now = performance.now();
@@ -1187,6 +1533,12 @@ function update() {
   if (rate > 0) addBiomass(rate * dt);
   drainLeeches(rate, dt); // parasites skim production into themselves
   updateDrifters(dt); // ambient clickable visitors floating across the pond
+  // "Living World": the backdrop escalates the moment your evolution stage changes
+  // (micro pond → ocean → planet → cosmos), so the world grows around the creature.
+  if ((state.background || "world") === "world") {
+    const sIdx = evolutionStage().index;
+    if (sIdx !== _lastWorldStage) { _lastWorldStage = sIdx; setWorldStage(sIdx); }
+  }
   // working producers: organelles fire biomass motes into the counter, denser as
   // /sec grows — so you SEE production happening (Cookie-Clicker cookies-flowing).
   if (rate > 0 && !state.reduceMotion && !document.hidden) {
@@ -1198,6 +1550,14 @@ function update() {
       if (m) flyToCounter(m.sx, m.sy, m.color);
     }
     if (prodMoteAccum > 8) prodMoteAccum = 0; // never bank a backlog
+    // readable passive-income float: every ~2.4s a "+N" rises off the creature so
+    // passive /sec is legible as an actual NUMBER, not just flowing motes.
+    prodFloatAccum += dt;
+    if (prodFloatAccum >= 2.4) {
+      const c = stageCenter();
+      spawnFloatNumber(c.x + (Math.random() * 70 - 35), c.y - 64, "+" + formatNumber(rate) + "/s", "passive");
+      prodFloatAccum = 0;
+    }
   }
 
   // Mitosis Engine node: auto-buy organelles (only when toggled on)
@@ -1291,8 +1651,11 @@ function update() {
     const c = stageCenter();
     burst(c.x, c.y, { count: 70, color: "#b88cff", spread: 220, up: 0, life: 1100 });
   }
-  // music intensity grows with total progress; stress = wall heartbeat; danger = boss
-  setMusicIntensity(Math.min(1, Math.log10((state.lifetimeBiomass || 0) + 10) / 16));
+  // music intensity grows with total progress, and SWELLS during a Bloom/Frenzy
+  // (any active production temp-buff) so catching a bloom has an audio payoff.
+  const nowMs = Date.now();
+  const frenzyOn = (state.tempBuffs || []).some((b) => (!b.expiresAt || b.expiresAt > nowMs) && (b.prodMult || 1) > 1);
+  setMusicIntensity(Math.min(1, Math.log10((state.lifetimeBiomass || 0) + 10) / 16 + (frenzyOn ? 0.3 : 0)));
   setMusicStress((pressure - 0.6) / 0.5);
   setMusicDanger(!!boss);
   if (state._auraN !== state.mutations.length) { state._auraN = state.mutations.length; updateAura(); }
@@ -1300,6 +1663,12 @@ function update() {
   renderCreature(visualDt, elapsed);
   updateJuice(visualDt);
   renderUI(rate, visualDt);
+  if (now - _unlockAt > 750) {
+    _unlockAt = now;
+    updateCoach(); updateLabCrew(); // button gating lives in ui.js
+    // ambient pond microbes multiply with colony size + macro-stage
+    setMicrobeCount(state.reduceMotion ? 0 : Math.min(54, Math.round(totalOwnedCount(state) * 0.12) + evolutionStage().index * 6 + (state.prestiges || 0)));
+  }
 
   // autosave every 15s
   sinceSave += dt;
@@ -1328,7 +1697,7 @@ window.addEventListener("beforeunload", save);
 // has no console cheat surface. Add ?debug=1 to the URL to enable it for testing.
 if (typeof window !== "undefined" &&
     new URLSearchParams(location.search).has("debug")) {
-  window.ML = { state, save, productionPerSecond };
+  window.ML = { state, save, productionPerSecond, spawnBloom, collectBloom, mutagenStorm, openDraft, backendOn, cloudPutSave, cloudGetSave, newSyncCode };
   console.log("[debug] window.ML enabled (cheat handle).");
 }
 

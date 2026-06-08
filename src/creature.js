@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { speciesTier } from "./data/tiers.js";
 import { EVO_STAGES } from "./data/stages.js";
 import { PATH_BY_ID } from "./data/paths.js";
+import { MODELS } from "./data/models.js";
 
 let renderer, scene, camera, organism, light;
 let canvas;
@@ -19,8 +20,11 @@ let raycaster, pointer;
 // mutation visuals
 let partsGroup;
 let sigGroup; // Evolution-Path signature parts (managed per stage)
+let anatomyGroup; // composite per-stage anatomy (silhouette-defining body parts)
+let modelGroup = null; // optional imported .glb model that replaces the procedural body
 let partIndex = 0;      // how many parts attached (also the anchor seed)
 let hueShift = 0;       // accumulates per mutation -> creature drifts color
+let stageColor = 0x66ffcc; // the body's base colour = current stage/path identity colour
 let stress = 0;         // 0..1 metabolic stress (near the production wall)
 let stressTarget = 0;
 let engorge = 0;        // transient swell from Digest
@@ -130,10 +134,27 @@ function bumpAt(n) {
     p.a1 * Math.sin(n.x * p.f1 + n.y * 2.0 + s) +
     p.a2 * Math.sin(n.y * p.f2 + n.z * 3.0 + s * 1.7) +
     p.a3 * Math.cos(n.z * p.f3 + n.x * 5.0 + s * 2.3);
-  if (p.lobe) b += p.lobe * Math.sin(n.y * p.lobeF + s) * Math.cos(n.x * p.lobeF * 0.8 + s);
+  // low-frequency organic asymmetry so the body looks grown, not a noisy ball
+  b += 0.07 * Math.sin(n.x * 1.5 + n.y * 1.1 + s * 0.6) + 0.05 * Math.cos(n.y * 1.3 - n.z * 1.7 + s);
+  // pronounced multi-lobe clustering (cells/colonies bulge into distinct lobes)
+  if (p.lobe) {
+    b += p.lobe * 1.4 * Math.sin(n.y * p.lobeF + s) * Math.cos(n.x * p.lobeF * 0.8 + s);
+    b += p.lobe * 0.6 * Math.sin(n.z * p.lobeF * 1.3 + s * 1.2);
+  }
+  // sharper, taller spikes that actually protrude (predator/void forms)
   if (p.spike) {
     const v = Math.sin(n.x * 7 + s) * Math.sin(n.y * 7 + s * 1.3) * Math.sin(n.z * 7 + s * 0.7);
-    b += p.spike * Math.pow(Math.max(0, v), 3);
+    b += p.spike * 1.6 * Math.pow(Math.max(0, v), 4);
+  }
+  // carnivore maw — carve a concave mouth into the front (+Z), equatorial band
+  if (p.maw) {
+    const front = Math.max(0, (n.z - 0.45) / 0.55);
+    b -= p.maw * front * Math.max(0, 1 - Math.abs(n.y) * 2.2);
+  }
+  // radial limbs — `limbCount` appendages bulging out around the equator
+  if (p.limbs) {
+    const lobes = Math.pow(Math.max(0, Math.cos(Math.atan2(n.z, n.x) * (p.limbCount || 5))), 6);
+    b += p.limbs * lobes * Math.max(0, 1 - Math.abs(n.y) * 1.8);
   }
   return b;
 }
@@ -189,6 +210,42 @@ function makeOrganismGeometry(detail = 3, radius = 1) {
   }
   geo.computeVertexNormals();
   return geo;
+}
+
+// Glowing nucleus + inner organelle motes — what makes the body read as a living
+// CELL instead of a low-poly rock. Additive, depth-test off, so they shine through
+// the membrane from within. Children of `organism` so they spin/scale with it.
+let nucleusCore, nucleusHalo, innerMotes;
+function buildNucleus() {
+  if (!organism || nucleusCore) return;
+  const coreMat = new THREE.MeshBasicMaterial({ color: 0xd6fff0, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+  nucleusCore = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), coreMat);
+  nucleusCore.renderOrder = 6;
+  const haloMat = new THREE.MeshBasicMaterial({ color: 0x66ffcc, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+  nucleusHalo = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 16), haloMat);
+  nucleusHalo.renderOrder = 5;
+  innerMotes = new THREE.Group(); innerMotes.renderOrder = 6;
+  const moteMat = new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+  for (let i = 0; i < 5; i++) {
+    const mote = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), moteMat);
+    mote.userData.r = 0.35 + Math.random() * 0.35;
+    mote.userData.a = Math.random() * 6.28;
+    mote.userData.b = Math.random() * 6.28;
+    mote.userData.s = 0.3 + Math.random() * 0.5;
+    innerMotes.add(mote);
+  }
+  organism.add(nucleusHalo); organism.add(nucleusCore); organism.add(innerMotes);
+}
+function updateNucleus(elapsed) {
+  if (!nucleusCore) return;
+  const p = reduceMotion ? 1 : 1 + Math.sin(elapsed * 2.2) * 0.12;
+  nucleusCore.scale.setScalar(p);
+  nucleusCore.material.opacity = 0.42 + (reduceMotion ? 0 : Math.sin(elapsed * 2.2) * 0.12);
+  if (nucleusHalo) nucleusHalo.scale.setScalar(1 + (reduceMotion ? 0 : Math.sin(elapsed * 1.6 + 1) * 0.08));
+  if (innerMotes && !reduceMotion) for (const m of innerMotes.children) {
+    const a = m.userData.a + elapsed * m.userData.s;
+    m.position.set(Math.cos(a) * m.userData.r, Math.sin(a * 0.8 + m.userData.b) * m.userData.r * 0.7, Math.sin(a) * m.userData.r);
+  }
 }
 
 // ---- Species Tier "ascension crown": orbiting glowing shards + halo rings that
@@ -255,10 +312,14 @@ export function setStage(idx, seed = 0, pathId = null) {
   rebuildBody();
   // colour identity: path colour if chosen, else the generic stage colour
   const col = p ? p.color : s.color;
+  stageColor = col;                             // the BODY takes this colour, not just the aura
+  applyHue();                                   // recolour the body to the new stage identity
   buildCrown(s.crown, s.rings, col);          // grandeur ladder (shards + rings)
   setAura(col, s.auraI);                        // glow + orbiting aura particles
   buildOrbiters(s.orbits, col);                 // detached organs / orbiting stars
   setStageParts(p, stageIndex, col);            // grow the path's signature anatomy
+  buildStageAnatomy(stageIndex, col);           // silhouette-defining body parts per stage
+  loadStageModel(s.id);                         // swap in an imported .glb for this stage if configured
   setPathHabitat(pathId, stageIndex);           // theme the WORLD to the lineage
   return true; // caller should re-seat parts (rebuildVisuals)
 }
@@ -291,6 +352,112 @@ function setStageParts(p, stage, col) {
     if (part.userData.seed === undefined) part.userData.seed = i * 1.7;
     part.scale.setScalar(0.0001);
     sigGroup.add(part);
+  }
+}
+
+// Optional imported model: if this stage has a .glb in data/models.js, load it
+// (lazily — GLTFLoader is only imported when actually needed) and use it as the
+// body, hiding the procedural mesh. Any failure falls back to procedural.
+async function loadStageModel(stageId) {
+  if (modelGroup) { organism.remove(modelGroup); modelGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); }); modelGroup = null; }
+  const url = MODELS[stageId];
+  if (!url) { if (organism) organism.material.visible = true; return; } // procedural body
+  try {
+    const { GLTFLoader } = await import("../vendor/GLTFLoader.js");
+    new GLTFLoader().load(url, (gltf) => {
+      if (!organism) return;
+      modelGroup = gltf.scene;
+      const box = new THREE.Box3().setFromObject(modelGroup), sz = new THREE.Vector3(), ctr = new THREE.Vector3();
+      box.getSize(sz); box.getCenter(ctr);
+      const s = 1.7 / Math.max(sz.x, sz.y, sz.z, 0.001);
+      modelGroup.scale.setScalar(s);
+      modelGroup.position.copy(ctr).multiplyScalar(-s);
+      organism.add(modelGroup);
+      organism.material.visible = false; // the imported model IS the body now
+    }, undefined, () => { if (organism) organism.material.visible = true; });
+  } catch (e) { if (organism) organism.material.visible = true; }
+}
+
+// Composite per-stage anatomy — the silhouette-defining parts that make each macro
+// stage a different CREATURE (budding colony, jawed predator, limbed apex, ringed
+// planetary, tendrilled cosmic), assembled from low-poly primitives in body space.
+function buildStageAnatomy(stage, colHex) {
+  if (!anatomyGroup) return;
+  while (anatomyGroup.children.length) {
+    const c = anatomyGroup.children[0]; anatomyGroup.remove(c);
+    c.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); });
+  }
+  const col = new THREE.Color(colHex);
+  const M = (emi = 0.35, rough = 0.45) => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: emi, roughness: rough, metalness: 0.12, flatShading: true });
+  // place a cone/cyl pointing along dir, base at the body surface
+  const radial = (geo, mat, dir, push, role, phase) => {
+    const m = new THREE.Mesh(geo, mat);
+    m.quaternion.setFromUnitVectors(UP, dir.clone().normalize());
+    m.position.copy(dir).normalize().multiplyScalar(push);
+    if (role) m.userData.anim = { type: role, phase: phase || 0, baseQ: m.quaternion.clone() };
+    anatomyGroup.add(m); return m;
+  };
+  if (stage === 1) { // COLONY — fused budding sub-cells (gently breathing)
+    const buds = [[0.95, 0.5, 0.3], [-0.75, 0.6, -0.4], [0.35, -0.75, 0.7], [-0.55, -0.45, 0.65], [0.7, 0.05, -0.85]];
+    buds.forEach(([x, y, z], i) => {
+      const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.46, 1), M(0.22, 0.5));
+      m.position.set(x, y, z); m.userData.anim = { type: "bud", phase: i * 1.3, base: 1 }; anatomyGroup.add(m);
+    });
+  } else if (stage === 2) { // PREDATOR — jaws (chew/bite) + tail (sway) + fin + teeth + eyes
+    const jaw = M(0.18, 0.4);
+    const up = new THREE.Mesh(new THREE.ConeGeometry(0.44, 0.85, 6), jaw); up.position.set(0, 0.2, 1.02); up.rotation.x = Math.PI / 2 - 0.32; up.userData.anim = { type: "jawU", base: up.rotation.x }; anatomyGroup.add(up);
+    const lo = new THREE.Mesh(new THREE.ConeGeometry(0.44, 0.85, 6), jaw); lo.position.set(0, -0.2, 1.02); lo.rotation.x = Math.PI / 2 + 0.32; lo.userData.anim = { type: "jawL", base: lo.rotation.x }; anatomyGroup.add(lo);
+    // teeth — small white cones ringing each jaw (children, so they move with the jaw)
+    const toothMat = new THREE.MeshStandardMaterial({ color: 0xfff4e0, roughness: 0.4, flatShading: true });
+    for (const jawMesh of [up, lo]) for (let k = 0; k < 5; k++) {
+      const t = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.2, 4), toothMat);
+      const ang = (k / 5) * Math.PI - Math.PI / 2;
+      t.position.set(Math.sin(ang) * 0.3, -0.38, Math.cos(ang) * 0.12); jawMesh.add(t);
+    }
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.5, 6), M(0.2, 0.5)); tail.position.set(0, 0, -1.05); tail.rotation.x = -Math.PI / 2; tail.userData.anim = { type: "tail" }; anatomyGroup.add(tail);
+    const fin = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.8, 3), M(0.3, 0.4)); fin.scale.set(0.16, 1, 1); fin.position.set(0, 1.0, -0.1); anatomyGroup.add(fin);
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffaa22, emissiveIntensity: 1.3, roughness: 0.3 });
+    for (const sx of [-0.34, 0.34]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 10), eyeMat); e.position.set(sx, 0.46, 0.72); anatomyGroup.add(e); }
+  } else if (stage === 3) { // APEX — radial clawed limbs (idle sway) + head
+    const N = 6;
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2;
+      const dir = new THREE.Vector3(Math.cos(a), -0.55, Math.sin(a));
+      radial(new THREE.CylinderGeometry(0.06, 0.17, 1.25, 6), M(0.16, 0.5), dir, 1.35, "limb", i * 1.1);
+      radial(new THREE.ConeGeometry(0.13, 0.32, 5), M(0.4, 0.3), dir, 2.0, "limb", i * 1.1);
+    }
+    const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.52, 1), M(0.28, 0.4)); head.position.set(0, 0.55, 0.95); anatomyGroup.add(head);
+  } else if (stage === 4) { // PLANETARY — orbital ring bands (slow counter-spin)
+    const r1 = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.07, 8, 56), M(0.6, 0.3)); r1.rotation.x = Math.PI * 0.44; r1.userData.anim = { type: "ring", spd: 0.25 }; anatomyGroup.add(r1);
+    const r2 = new THREE.Mesh(new THREE.TorusGeometry(1.98, 0.04, 8, 56), M(0.5, 0.3)); r2.rotation.x = Math.PI * 0.54; r2.rotation.z = 0.3; r2.userData.anim = { type: "ring", spd: -0.18 }; anatomyGroup.add(r2);
+  } else if (stage === 5) { // COSMIC — long radiant energy tendrils (undulating)
+    const N = 9;
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2;
+      const dir = new THREE.Vector3(Math.cos(a), Math.sin(i * 1.7) * 0.6, Math.sin(a));
+      radial(new THREE.ConeGeometry(0.09, 1.9, 5), M(0.9, 0.2), dir, 1.55, "tendril", i * 0.9);
+    }
+  }
+}
+// Animate the stage anatomy so each creature feels alive (jaws chew + snap on click,
+// tail sways, limbs/tendrils undulate, rings spin, buds breathe).
+let biteT = 0;
+export function creatureBite() { biteT = 1; } // jaws snap shut (call on click)
+function updateStageAnatomy(elapsed) {
+  if (!anatomyGroup) return;
+  if (biteT > 0) biteT = Math.max(0, biteT - 0.06);
+  const sway = reduceMotion ? 0 : 1;
+  for (const m of anatomyGroup.children) {
+    const a = m.userData.anim; if (!a) continue;
+    if (a.type === "jawU") m.rotation.x = a.base - (Math.sin(elapsed * 1.7) * 0.06 + 0.06) * sway - biteT * 0.5;
+    else if (a.type === "jawL") m.rotation.x = a.base + (Math.sin(elapsed * 1.7) * 0.06 + 0.06) * sway + biteT * 0.5;
+    else if (a.type === "tail") m.rotation.z = Math.sin(elapsed * 1.3) * 0.22 * sway;
+    else if (a.type === "ring") m.rotation.z += a.spd * 0.016 * sway;
+    else if (a.type === "bud") m.scale.setScalar(a.base + Math.sin(elapsed * 1.8 + a.phase) * 0.08 * sway);
+    else if (a.type === "limb" || a.type === "tendril") {
+      m.quaternion.copy(a.baseQ);
+      m.rotateX(Math.sin(elapsed * (a.type === "tendril" ? 2.2 : 1.5) + a.phase) * (a.type === "tendril" ? 0.18 : 0.1) * sway);
+    }
   }
 }
 
@@ -688,6 +855,7 @@ export function initCreature(canvasEl, onClick) {
   });
   organism = new THREE.Mesh(geo, mat);
   scene.add(organism);
+  buildNucleus(); // glowing nucleus + inner motes → reads as a living cell
 
   buildHabitat();
 
@@ -698,6 +866,10 @@ export function initCreature(canvasEl, onClick) {
   // group so they're managed by stage/path without touching mutation parts
   sigGroup = new THREE.Group();
   organism.add(sigGroup);
+  // composite per-stage anatomy (jaw/tail/limbs/tendrils) — what makes each macro
+  // stage a genuinely different SILHOUETTE, not just a recoloured sphere
+  anatomyGroup = new THREE.Group();
+  organism.add(anatomyGroup);
   applyHue();
 
   // click + drag-to-orbit handling
@@ -897,6 +1069,8 @@ export function renderCreature(dt, elapsed) {
   updateTierCrown(dt, elapsed);
   updateOrbiters(dt, elapsed);
   updateSwarm(dt, elapsed);
+  updateNucleus(elapsed);
+  updateStageAnatomy(elapsed);
   updateAuraParticles(elapsed);
   updateVeins(elapsed);
   if (skinShellMat) skinShellMat.uniforms.uTime.value = elapsed;
@@ -907,9 +1081,17 @@ export function renderCreature(dt, elapsed) {
 // ---- mutation visuals ----
 function applyHue() {
   if (!organism) return;
-  const h = (skin.h + hueShift) % 1;
-  organism.material.color.setHSL(h, skin.s, skin.l);
-  organism.material.emissive.setHSL(h, skin.s, 0.12);
+  // Body colour = the current stage/path identity colour (so each stage looks
+  // different), drifted by accumulated mutations. (Equip a skin to override the hue.)
+  const sc = {}; new THREE.Color(stageColor).getHSL(sc);
+  const useSkin = Math.abs(skin.h - 0.42) > 0.001; // a non-default skin was equipped
+  const baseH = useSkin ? skin.h : sc.h;
+  const sat = useSkin ? skin.s : Math.max(0.5, sc.s);
+  const h = (baseH + hueShift) % 1;
+  organism.material.color.setHSL(h, sat, skin.l);
+  organism.material.emissive.setHSL(h, sat, 0.14);
+  // keep the bioluminescent rim-glow in sync with the body hue (brighter membrane)
+  if (rimMat) rimMat.uniforms.uColor.value.setHSL(h, Math.min(1, sat + 0.1), Math.min(0.85, skin.l + 0.3));
 }
 
 const glossy = (color, extra = {}) =>
@@ -1352,7 +1534,7 @@ function updateAuraParticles(elapsed) {
 // ---- Graphics quality: trade premium effects for framerate ----
 const QUALITY_PRESETS = {
   low:    { pixelRatio: 1.0,  maxParts: 12, motes: 14, aura: 0,  env: false, rim: false, veins: false },
-  medium: { pixelRatio: 1.25, maxParts: 18, motes: 30, aura: 26, env: false, rim: false, veins: true },
+  medium: { pixelRatio: 1.25, maxParts: 18, motes: 30, aura: 26, env: false, rim: true, veins: true },
   high:   { pixelRatio: 1.75, maxParts: 28, motes: 60, aura: 54, env: true,  rim: true,  veins: true },
 };
 let QUALITY = QUALITY_PRESETS.medium;
@@ -1469,7 +1651,7 @@ function applyRim(on) {
   if (on && !rimMesh) {
     rimMat = new THREE.ShaderMaterial({
       transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
-      uniforms: { uColor: { value: new THREE.Color(0x66ffcc) }, uPower: { value: 2.6 }, uIntensity: { value: 0.6 } },
+      uniforms: { uColor: { value: new THREE.Color(0x66ffcc) }, uPower: { value: 2.3 }, uIntensity: { value: 0.8 } },
       vertexShader: `varying vec3 vN; varying vec3 vView;
         void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); vView = normalize(-mv.xyz);
         vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * mv; }`,
@@ -1479,6 +1661,7 @@ function applyRim(on) {
     });
     rimMesh = new THREE.Mesh(organism.geometry, rimMat);
     organism.add(rimMesh);
+    applyHue(); // tint the fresh rim to the current body hue
   } else if (!on && rimMesh) {
     organism.remove(rimMesh);
     if (rimMat) rimMat.dispose();
@@ -1529,6 +1712,110 @@ export function exportPhoto(name, subtitle, scaleRef) {
     ctx.fillText(subtitle, W / 2, H - Math.round(H * 0.04));
   }
   return out.toDataURL("image/png");
+}
+
+// Render a SPECIMEN CARD: the creature photo + a composited build panel (name,
+// archetype, build score, top mutations, DNA code). This is the viral share asset
+// — a portrait of the monster you made, not a bare save string. Returns a data URL.
+// data = { name, archetype:{name,kind}, score, lines:[..], muts:[{name,rarity}],
+//          dna, scaleRef }
+const RARITY_COL = { common: "#9fb3c8", rare: "#5aa0ff", legendary: "#ffd76b" };
+const KIND_COL = { set: "#ff7ac0", legendary: "#ffd76b", synergy: "#b88cff", path: "#5aa0ff", part: "#56e39f", none: "#7e93a8" };
+export function exportSpecimenCard(data) {
+  if (!renderer) return null;
+  renderer.render(scene, camera);
+  const src = renderer.domElement;
+  const W = src.width, H = src.height;
+  const out = document.createElement("canvas");
+  out.width = W; out.height = H;
+  const ctx = out.getContext("2d");
+  const U = W / 1000; // scale unit so sizes are resolution-independent
+  // backdrop + creature
+  const grad = ctx.createRadialGradient(W * 0.5, H * 0.38, 0, W * 0.5, H * 0.5, W * 0.72);
+  grad.addColorStop(0, "#16202c"); grad.addColorStop(1, "#0a0e13");
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(src, 0, 0, W, H);
+
+  // optional scale-reference badge (top-left)
+  if (data.scaleRef) {
+    const pad = 22 * U, eS = 46 * U;
+    ctx.textAlign = "left"; ctx.shadowColor = "rgba(0,0,0,.85)"; ctx.shadowBlur = 10 * U;
+    ctx.font = `${eS}px 'Segoe UI Emoji', sans-serif`; ctx.fillStyle = "#fff";
+    ctx.fillText(data.scaleRef.e, pad, pad + eS);
+    ctx.fillStyle = "#e8f0f7"; ctx.font = `bold ${20 * U}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.fillText(data.scaleRef.b, pad + eS + 12 * U, pad + 24 * U);
+    ctx.fillStyle = "#7e93a8"; ctx.font = `${14 * U}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.fillText(`specimen size · ${data.scaleRef.s}`, pad + eS + 12 * U, pad + 44 * U);
+    ctx.shadowBlur = 0;
+  }
+
+  // bottom build panel (gradient scrim so text is readable over the render)
+  const panelH = H * 0.34, py = H - panelH;
+  const sg = ctx.createLinearGradient(0, py, 0, H);
+  sg.addColorStop(0, "rgba(8,12,18,0)"); sg.addColorStop(0.35, "rgba(8,12,18,.82)"); sg.addColorStop(1, "rgba(8,12,18,.96)");
+  ctx.fillStyle = sg; ctx.fillRect(0, py, W, panelH);
+  const pad = 34 * U;
+  let ty = py + 56 * U;
+
+  // creature name
+  ctx.textAlign = "left"; ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 8 * U;
+  ctx.fillStyle = "#eaf3fb"; ctx.font = `800 ${42 * U}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.fillText(data.name || "Unknown Specimen", pad, ty);
+
+  // archetype pill (under the name)
+  ty += 34 * U;
+  if (data.archetype) {
+    const col = KIND_COL[data.archetype.kind] || "#56e39f";
+    ctx.font = `700 ${19 * U}px 'Segoe UI', system-ui, sans-serif`;
+    const label = (data.archetype.kind === "legendary" ? "★ " : "") + data.archetype.name;
+    const tw = ctx.measureText(label).width;
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(255,255,255,.06)";
+    roundRect(ctx, pad, ty - 20 * U, tw + 28 * U, 30 * U, 15 * U); ctx.fill();
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5 * U; roundRect(ctx, pad, ty - 20 * U, tw + 28 * U, 30 * U, 15 * U); ctx.stroke();
+    ctx.fillStyle = col; ctx.fillText(label, pad + 14 * U, ty + 1 * U);
+  }
+
+  // info lines (muted)
+  ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = 5 * U;
+  ctx.fillStyle = "#9fb3c8"; ctx.font = `${17 * U}px 'Segoe UI', system-ui, sans-serif`;
+  ty += 40 * U;
+  for (const line of (data.lines || []).slice(0, 4)) { ctx.fillText(line, pad, ty); ty += 25 * U; }
+
+  // top mutation chips (wrap across the panel width)
+  if (data.muts && data.muts.length) {
+    let cx = pad, cy = ty + 6 * U;
+    ctx.font = `600 ${15 * U}px 'Segoe UI', system-ui, sans-serif`;
+    for (const mu of data.muts.slice(0, 6)) {
+      const col = RARITY_COL[mu.rarity] || "#9fb3c8";
+      const w = ctx.measureText(mu.name).width + 24 * U;
+      if (cx + w > W - pad) break;
+      ctx.shadowBlur = 0; ctx.fillStyle = col + "22"; roundRect(ctx, cx, cy - 17 * U, w, 26 * U, 13 * U); ctx.fill();
+      ctx.fillStyle = col; ctx.fillText(mu.name, cx + 12 * U, cy + 1 * U);
+      cx += w + 8 * U;
+    }
+  }
+
+  // build score (big, bottom-right)
+  if (data.score != null) {
+    ctx.textAlign = "right"; ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 8 * U;
+    ctx.fillStyle = "#7e93a8"; ctx.font = `700 ${16 * U}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.fillText("BUILD SCORE", W - pad, py + 40 * U);
+    ctx.fillStyle = "#ffd76b"; ctx.font = `900 ${56 * U}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.fillText(String(data.score), W - pad, py + 96 * U);
+  }
+
+  // wordmark + DNA code (very bottom-right, subtle)
+  ctx.textAlign = "right"; ctx.shadowBlur = 0;
+  ctx.fillStyle = "#56e39f"; ctx.font = `800 ${15 * U}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.fillText("🧬 MUTATION LAB", W - pad, H - 18 * U);
+  if (data.dna) { ctx.fillStyle = "#5a6b7d"; ctx.font = `${11 * U}px monospace`; ctx.fillText(data.dna.slice(0, 42), W - pad, H - 36 * U); }
+  return out.toDataURL("image/png");
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
 
 // Clear all mutation parts (used on Speciate — new lineage starts bald).
