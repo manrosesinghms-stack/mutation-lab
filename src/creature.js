@@ -813,6 +813,185 @@ function updateScenery(dt, elapsed) {
   }
 }
 
+// ===========================================================================
+// THE JOURNEY HABITAT — each Journey location is a visibly distinct PLACE built
+// from primitives (no art assets). Entering "Laboratory" shows glass tanks +
+// equipment; "Bio Dome" shows a dome + vegetation; "Living Planet" shows the
+// curvature of a world. This is what proves the Journey is real, not a bar.
+// ===========================================================================
+let journeyGroup, journeyIdx = -1;
+const _glass = (color, opacity = 0.12, side = THREE.DoubleSide) => new THREE.MeshStandardMaterial({
+  color, transparent: true, opacity, roughness: 0.05, metalness: 0.3, side,
+  emissive: color, emissiveIntensity: 0.08, depthWrite: false });
+const _solid = (color, emi = 0x000000, ei = 0, rough = 0.6, metal = 0.2) => new THREE.MeshStandardMaterial({
+  color, emissive: emi, emissiveIntensity: ei, roughness: rough, metalness: metal, flatShading: true });
+const _glow = (color, ei = 1.2) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: ei, roughness: 0.3 });
+
+// per-location atmosphere: fog tint + ambient mote colour/count
+const JOURNEY_ENV = [
+  { fog: 0x0a1a16, mote: 0x9affd8, motes: 22 }, // 0 Petri Dish
+  { fog: 0x06283a, mote: 0x6fd6ff, motes: 50 }, // 1 Aquarium
+  { fog: 0x0b1822, mote: 0x8fe0ff, motes: 28 }, // 2 Laboratory
+  { fog: 0x0a1420, mote: 0x7fb0ff, motes: 32 }, // 3 Research Facility
+  { fog: 0x0a2012, mote: 0x9be36b, motes: 40 }, // 4 Bio Dome
+  { fog: 0x1d0f08, mote: 0xff9a4d, motes: 38 }, // 5 Planetary Ecosystem
+  { fog: 0x081428, mote: 0x8ab4ff, motes: 44 }, // 6 Living Planet
+  { fog: 0x0d0820, mote: 0xc69cff, motes: 60 }, // 7 Cosmic Organism
+];
+
+// Build the scenery for a Journey location into journeyGroup.
+function buildJourneyScenery(idx) {
+  if (!scene) return;
+  if (!journeyGroup) { journeyGroup = new THREE.Group(); scene.add(journeyGroup); }
+  while (journeyGroup.children.length) {
+    const c = journeyGroup.children[0];
+    journeyGroup.remove(c);
+    c.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); });
+  }
+  const lowQ = QUALITY && QUALITY.maxParts <= 12;
+  const G = journeyGroup;
+  const FLOOR = -2.35;
+
+  if (idx <= 0) {
+    // PETRI DISH — a wide shallow glass dish the cell sits in
+    const dish = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.9, 0.18, 44), _glass(0x9affd8, 0.10));
+    dish.position.y = FLOOR; G.add(dish);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(3.7, 0.07, 8, 50), _glass(0xcafff0, 0.5));
+    rim.rotation.x = Math.PI / 2; rim.position.y = FLOOR + 0.16; G.add(rim);
+  } else if (idx === 1) {
+    // AQUARIUM — a glass tank with a metal frame and a water surface
+    const tank = new THREE.Mesh(new THREE.BoxGeometry(8, 8, 8), _glass(0x6fd6ff, 0.05, THREE.BackSide));
+    tank.position.y = 1.6; G.add(tank);
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 7.6), _glass(0x9fe8ff, 0.16));
+    water.rotation.x = -Math.PI / 2; water.position.y = 4.0; water.userData.water = true; G.add(water);
+    const fr = _solid(0x2a4456, 0x000000, 0, 0.4, 0.7);
+    for (const sx of [-4, 4]) for (const sz of [-4, 4]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 8, 6), fr);
+      post.position.set(sx, 1.6, sz); G.add(post);
+    }
+  } else if (idx === 2) {
+    // LABORATORY — specimen jars flanking, a screen behind, a robotic arm
+    for (const sx of [-3.4, 3.4]) {
+      const jar = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 2.0, 18, 1, true), _glass(0x8fe0ff, 0.14));
+      jar.position.set(sx, FLOOR + 1.0, -0.5); G.add(jar);
+      const fluid = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 1.5, 16), _glass(0x39d0c6, 0.32));
+      fluid.position.set(sx, FLOOR + 0.85, -0.5); G.add(fluid);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.66, 0.12, 18), _solid(0x33424d, 0, 0, 0.4, 0.7));
+      cap.position.set(sx, FLOOR + 2.05, -0.5); G.add(cap);
+    }
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.4), _glow(0x1b6fa8, 0.9));
+    screen.position.set(0, FLOOR + 2.4, -3.6); G.add(screen);
+    const screenFrame = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.6, 0.08), _solid(0x222d35, 0, 0, 0.4, 0.6));
+    screenFrame.position.set(0, FLOOR + 2.4, -3.66); G.add(screenFrame);
+    if (!lowQ) { // a little robotic arm that bobs toward the specimen
+      const arm = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 0.4, 10), _solid(0x44525c, 0, 0, 0.3, 0.8));
+      const seg1 = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.5, 0.14), _solid(0xd8a23a, 0, 0, 0.3, 0.7)); seg1.position.y = 0.95; seg1.rotation.z = -0.5;
+      const seg2 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.2, 0.12), _solid(0xd8a23a, 0, 0, 0.3, 0.7)); seg2.position.set(-0.6, 1.7, 0); seg2.rotation.z = 0.7;
+      const claw = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.3, 6), _glow(0x7be3ff, 0.8)); claw.position.set(-1.05, 1.35, 0); claw.rotation.z = Math.PI;
+      arm.add(base, seg1, seg2, claw);
+      arm.position.set(4.0, FLOOR, 1.2); arm.userData.arm = true; G.add(arm);
+    }
+  } else if (idx === 3) {
+    // RESEARCH FACILITY — grid floor, a row of tanks, hovering drones
+    const grid = new THREE.GridHelper(16, 16, 0x2a5a7a, 0x16303f);
+    grid.position.y = FLOOR; grid.material.transparent = true; grid.material.opacity = 0.4; G.add(grid);
+    for (let i = -2; i <= 2; i++) {
+      const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.6, 14, 1, true), _glass(0x7fb0ff, 0.12));
+      tank.position.set(i * 2.0, FLOOR + 0.8, -4.2); G.add(tank);
+      const f = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 1.1, 12), _glass(0x4a7adf, 0.3));
+      f.position.set(i * 2.0, FLOOR + 0.65, -4.2); G.add(f);
+    }
+    if (!lowQ) for (let i = 0; i < 3; i++) {
+      const drone = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), _solid(0x33424d, 0x7be3ff, 0.3, 0.3, 0.7));
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), _glow(0xff5a6a, 1.5)); eye.position.z = 0.2;
+      drone.add(body, eye);
+      drone.position.set((i - 1) * 2.6, FLOOR + 2.6 + i * 0.3, 1.5);
+      drone.userData.drone = i; G.add(drone);
+    }
+  } else if (idx === 4) {
+    // BIO DOME — a glass dome over a ring of vegetation
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(5.5, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2), _glass(0x9be36b, 0.05, THREE.BackSide));
+    dome.position.y = FLOOR; dome.userData.dome = true; G.add(dome);
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(5.4, 32), _solid(0x14331c, 0x0a1f10, 0.3, 0.9, 0));
+    ground.rotation.x = -Math.PI / 2; ground.position.y = FLOOR + 0.01; G.add(ground);
+    const n = lowQ ? 6 : 11;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2, r = 2.6 + srand(i) * 2.2;
+      const tree = new THREE.Group();
+      const h = 0.8 + srand(i + 3) * 1.4;
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, h, 6), _solid(0x5a3a22, 0, 0, 0.8, 0)); trunk.position.y = h / 2;
+      const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.4 + srand(i) * 0.3, 1.0 + srand(i + 1), 6), _solid(0x4caf50, 0x143a18, 0.4, 0.7, 0)); leaf.position.y = h + 0.3;
+      tree.add(trunk, leaf);
+      tree.position.set(Math.cos(a) * r, FLOOR, Math.sin(a) * r); G.add(tree);
+    }
+  } else if (idx === 5) {
+    // PLANETARY ECOSYSTEM — a curved terrain horizon with rocky spires
+    const terr = new THREE.Mesh(new THREE.SphereGeometry(14, 32, 24), _solid(0x3a2418, 0x1a0e06, 0.25, 1, 0));
+    terr.position.y = FLOOR - 13.4; terr.userData.spin = 0.01; G.add(terr);
+    const n = lowQ ? 5 : 10;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + srand(i), r = 3.0 + srand(i + 7) * 3.0;
+      const h = 1.2 + srand(i + 2) * 2.4;
+      const rock = new THREE.Mesh(new THREE.ConeGeometry(0.4 + srand(i) * 0.4, h, 5), _solid(0x6b4a30, 0x2a1505, 0.3, 0.9, 0));
+      rock.position.set(Math.cos(a) * r, FLOOR + h / 2 - 0.3, Math.sin(a) * r);
+      rock.rotation.z = (srand(i + 5) - 0.5) * 0.3; G.add(rock);
+    }
+  } else if (idx === 6) {
+    // LIVING PLANET — the curvature of a world below, an atmosphere rim, clouds
+    const planet = new THREE.Mesh(new THREE.SphereGeometry(11, 40, 28), _solid(0x14406b, 0x0a2a4a, 0.35, 0.9, 0));
+    planet.position.y = FLOOR - 10.2; planet.userData.spin = 0.015; G.add(planet);
+    const atmo = new THREE.Mesh(new THREE.SphereGeometry(11.7, 32, 24), _glass(0x6fb0ff, 0.10, THREE.BackSide));
+    atmo.position.copy(planet.position); G.add(atmo);
+    if (!lowQ) for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2 + srand(i), r = 4 + srand(i) * 3;
+      const cloud = new THREE.Mesh(new THREE.SphereGeometry(0.7 + srand(i) * 0.6, 8, 6), _glass(0xffffff, 0.22));
+      cloud.scale.set(1.8, 0.5, 1); cloud.position.set(Math.cos(a) * r, FLOOR + 0.6 + srand(i + 2) * 1.5, Math.sin(a) * r);
+      cloud.userData.cloud = a; G.add(cloud);
+    }
+  } else {
+    // COSMIC ORGANISM — orbital rings + a faint nebula shell around the being
+    for (let k = 0; k < 3; k++) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(3.2 + k * 0.9, 0.025 + k * 0.01, 8, 80), _glow([0xc69cff, 0x7be3ff, 0xff8ad0][k], 1.1));
+      ring.rotation.x = Math.PI * (0.42 + k * 0.06); ring.rotation.z = k * 0.4;
+      ring.userData.ring = (k % 2 ? -1 : 1) * (0.12 + k * 0.05); G.add(ring);
+    }
+    const neb = new THREE.Mesh(new THREE.SphereGeometry(9, 24, 18), _glass(0x6a3ad0, 0.05, THREE.BackSide)); G.add(neb);
+  }
+}
+
+// Public: swap the world to a Journey location index (idempotent per index).
+export function setJourneyHabitat(index) {
+  const i = Math.max(0, Math.min(JOURNEY_ENV.length - 1, index | 0));
+  if (i === journeyIdx) return;
+  journeyIdx = i;
+  const env = JOURNEY_ENV[i];
+  if (scene && scene.fog) scene.fog.color.setHex(env.fog);
+  if (motes) motes.material.color.setHex(env.mote);
+  rebuildMotes(env.motes);
+  buildJourneyScenery(i);
+}
+
+function updateJourneyScenery(dt, elapsed) {
+  if (!journeyGroup) return;
+  // Scale the whole scenery set with the creature's growth so it stays framed at
+  // any camera zoom (the camera dollies back as the creature grows — without this
+  // the props fall outside the FOV early and behind the creature late).
+  const s = Math.max(0.7, currentScale);
+  journeyGroup.scale.setScalar(s);
+  for (const o of journeyGroup.children) {
+    const u = o.userData;
+    if (u.spin) o.rotation.y += dt * u.spin;
+    if (u.dome && !reduceMotion) o.rotation.y += dt * 0.03;
+    if (u.ring) o.rotation.z += dt * u.ring;
+    if (u.drone !== undefined && !reduceMotion) { o.position.y += Math.sin(elapsed * 1.5 + u.drone * 2) * dt * 0.4; o.rotation.y += dt * 0.6; }
+    if (u.cloud !== undefined && !reduceMotion) { o.position.x = Math.cos(u.cloud + elapsed * 0.05) * 5; o.position.z = Math.sin(u.cloud + elapsed * 0.05) * 5; }
+    if (u.arm !== undefined && !reduceMotion) o.rotation.y = Math.sin(elapsed * 0.6) * 0.3;
+    if (u.water && !reduceMotion) o.material.opacity = 0.12 + Math.abs(Math.sin(elapsed * 0.8)) * 0.08;
+  }
+}
+
 export function initCreature(canvasEl, onClick) {
   canvas = canvasEl;
   onClickCb = onClick;
@@ -1066,6 +1245,7 @@ export function renderCreature(dt, elapsed) {
 
   updateHabitat(dt, elapsed);
   updateScenery(dt, elapsed);
+  updateJourneyScenery(dt, elapsed);
   updateTierCrown(dt, elapsed);
   updateOrbiters(dt, elapsed);
   updateSwarm(dt, elapsed);

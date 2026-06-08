@@ -71,6 +71,18 @@ export function setWorldStage(idx) {
   if (THEMES[id] && id !== themeId) { themeId = id; seed(); }
 }
 
+// One backdrop per JOURNEY location (indices match data/journey.js). The fullscreen
+// backdrop is the most reliable "the world changed" signal — it can't be occluded
+// by the creature like 3D props can. Adjacent locations use different themes so
+// every advance is visibly felt. 8 locations:
+// Petri Dish, Aquarium, Laboratory, Research Facility, Bio Dome,
+// Planetary Ecosystem, Living Planet, Cosmic Organism
+const JOURNEY_THEMES = ["aurora", "abyss", "aurora", "cosmos", "meadow", "ember", "cosmos", "voidd"];
+export function setJourneyStage(idx) {
+  const id = JOURNEY_THEMES[Math.max(0, Math.min(JOURNEY_THEMES.length - 1, idx | 0))];
+  if (THEMES[id] && id !== themeId) { themeId = id; seed(); }
+}
+
 // ---- WebGL nebula: a real animated, domain-warped fractal-noise backdrop drawn
 // on its own canvas behind the 2D decor. This is the "actual graphics, not just
 // colours" layer; it's tinted live by the current world palette. Falls back to the

@@ -7,6 +7,7 @@ import {
   buyN,
   sellGenerator,
   productionPerSecond,
+  journeyProgress,
   effectiveClickPower,
   addBiomass,
   applyOfflineProgress,
@@ -102,6 +103,7 @@ import {
   setSkin,
   setAura,
   setHabitat,
+  setJourneyHabitat,
   setSpeciesTier,
   setBodyShape,
   setQuality,
@@ -132,7 +134,7 @@ import * as audio from "./audio.js";
 import { startMusic, setMusicIntensity, setMusicVolume, setMusicTheme, hasTheme, setMusicStress, setMusicDanger } from "./music.js";
 import { initCinematic, playCinematic } from "./cinematic.js";
 import { initJuice, burst, shake, updateJuice, flash, setShakeScale, setJuiceReduceMotion, ripple, flyToCounter } from "./juice.js";
-import { initBackground, renderBackground, setBackground, setWorldStage, hasBackground, resizeBackground, setBackgroundReduceMotion, setDnaStorm, setMicrobeCount } from "./background.js";
+import { initBackground, renderBackground, setBackground, setWorldStage, setJourneyStage, hasBackground, resizeBackground, setBackgroundReduceMotion, setDnaStorm, setMicrobeCount } from "./background.js";
 
 // screen-center of the 3D stage, for big bursts
 function stageCenter() {
@@ -835,11 +837,12 @@ if (!hasBackground(state.background)) state.background = "world"; // default: ba
 // Apply the backdrop: "world" = stage-driven escalation, anything else = locked theme.
 let _lastWorldStage = -1;
 function applyWorld() {
-  if ((state.background || "world") === "world") { _lastWorldStage = evolutionStage().index; setWorldStage(_lastWorldStage); }
+  if ((state.background || "world") === "world") { _lastWorldStage = journeyProgress().index; setJourneyStage(_lastWorldStage); }
   else setBackground(state.background);
 }
 applyWorld();
 setHabitat(state.biome); // theme the 3D habitat to the run's biome
+setJourneyHabitat(journeyProgress().index); // build the Journey-location world on boot
 setVariant(state.variant); // apply any rare run variant
 applyCreatureSkin();       // base body = cosmetic skin, else current species tier
 // (crown/aura/orbiters already restored by setStage() above — driven by permanent rank)
@@ -1533,11 +1536,11 @@ function update() {
   if (rate > 0) addBiomass(rate * dt);
   drainLeeches(rate, dt); // parasites skim production into themselves
   updateDrifters(dt); // ambient clickable visitors floating across the pond
-  // "Living World": the backdrop escalates the moment your evolution stage changes
-  // (micro pond → ocean → planet → cosmos), so the world grows around the creature.
+  // "Living World": the backdrop tracks the JOURNEY location (what's on the ribbon),
+  // so the world visibly changes the moment you advance Petri Dish → Aquarium → … .
   if ((state.background || "world") === "world") {
-    const sIdx = evolutionStage().index;
-    if (sIdx !== _lastWorldStage) { _lastWorldStage = sIdx; setWorldStage(sIdx); }
+    const sIdx = journeyProgress().index;
+    if (sIdx !== _lastWorldStage) { _lastWorldStage = sIdx; setJourneyStage(sIdx); }
   }
   // working producers: organelles fire biomass motes into the counter, denser as
   // /sec grows — so you SEE production happening (Cookie-Clicker cookies-flowing).
@@ -1665,6 +1668,11 @@ function update() {
   renderUI(rate, visualDt);
   if (now - _unlockAt > 750) {
     _unlockAt = now;
+    const _ji = journeyProgress().index;
+    setJourneyHabitat(_ji); // swap the 3D WORLD to match the Journey location
+    if ((state.background || "world") === "world" && _ji !== _lastWorldStage) {
+      _lastWorldStage = _ji; setJourneyStage(_ji); // backdrop theme tracks the Journey too
+    }
     updateCoach(); updateLabCrew(); // button gating lives in ui.js
     // ambient pond microbes multiply with colony size + macro-stage
     setMicrobeCount(state.reduceMotion ? 0 : Math.min(54, Math.round(totalOwnedCount(state) * 0.12) + evolutionStage().index * 6 + (state.prestiges || 0)));
