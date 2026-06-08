@@ -1,9 +1,9 @@
 name: Deploy Mutation Lab to GitHub Pages
-# Manual-only: GitHub Pages must first be enabled (Settings → Pages → Source:
-# "GitHub Actions"), which on the free plan requires a public repo. Once enabled,
-# run this from the Actions tab (or ask Claude to trigger it). Kept off push/PR so
-# it never reports a red check before a Pages site exists.
+# Auto-deploys on every push to master (Pages is enabled + public), plus a manual
+# trigger from the Actions tab. Every change to the game goes live within ~1 min.
 on:
+  push:
+    branches: [master]
   workflow_dispatch:
 permissions:
   contents: read
